@@ -69,7 +69,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   try {
     const { tab } = sender;
     const [type, payload] = request as [string, any];
-    console.log(`%c${type}`, "color:lime;", { url: tab?.url, payload });
+    console.log(`%c${type}`, "color:lime;", { url: tab?.url }, payload);
     if (sender.url !== tab?.url) {
       console.log(`%cinfo`, "color:yellow;", "sender URL and tab URL differ. probably iframe");
     }

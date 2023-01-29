@@ -16,5 +16,7 @@
     "vite": "^4.0.4",
     "vite-plugin-chrome-extension": "0.0.7"
   },
-  "dependencies": {}
+  "dependencies": {
+    "@mozilla/readability": "~0.4.2"
+  }
 }
