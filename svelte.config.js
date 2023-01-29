@@ -1,5 +1,5 @@
 import preprocess from "svelte-preprocess";
-import adapter from "@sveltejs/adapter-auto";
+import adapter from "sveltekit-adapter-chrome-extension";
 import { vitePreprocess } from "@sveltejs/kit/vite";
 
 /** @type {import('@sveltejs/kit').Config} */
@@ -14,8 +14,11 @@ const config = {
   ],
 
   kit: {
+    // See https://github.com/michmich112/sveltekit-adapter-chrome-extension
     adapter: adapter(),
   },
+
+  appDir: "app",
 };
 
 export default config;
