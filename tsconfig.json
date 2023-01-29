@@ -3,6 +3,7 @@
     "target": "esnext",
     "module": "esnext",
     "moduleResolution": "node",
+    "useUnknownInCatchVariables": false,
     "strict": true,
     "sourceMap": true,
     "resolveJsonModule": true,
