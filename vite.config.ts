@@ -8,5 +8,6 @@ export default defineConfig({
       input: "src/manifest.json",
     },
   },
+  // @ts-expect-error - vite-plugin-chrome-extension is poorly typed?
   plugins: [chromeExtension()],
 });

@@ -4,16 +4,16 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "vite build --watch",
+    "//dev": "vite build -w was failing",
+    "dev": "watchexec -w src/ yarn vite build",
     "build": "vite build"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "@types/chrome": "0.0.134",
-    "rollup-plugin-probe": "0.0.5",
-    "vite": "^2.2.0",
+    "@types/chrome": "~0.0.210",
+    "vite": "^4.0.4",
     "vite-plugin-chrome-extension": "0.0.7"
   },
   "dependencies": {}
