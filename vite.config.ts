@@ -1,11 +1,12 @@
-import { sveltekit } from '@sveltejs/kit/vite';
-import type { UserConfig } from 'vite';
+import { defineConfig } from "vite";
+import { chromeExtension } from "vite-plugin-chrome-extension";
 
-const config: UserConfig = {
-	plugins: [sveltekit()],
-	test: {
-		include: ['src/**/*.{test,spec}.{js,ts}']
-	}
-};
-
-export default config;
+// https://vitejs.dev/config/
+export default defineConfig({
+  build: {
+    rollupOptions: {
+      input: "src/manifest.json",
+    },
+  },
+  plugins: [chromeExtension()],
+});
