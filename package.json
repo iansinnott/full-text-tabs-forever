@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "dev": "vite build --watch",
     "build": "vite build"
   },
   "keywords": [],

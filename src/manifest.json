@@ -1,23 +1,27 @@
 {
-    "name": "Advanced Service Worker",
-    "version": "1.0",
+    "$schema": "https://json.schemastore.org/chrome-manifest",
+    "name": "Full Text Tabs Forever",
+    "description": "A browser extension made with Svelte Kit",
+    "version": "1.0.0",
     "manifest_version": 3,
-    "background": {
-        "service_worker": "background.ts"
-    },
-    "content_scripts": [
-        {
-            "js": [
-                "content-scripts/content-script.ts"
-            ],
-            "matches": [
-                "<all_urls>"
-            ]
-        }
-    ],
-    "action": {},
     "permissions": [
         "scripting",
         "activeTab"
+    ],
+    "background": {
+        "service_worker": "background.ts"
+    },
+    "host_permissions": [
+        "<all_urls>"
+    ],
+    "content_scripts": [
+        {
+            "matches": [
+                "<all_urls>"
+            ],
+            "js": [
+                "content-scripts/content-script.ts"
+            ]
+        }
     ]
 }
