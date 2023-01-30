@@ -1,6 +1,14 @@
-import { greetings } from "../common/const";
+import browser from "webextension-polyfill";
 import { log } from "../common/logs";
 import { Readability } from "@mozilla/readability";
+
+const rpc = async (message: [method:string, payload: any]) => {
+  return browser.runtime.sendMessage(message);
+};
+
+document.body.addEventListener("click", async (e) => {
+  console.log("click res", await rpc(["click", String(e.currentTarget)]));
+});
 
 const detectDate = () => {
   let date: string | null = null;
@@ -29,7 +37,7 @@ const detectDate = () => {
 const main = async () => {
   log("Ping...");
 
-  const res = await chrome.runtime.sendMessage([
+  const res = await rpc([
     "getPageStatus",
     {
       url: window.location.href,
@@ -64,7 +72,7 @@ const main = async () => {
   });
 
   // @todo This is just a standin
-  await chrome.runtime.sendMessage(["indexPage", { ...rest, date }]);
+  await rpc(["indexPage", { ...rest, date }]);
 };
 
 // Plumbing
