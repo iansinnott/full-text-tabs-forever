@@ -1,14 +1,11 @@
 import browser from "webextension-polyfill";
 import { log } from "../common/logs";
 import { Readability } from "@mozilla/readability";
+import type { RpcMessage } from "@/background/backend";
 
-const rpc = async (message: [method:string, payload: any]) => {
+const rpc = async (message: RpcMessage) => {
   return browser.runtime.sendMessage(message);
 };
-
-document.body.addEventListener("click", async (e) => {
-  console.log("click res", await rpc(["click", String(e.currentTarget)]));
-});
 
 const detectDate = () => {
   let date: string | null = null;
@@ -56,10 +53,13 @@ const main = async () => {
 
   // parse() will mutate the dom, so we need to clone in order not to spoil the normal reading of the site
   const domClone = document.cloneNode(true) as Document;
-  const article = new Readability(domClone).parse();
+  const article = new Readability(domClone, {
+    charThreshold: 50,
+    // nbTopCandidates: 10,
+  }).parse();
 
   if (!article) {
-    log("No article found");
+    await rpc(["nothingToIndex"])
     return;
   }
 
@@ -72,7 +72,12 @@ const main = async () => {
   });
 
   // @todo This is just a standin
-  await rpc(["indexPage", { ...rest, date }]);
+  await rpc(["indexPage", {
+    ...rest,
+    htmlContent: content,
+    textContent,
+    date,
+  }]);
 };
 
 // Plumbing

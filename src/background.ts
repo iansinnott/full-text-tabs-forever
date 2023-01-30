@@ -1,18 +1,13 @@
 import browser, { Runtime } from "webextension-polyfill";
+import { Backend, SendResponse } from "./background/backend";
 import { log } from "./common/logs";
 
-type SendResponse = (response?: any) => Promise<void>;
-
-type RemoteProc<T = any> = (payload: T, sender: Runtime.MessageSender) => Promise<any>;
-
 class BackendAdapter {
-  getPageStatus: RemoteProc = async (payload, sender) => {
-    const { tab } = sender;
-    console.log(`%c${"getPageStatus"}`, "color:lime;", { url: tab?.url }, payload);
-    return {
-      shouldIndex: true,
-    };
-  };
+  backend: Backend;
+
+  constructor({ backend }: { backend: Backend }) {
+    this.backend = backend;
+  }
 
   async onInstalled(details: browser.Runtime.OnInstalledDetailsType) {
     log("@todo Check if the backend is available");
@@ -29,10 +24,10 @@ class BackendAdapter {
       }
 
       // @ts-ignore This could be handled better. unimportant for now
-      if (typeof this[method] === "function") {
+      if (typeof this.backend[method] === "function") {
         waitForResponse = true;
         // @ts-ignore
-        this[method](payload, sender)
+        this.backend[method](payload, sender)
           .then((ret) => {
             sendResponse(ret);
           })
@@ -53,7 +48,9 @@ class BackendAdapter {
   }
 }
 
-const adapter = new BackendAdapter();
+const adapter = new BackendAdapter({
+  backend: new Backend(),
+});
 
 if (adapter.onInstalled) {
   browser.runtime.onInstalled.addListener((...args) => adapter.onInstalled(...args));
