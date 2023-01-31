@@ -1,5 +1,6 @@
 import browser, { Runtime } from "webextension-polyfill";
 import { Backend, SendResponse } from "./background/backend";
+import { WebSQLBackend } from "./background/websql-backend";
 import { log } from "./common/logs";
 
 class BackendAdapter {
@@ -49,7 +50,7 @@ class BackendAdapter {
 }
 
 const adapter = new BackendAdapter({
-  backend: new Backend(),
+  backend: new WebSQLBackend(),
 });
 
 if (adapter.onInstalled) {
