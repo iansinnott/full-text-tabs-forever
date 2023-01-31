@@ -7,6 +7,10 @@ export default defineConfig({
     rollupOptions: {
       input: "src/manifest.json",
     },
+
+    // Unminified code helps with debug stack traces
+    // @ts-ignore - need to add @types/node? 
+    minify: process.env.NODE_ENV !== "development",
   },
   // @ts-expect-error - vite-plugin-chrome-extension is poorly typed?
   plugins: [chromeExtension()],

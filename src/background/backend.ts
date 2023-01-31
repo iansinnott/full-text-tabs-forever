@@ -7,8 +7,10 @@ export type RemoteProc<T = any> = (payload: T, sender: Runtime.MessageSender) =>
 
 type ReadabilityArticle = Omit<NonNullable<ReturnType<Readability['parse']>>, 'content'>
 export type Article = ReadabilityArticle & {
+  extractor: string;
   htmlContent: string;
   date?: string;
+  _extractionTime: number;
 }
 
 type FirstArg<T> = T extends (arg: infer U, ...args: any[]) => any ? U : never;
@@ -22,17 +24,33 @@ export type RpcMessage =
 export class Backend {
   getPageStatus: RemoteProc = async (payload, sender) => {
     const { tab } = sender;
-    console.log(`%c${"getPageStatus"}`, "color:lime;", { url: tab?.url }, payload);
+    let shouldIndex = tab?.url?.startsWith("http"); // ignore chrome extensions, about:blank, etc
+
+    try {
+      const url = new URL(tab?.url || "");
+      if (url.hostname === "localhost") shouldIndex = false;
+      if (url.hostname.endsWith(".local")) shouldIndex = false;
+    } catch (err) {
+      // should not happen
+      throw err
+    }
+
+    console.log(`%c${"getPageStatus"}`, "color:lime;", { shouldIndex, url: tab?.url }, payload);
+
     return {
-      shouldIndex: true,
+      shouldIndex,
     };
   };
 
   indexPage: RemoteProc<Article> = async (payload, sender) => {
     const { tab } = sender;
 
+    // remove adjacent whitespace since it serves no purpose. The html or
+    // markdown content stores formatting.
+    const plainText = payload.textContent.replace(/[ \t]+/g, " ").replace(/\n+/g, "\n");
+
     console.log(`%c${"indexPage"}`, "color:lime;", tab?.url);
-    console.log(formatDebuggablePayload(payload))
+    console.log(formatDebuggablePayload({ ...payload, textContent: plainText }))
     return {
       "@todo": "actually index page",
     };
@@ -60,9 +78,11 @@ const formatDebuggablePayload = (payload: Article) => {
 
   return `
 ---
+extractor: ${payload.extractor}
 title: ${title}
 siteName: ${payload.siteName}
 date: ${date}
+_extractionTime: ${payload._extractionTime}
 ---
   
 ${trimmedBody}

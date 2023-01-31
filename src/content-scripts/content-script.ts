@@ -1,10 +1,13 @@
 import browser from "webextension-polyfill";
-import { log } from "../common/logs";
 import { Readability } from "@mozilla/readability";
 import type { RpcMessage } from "@/background/backend";
 
 const rpc = async (message: RpcMessage) => {
   return browser.runtime.sendMessage(message);
+};
+
+const log = (...args: any[]) => {
+  console.debug(...args);
 };
 
 const detectDate = () => {
@@ -25,23 +28,14 @@ const detectDate = () => {
       }
     }
   } catch (err) {
-    console.warn("could not detect date", err);
+    log("could not detect date", err);
   }
 
   return date;
 };
 
 const main = async () => {
-  log("Ping...");
-
-  const res = await rpc([
-    "getPageStatus",
-    {
-      url: window.location.href,
-    },
-  ]);
-
-  log("...Pong", res);
+  const res = await rpc(["getPageStatus", { url: window.location.href, },]);
 
   // @todo Check if we actually need to index the page before continuing. What
   // comes next is likely expensive to run on every page load all the time. May
@@ -51,22 +45,60 @@ const main = async () => {
     return;
   }
 
+  // Wait for the dom to be ready. Yeah, crude. What's the best move here?
+  await new Promise((resolve) => {
+    // Wait for dom to stop changing for at least 1 second
+    let len = document.body?.innerText?.length || 0;
+    let timeout: number
+    let timeout2: number
+
+    const fn = () => {
+      const newLen = document.body?.innerText?.length || 0;
+      if (newLen === len) {
+        clearTimeout(timeout2)
+        resolve(null);
+      } else {
+        console.debug("Still waiting for dom to stop changing")
+        len = newLen;
+        timeout = setTimeout(fn, 1000);
+      }
+    }
+
+    // kick it off
+    timeout = setTimeout(fn, 1000);
+
+    // Resolve regardless if too much time ellapses
+    timeout2 = setTimeout(() => {
+      clearTimeout(timeout)
+      resolve(null)
+    }, 10000)
+  });
+
+  // Wait for an idle moment so that we don't cause any dropped frames (hopefully)
+  await new Promise((resolve) => requestIdleCallback(resolve));
+
   // parse() will mutate the dom, so we need to clone in order not to spoil the normal reading of the site
   const domClone = document.cloneNode(true) as Document;
-  const article = new Readability(domClone, {
-    charThreshold: 50,
+  let startTime: number;
+  let endTime: number;
+
+  // time how long the next line takes
+  startTime = performance.now();
+  const readabilityArticle = new Readability(domClone, {
+    // charThreshold: 50,
     // nbTopCandidates: 10,
   }).parse();
+  endTime = performance.now();
 
-  if (!article) {
+  if (!readabilityArticle) {
     await rpc(["nothingToIndex"])
     return;
   }
 
   const date = detectDate();
-  const { content, textContent, ...rest } = article;
+  const { content, textContent, ...rest } = readabilityArticle;
 
-  console.log("article:", textContent, {
+  log("article:", textContent, {
     ...rest,
     date,
   });
@@ -74,6 +106,8 @@ const main = async () => {
   // @todo This is just a standin
   await rpc(["indexPage", {
     ...rest,
+    _extractionTime: endTime - startTime,
+    extractor: "readability",
     htmlContent: content,
     textContent,
     date,
@@ -84,7 +118,7 @@ const main = async () => {
 (async () => {
   // check if dom content has already been loaded
   if (document.readyState !== "complete") {
-    console.log("%cwait for ready", "color:yellow;font-size:12px;", document.readyState);
+    log("%cwait for ready", "color:yellow;font-size:12px;", document.readyState);
 
     // @note This can take _a while_, but is in place to account for apps that
     // may not have built the dom yet
@@ -95,7 +129,8 @@ const main = async () => {
         }
       };
     });
-    console.log("%cready.", "color:green;font-size:12px;", document.readyState);
+
+    log("%cready.", "color:green;font-size:12px;", document.readyState);
   }
 
   await main();
