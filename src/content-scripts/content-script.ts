@@ -35,14 +35,17 @@ const detectDate = () => {
 };
 
 const main = async () => {
-  const res = await rpc(["getPageStatus", { url: window.location.href, },]);
+  const res = await rpc(["getPageStatus"]);
 
   // @todo Check if we actually need to index the page before continuing. What
   // comes next is likely expensive to run on every page load all the time. May
   // also consider moving it to web worker.
-  if (!res) {
-    log("Skipping due to server response", res);
-    return;
+  if (!res?.shouldIndex) {
+    const debugUrls = localStorage.getItem("@fttf/debugUrls")?.split(",") || [];
+    if (!debugUrls.includes(location.hostname)) {
+      log("Skipping due to server response", res);
+      return;
+    }
   }
 
   // Wait for the dom to be ready. Yeah, crude. What's the best move here?
@@ -104,7 +107,7 @@ const main = async () => {
   });
 
   // @todo This is just a standin
-  await rpc(["indexPage", {
+  const result = await rpc(["indexPage", {
     ...rest,
     _extractionTime: endTime - startTime,
     extractor: "readability",
@@ -112,13 +115,14 @@ const main = async () => {
     textContent,
     date,
   }]);
+
+  log("result", result)
 };
 
 // Plumbing
 (async () => {
   // check if dom content has already been loaded
   if (document.readyState !== "complete") {
-    log("%cwait for ready", "color:yellow;font-size:12px;", document.readyState);
 
     // @note This can take _a while_, but is in place to account for apps that
     // may not have built the dom yet
@@ -134,4 +138,13 @@ const main = async () => {
   }
 
   await main();
+
+  // Devtools cannot be exposed on window directly
+  {
+    const query = localStorage.getItem("@fttf/query");
+    if (query) {
+      console.log(`%cquery('${query}')`, 'color:pink;', ' -> ', await rpc(["search", { query }]))
+    }
+  }
+
 })();
