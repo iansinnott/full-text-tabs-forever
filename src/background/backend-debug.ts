@@ -1,5 +1,5 @@
 import { formatDebuggablePayload } from "../common/utils";
-import { Article, Backend, RemoteProc } from "./backend";
+import { Article, Backend, RemoteProcWithSender } from "./backend";
 
 export class DebugBackend implements Backend {
   getPageStatus: Backend["getPageStatus"] = async (payload, sender) => {

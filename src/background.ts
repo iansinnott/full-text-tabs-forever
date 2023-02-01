@@ -1,4 +1,4 @@
-import browser, { Runtime } from "webextension-polyfill";
+import browser, { omnibox, Runtime } from "webextension-polyfill";
 import { Backend, SendResponse } from "./background/backend";
 import { DebugBackend } from "./background/backend-debug";
 import { IndexedDbBackend } from "./background/backend-indexeddb";
@@ -65,3 +65,14 @@ if (adapter.onMessage) {
   // @ts-expect-error sendMessage types are wrong
   browser.runtime.onMessage.addListener((...args) => adapter.onMessage(...args));
 }
+
+browser.omnibox.onInputStarted.addListener(() => {
+  console.log("onInputStarted");
+})
+
+browser.omnibox.onInputChanged.addListener(async (text, suggest) => {
+  const { results } = await adapter.backend.search({ query: text })
+  suggest([
+    ...results.map(x => ({ content: x.url, description: x.title || x.url })),
+  ]);
+})

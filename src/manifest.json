@@ -4,6 +4,9 @@
     "description": "A browser extension made with Svelte Kit",
     "version": "1.0.0",
     "manifest_version": 3,
+    "omnibox": {
+        "keyword": "ft"
+    },
     "permissions": [
         "<all_urls>",
         "unlimitedStorage",

@@ -1,5 +1,5 @@
 import { formatDebuggablePayload } from "../common/utils";
-import { Article, Backend, RemoteProc } from "./backend";
+import { Article, Backend, RemoteProcWithSender } from "./backend";
 
 // Just for typing...
 declare const openDatabase: typeof window.openDatabase;

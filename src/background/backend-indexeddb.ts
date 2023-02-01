@@ -1,5 +1,5 @@
 import { formatDebuggablePayload } from "../common/utils";
-import { Article, ArticleRow, Backend, RemoteProc, UrlRow } from "./backend";
+import { Article, ArticleRow, Backend, RemoteProcWithSender, ResultRow, UrlRow } from "./backend";
 import { DBCoreRangeType, Dexie } from "dexie";
 
 function getUniqueWords(text: string) {
@@ -16,20 +16,25 @@ function getUrlWords(row: UrlRow) {
   let contentString = row.title ? [row.title] : [];
 
   try {
-    const url = new URL(row.url)
-    contentString.push(url.hostname)
-    contentString.push(url.hostname.split('.').slice(-2).join('.')) // base domain
-    for (const part of url.pathname.split('/')) {
-      if (part.length > 2) contentString.push(part)
+    const url = new URL(row.url);
+    contentString.push(url.hostname);
+    contentString.push(
+      url.hostname
+        .split(".")
+        .slice(-2)
+        .join(".")
+    ); // base domain
+    for (const part of url.pathname.split("/")) {
+      if (part.length > 2) contentString.push(part);
     }
   } catch (err) {
-    console.warn("Coudl not parse url", err)
+    console.warn("Coudl not parse url", err);
   }
 
   if (contentString.length) {
-    return getUniqueWords(contentString.map(x => x.trim()).join(" "));
+    return getUniqueWords(contentString.map((x) => x.trim()).join(" "));
   } else {
-    return []
+    return [];
   }
 }
 
@@ -52,7 +57,7 @@ class DocumentDatabase extends Dexie {
     });
 
     this.documents.hook("creating", (primKey, row, trans) => {
-      if (typeof row.textContent === "string") row.searchWords = getUniqueWords(row.textContent)
+      if (typeof row.textContent === "string") row.searchWords = getUniqueWords(row.textContent);
     });
 
     this.urls.hook("updating", (mods: Partial<ArticleRow>, primKey, row, trans) => {
@@ -62,8 +67,7 @@ class DocumentDatabase extends Dexie {
     this.documents.hook("updating", (mods: Partial<ArticleRow>, primKey, row, trans) => {
       if (typeof row.textContent === "string") {
         // "textContent" property is being updated
-        if (typeof mods.textContent == 'string') {
-
+        if (typeof mods.textContent == "string") {
           // "textContent" property was updated to another valid value. Re-index searchWords:
           return { searchWords: getUniqueWords(mods.textContent) };
         } else {
@@ -71,9 +75,7 @@ class DocumentDatabase extends Dexie {
           return { searchWords: [] };
         }
       }
-
     });
-
   }
 }
 
@@ -126,7 +128,7 @@ export class IndexedDbBackend implements Backend {
       ...payload,
       textContent: plainText,
       textContentHash,
-    }
+    };
 
     console.log(`%c${"indexPage"}`, "color:lime;", tab?.url);
     console.log(formatDebuggablePayload(document));
@@ -137,7 +139,7 @@ export class IndexedDbBackend implements Backend {
       urlHash: await shasum(tab?.url || ""),
       title: document.title,
       lastVisit: Date.now(),
-    })
+    });
 
     return {
       ok: true,
@@ -153,7 +155,8 @@ export class IndexedDbBackend implements Backend {
     };
   };
 
-  search: Backend["search"] = async (payload, sender) => {
+  // @todo Incomplete
+  search: Backend["search"] = async (payload) => {
     const { query } = payload;
     const [urls, documents] = await Promise.all([
       this.db.urls
@@ -168,30 +171,40 @@ export class IndexedDbBackend implements Backend {
         .toArray(),
     ]);
 
-    return {
-      ok: true,
-      urls,
-      documents: documents.map((doc) => {
-        const { htmlContent, mdContent, ...x } = doc;
+    const urlDocuments = await this.db.documents
+      .where("textContentHash")
+      .anyOf(urls.filter((x) => x.textContentHash).map((x) => x.textContentHash as string))
+      .toArray();
+
+    const results: ResultRow[] = [
+      ...urls.map((url) => {
         return {
-          htmlContent: `... truncated ...`,
-          mdContent: `... truncated ...`,
-          ...x,
+          url: url.url,
+          urlHash: url.urlHash,
+          title: url.title,
+          lastVisit: url.lastVisit, // Timestamp
+          textContentHash: url.textContentHash,
+          snippet: url.url, // @todo ??? need to find the substring match
         }
       }),
-    }
-  }
+    ]
+
+    return {
+      ok: true,
+      results,
+    };
+  };
 
   db: DocumentDatabase;
 
   constructor() {
     this.db = new DocumentDatabase();
-    this.db.open()
+    this.db.open();
   }
 
   destroy() {
     if (this.db.isOpen()) {
-      this.db.close()
+      this.db.close();
     }
   }
 }
@@ -201,5 +214,4 @@ const shasum = async (text: string) => {
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   const hashHex = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
   return hashHex;
-}
-
+};

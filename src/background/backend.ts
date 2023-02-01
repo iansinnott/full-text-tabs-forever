@@ -3,7 +3,8 @@ import type { Readability } from '@mozilla/readability'
 
 export type SendResponse = (response?: any) => Promise<void>;
 
-export type RemoteProc<T = any> = (payload: T, sender: Runtime.MessageSender) => Promise<any>;
+export type RemoteProcWithSender<T = any, Ret = any> = (payload: T, sender: Runtime.MessageSender) => Promise<Ret>;
+export type RemoteProc<T = any, Ret = any> = (payload: T) => Promise<Ret>;
 
 type ReadabilityArticle = Omit<NonNullable<ReturnType<Readability['parse']>>, 'content'>
 export type Article = ReadabilityArticle & {
@@ -28,6 +29,15 @@ export type UrlRow = {
   searchWords?: string[];
 }
 
+export type ResultRow = {
+  url: string;
+  urlHash: string;
+  title?: string;
+  lastVisit?: number; // Timestamp
+  textContentHash?: string;
+  snippet?: string;
+}
+
 type FirstArg<T> = T extends (arg: infer U, ...args: any[]) => any ? U : never;
 
 export type RpcMessage =
@@ -39,8 +49,8 @@ export type RpcMessage =
   | [method: string, payload: any];
 
 export interface Backend {
-  getPageStatus: RemoteProc;
-  indexPage: RemoteProc<Article>;
-  nothingToIndex: RemoteProc;
-  search: RemoteProc<{ query: string }>;
+  getPageStatus: RemoteProcWithSender;
+  indexPage: RemoteProcWithSender<Article>;
+  nothingToIndex: RemoteProcWithSender;
+  search: RemoteProc<{ query: string }, { ok: boolean, results: ResultRow[] }>;
 }
