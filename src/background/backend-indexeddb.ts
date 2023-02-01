@@ -1,4 +1,4 @@
-import { formatDebuggablePayload } from "../common/utils";
+import { formatDebuggablePayload, shasum } from "../common/utils";
 import { Article, ArticleRow, Backend, RemoteProcWithSender, ResultRow, UrlRow } from "./backend";
 import { DBCoreRangeType, Dexie } from "dexie";
 
@@ -208,10 +208,3 @@ export class IndexedDbBackend implements Backend {
     }
   }
 }
-
-const shasum = async (text: string) => {
-  const hashBuffer = await crypto.subtle.digest("SHA-1", new TextEncoder().encode(text));
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const hashHex = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
-  return hashHex;
-};

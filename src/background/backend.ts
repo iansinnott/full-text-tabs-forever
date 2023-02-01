@@ -10,30 +10,39 @@ type ReadabilityArticle = Omit<NonNullable<ReturnType<Readability['parse']>>, 'c
 export type Article = ReadabilityArticle & {
   extractor: string;
   htmlContent: string;
-  mdContent?: string;
   date?: string;
   _extractionTime: number;
 }
 
-export type ArticleRow = Article & {
+export type ArticleRow = Omit<Article, 'htmlContent'> & {
   textContentHash: string;
+  mdContent?: string;
+  url: string;
+  hostname: string;
   searchWords?: string[];
+  lastVisit?: number; // Timestamp
+  lastVisitDate?: string;
+  createdAt: number; // Timestamp
+  publicationDate?: number;
 }
 
+/** @deprecated don't use urls directly for now. use documents which have URLs */
 export type UrlRow = {
   url: string;
   urlHash: string;
   title?: string;
   lastVisit?: number; // Timestamp
+  hostname: string;
   textContentHash?: string;
   searchWords?: string[];
 }
 
 export type ResultRow = {
   url: string;
-  urlHash: string;
   title?: string;
+  excerpt?: string;
   lastVisit?: number; // Timestamp
+  lastVisitDate?: string;
   textContentHash?: string;
   snippet?: string;
 }

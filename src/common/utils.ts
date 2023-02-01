@@ -1,8 +1,8 @@
-import type { Article } from "@/background/backend";
+import type { Article, ArticleRow } from "@/background/backend";
 
-export const formatDebuggablePayload = (payload: Article) => {
+export const formatDebuggablePayload = (payload: ArticleRow) => {
   const maxTrim = 600;
-  const { title, textContent, htmlContent, date } = payload;
+  const { title, textContent, date } = payload;
   let trimmedBody = textContent
     .trim()
     .slice(0, maxTrim / 2)
@@ -29,4 +29,12 @@ _extractionTime: ${payload._extractionTime}
   
 ${trimmedBody}
 `.trim();
+};
+
+
+export const shasum = async (text: string) => {
+  const hashBuffer = await crypto.subtle.digest("SHA-1", new TextEncoder().encode(text));
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashHex = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+  return hashHex;
 };

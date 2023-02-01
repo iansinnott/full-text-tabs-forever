@@ -1,5 +1,6 @@
-import { formatDebuggablePayload } from "../common/utils";
-import { Article, Backend, RemoteProcWithSender } from "./backend";
+import { formatDebuggablePayload, shasum } from "../common/utils";
+import { Article, ArticleRow, Backend, RemoteProcWithSender } from "./backend";
+import Turndown from 'turndown'
 
 // Just for typing...
 declare const openDatabase: typeof window.openDatabase;
@@ -20,32 +21,35 @@ const defaults: WebSQLBackendOpts = {
 const migrations = [
   `
 CREATE TABLE IF NOT EXISTS "urls" (
-  "urlMd5" VARCHAR(32) PRIMARY KEY NOT NULL,
   "url" TEXT UNIQUE NOT NULL,
+  "urlHash" VARCHAR(32) PRIMARY KEY NOT NULL,
   "title" TEXT,
-  "description" TEXT,
   "lastVisit" INTEGER,
+  "hostname" TEXT,
+  "textContentHash" TEXT,
   "createdAt" INTEGER NOT NULL
 );
+`,
 
+  `CREATE INDEX IF NOT EXISTS "urls_hostname" ON "urls" ("hostname");`,
+
+  `
 CREATE TABLE IF NOT EXISTS "documents" (
-  id INTEGER PRIMARY KEY AUTOINCREMENT, 
-  title TEXT, 
-  htmlContent TEXT, 
-  textContent TEXT,
-  textContentMd5 TEXT UNIQUE NOT NULL,
-  mdContent TEXT,
-  publicationDate INTEGER,
+  "textContentHash" TEXT PRIMARY KEY NOT NULL,
+  "title" TEXT, 
+  "url" TEXT UNIQUE NOT NULL,
+  "textContent" TEXT,
+  "mdContent" TEXT,
+  "publicationDate" INTEGER,
+  "hostname" TEXT,
+  "lastVisit" INTEGER,
+  "lastVisitDate" TEXT,
+  "extractor" TEXT,
   "createdAt" INTEGER NOT NULL
 );
-
-CREATE TABLE IF NOT EXISTS "url_document_edges" (
-  "id" INTEGER PRIMARY KEY AUTOINCREMENT,
-  "urlMd5" VARCHAR(32) UNIQUE NOT NULL REFERENCES urls(urlMd5),
-  "textContentMd5" VARCHAR(32) NOT NULL REFERENCES documents(textContentMd5)
-);
-
   `,
+
+  `CREATE INDEX IF NOT EXISTS "documents_hostname" ON "documents" ("hostname");`,
 ];
 
 export class WebSQLBackend implements Backend {
@@ -69,17 +73,44 @@ export class WebSQLBackend implements Backend {
     };
   };
 
-  indexPage: Backend["indexPage"] = async (payload, sender) => {
+  indexPage: Backend["indexPage"] = async ({ htmlContent, date, ...payload }, sender) => {
     const { tab } = sender;
 
     // remove adjacent whitespace since it serves no purpose. The html or
     // markdown content stores formatting.
-    const plainText = payload.textContent.replace(/[ \t]+/g, " ").replace(/\n+/g, "\n");
+    const plainText = payload.textContent.replace(/\s+/g, " ").trim();
+
+    // generate a hash of the text content
+    const textContentHash = await shasum(plainText);
+    let mdContent = "";
+    try {
+      mdContent = this.turndown.turndown(htmlContent);
+    } catch (err) {
+      console.error("turndown failed", err);
+    }
+
+    const u = new URL(tab?.url || "");
+    const document: ArticleRow = {
+      ...payload,
+      textContentHash,
+      mdContent,
+      publicationDate: date ? new Date(date).getTime() : undefined,
+      url: u.href,
+      hostname: u.hostname,
+      textContent: plainText,
+      lastVisit: Date.now(),
+      lastVisitDate: new Date().toISOString().split("T")[0],
+      createdAt: Date.now(),
+    };
 
     console.log(`%c${"indexPage"}`, "color:lime;", tab?.url);
-    console.log(formatDebuggablePayload({ ...payload, textContent: plainText }));
+    console.log(formatDebuggablePayload(document));
+
+    await this.upsertDocument(document);
+
     return {
-      "@todo": "actually index page",
+      ok: true,
+      message: `indexed doc:${textContentHash}, url:${u.href}`,
     };
   };
 
@@ -91,12 +122,68 @@ export class WebSQLBackend implements Backend {
     };
   };
 
+  search: Backend["search"] = async (payload) => {
+    const { query } = payload;
+    console.log(`%c${"search"}`, "color:lime;", query);
+    return {
+      ok: true,
+      results: [],
+    }
+  }
+
   // ------------------------------------------------------
   // implementation details
   //
 
+  private upsertDocument = async (document: ArticleRow) => {
+    return this.executeSql(`
+      INSERT OR REPLACE INTO documents (
+        textContentHash,
+        title,
+        url,
+        textContent,
+        mdContent,
+        publicationDate,
+        hostname,
+        lastVisit,
+        lastVisitDate,
+        extractor,
+        createdAt
+      ) VALUES (
+        ?,
+        ?,
+        ?,
+        ?,
+        ?,
+        ?,
+        ?,
+        ?,
+        ?,
+        ?,
+        ?
+      )
+    `, [
+      document.textContentHash,
+      document.title,
+      document.url,
+      document.textContent,
+      document.mdContent,
+      document.publicationDate,
+      document.hostname,
+      document.lastVisit,
+      document.lastVisitDate,
+      document.extractor,
+      document.createdAt,
+    ]);
+  }
+
   private _db: Database;
   private _dbReady = false;
+  private turndown = new Turndown({
+    headingStyle: "atx",
+    codeBlockStyle: "fenced",
+    hr: "---",
+  });
 
   constructor(opts: WebSQLBackendOpts = defaults) {
     const { maxSize } = opts;
@@ -124,7 +211,7 @@ export class WebSQLBackend implements Backend {
         `CREATE TABLE IF NOT EXISTS internal_migrations (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           sql TEXT UNIQUE NOT NULL,
-          date TEXT,
+          date TEXT
         );`,
       );
 
@@ -201,11 +288,15 @@ export class WebSQLBackend implements Backend {
     return items;
   };
 
-  private findOne = async <T = any>(sql: string, args?: ObjectArray): Promise<T> => {
+  private findOne = async <T = any>(sql: string, args?: ObjectArray): Promise<T | null> => {
     const { rows } = await this.executeSql(sql, args);
 
     if (rows.length > 1) {
       console.warn("findOne returned more than one result. Returning first result.");
+    }
+
+    if (rows.length === 0) {
+      return null;
     }
 
     return rows.item(0) as T;
