@@ -125,9 +125,19 @@ export class WebSQLBackend implements Backend {
   search: Backend["search"] = async (payload) => {
     const { query } = payload;
     console.log(`%c${"search"}`, "color:lime;", query);
+    const likeClause = `%${query}%`;
+    const results = await this.findMany<ArticleRow>(`
+      SELECT * FROM documents
+      WHERE textContent LIKE ?
+         OR url LIKE ?
+         OR title LIKE ?
+      ORDER BY lastVisit DESC
+      LIMIT 100;
+    `, [likeClause, likeClause, likeClause]);
+
     return {
       ok: true,
-      results: [],
+      results,
     }
   }
 
