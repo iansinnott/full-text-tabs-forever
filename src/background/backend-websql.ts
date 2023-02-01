@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS "documents" (
   "textContentHash" TEXT PRIMARY KEY NOT NULL,
   "title" TEXT, 
   "url" TEXT UNIQUE NOT NULL,
+  "excerpt" TEXT,
   "textContent" TEXT,
   "mdContent" TEXT,
   "publicationDate" INTEGER,
@@ -57,6 +58,7 @@ CREATE TABLE IF NOT EXISTS "documents" (
 CREATE VIRTUAL TABLE "fts" USING fts3(
   url,
   title,
+  excerpt,
   textContent
   tokenize='porter'
 );
@@ -64,7 +66,7 @@ CREATE VIRTUAL TABLE "fts" USING fts3(
 
   `
   CREATE TRIGGER "fts_ai" AFTER INSERT ON "documents" BEGIN
-    INSERT INTO "fts" ("rowid", "url", "title", "textContent") VALUES (new.ROWID, new."url", new."title", new."textContent");
+    INSERT INTO "fts" ("rowid", "url", "title", "excerpt", "textContent") VALUES (new.ROWID, new."url", new."title", new."excerpt", new."textContent");
   END;
   `,
 
@@ -77,7 +79,7 @@ CREATE VIRTUAL TABLE "fts" USING fts3(
   `
   CREATE TRIGGER IF NOT EXISTS "fts_au" AFTER UPDATE ON "documents" BEGIN
     DELETE FROM "fts" WHERE rowid=old.ROWID;
-    INSERT INTO "fts" ("rowid", "url", "title", "textContent") VALUES (new.ROWID, new."url", new."title", new."textContent");
+    INSERT INTO "fts" ("rowid", "url", "title", "excerpt", "textContent") VALUES (new.ROWID, new."url", new."title", new."excerpt", new."textContent");
   END;
     `
 ];
@@ -155,15 +157,21 @@ export class WebSQLBackend implements Backend {
   search: Backend["search"] = async (payload) => {
     const { query } = payload;
     console.log(`%c${"search"}`, "color:lime;", query);
-    const likeClause = `%${query}%`;
     const results = await this.findMany<ArticleRow>(`
-      SELECT * FROM documents
-      WHERE textContent LIKE ?
-         OR url LIKE ?
-         OR title LIKE ?
-      ORDER BY lastVisit DESC
+      SELECT 
+        d.url,
+        d.title,
+        d.excerpt,
+        d.lastVisit,
+        d.lastVisitDate,
+        d.textContentHash,
+        d.createdAt,
+        SNIPPET(fts, -1, '<mark>', '</mark>', '…', 50) AS snippet
+      FROM fts
+        INNER JOIN documents d ON d.rowid = fts.rowid
+      WHERE fts MATCH ?
       LIMIT 100;
-    `, [likeClause, likeClause, likeClause]);
+    `, [query]);
 
     return {
       ok: true,
@@ -180,11 +188,15 @@ export class WebSQLBackend implements Backend {
     // create trigger kept on firing so there were duplicate recors in the fts
     // table. might be solved by figuring out how to get FTS to use a text
     // primary key instead of rowid
+    // Update: I think it's becuase insert or replace causes a new ROWID to be
+    // written (also a new autoincrement id if that's what you used). This
+    // causes the insert trigger on sqlite.
     return this.executeSql(`
       INSERT OR IGNORE INTO documents (
         textContentHash,
         title,
         url,
+        excerpt,
         textContent,
         mdContent,
         publicationDate,
@@ -204,12 +216,14 @@ export class WebSQLBackend implements Backend {
         ?,
         ?,
         ?,
+        ?,
         ?
       )
     `, [
       document.textContentHash,
       document.title,
       document.url,
+      document.excerpt,
       document.textContent,
       document.mdContent,
       document.publicationDate,
