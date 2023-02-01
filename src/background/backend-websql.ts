@@ -50,6 +50,36 @@ CREATE TABLE IF NOT EXISTS "documents" (
   `,
 
   `CREATE INDEX IF NOT EXISTS "documents_hostname" ON "documents" ("hostname");`,
+
+  // @note Browser sqlite does not support FTS4 or 5, so we use FTS3. Also, 'if
+  // not exists' is not supported on virtual tables.
+  `
+CREATE VIRTUAL TABLE "fts" USING fts3(
+  url,
+  title,
+  textContent
+  tokenize='porter'
+);
+`,
+
+  `
+  CREATE TRIGGER "fts_ai" AFTER INSERT ON "documents" BEGIN
+    INSERT INTO "fts" ("rowid", "url", "title", "textContent") VALUES (new.ROWID, new."url", new."title", new."textContent");
+  END;
+  `,
+
+  `
+  CREATE TRIGGER "fts_ad" AFTER DELETE ON "documents" BEGIN
+    DELETE FROM "fts" WHERE rowid=old.ROWID;
+  END;
+  `,
+
+  `
+  CREATE TRIGGER IF NOT EXISTS "fts_au" AFTER UPDATE ON "documents" BEGIN
+    DELETE FROM "fts" WHERE rowid=old.ROWID;
+    INSERT INTO "fts" ("rowid", "url", "title", "textContent") VALUES (new.ROWID, new."url", new."title", new."textContent");
+  END;
+    `
 ];
 
 export class WebSQLBackend implements Backend {
@@ -146,8 +176,12 @@ export class WebSQLBackend implements Backend {
   //
 
   private upsertDocument = async (document: ArticleRow) => {
+    // @note we NEED the 'OR IGNORE' as opposed to 'OR REPLACE' for now. The on
+    // create trigger kept on firing so there were duplicate recors in the fts
+    // table. might be solved by figuring out how to get FTS to use a text
+    // primary key instead of rowid
     return this.executeSql(`
-      INSERT OR REPLACE INTO documents (
+      INSERT OR IGNORE INTO documents (
         textContentHash,
         title,
         url,
