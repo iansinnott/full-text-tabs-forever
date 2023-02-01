@@ -65,14 +65,3 @@ if (adapter.onMessage) {
   // @ts-expect-error sendMessage types are wrong
   browser.runtime.onMessage.addListener((...args) => adapter.onMessage(...args));
 }
-
-browser.omnibox.onInputStarted.addListener(() => {
-  console.log("onInputStarted");
-})
-
-browser.omnibox.onInputChanged.addListener(async (text, suggest) => {
-  const { results } = await adapter.backend.search({ query: text })
-  suggest([
-    ...results.map(x => ({ content: x.url, description: x.title || x.url })),
-  ]);
-})
