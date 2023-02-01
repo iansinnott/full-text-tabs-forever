@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "//dev": "vite build -w was failing. something about the chrome extension vite plugin and the manifest. re-saving the manifest makes -w work, but that defeats the purpose of automated watch",
-    "dev": "watchexec -w src/ yarn vite build",
+    "dev": "watchexec -w src/ 'yarn vite build && node ./scripts/replace-manifest.cjs'",
     "build": "vite build"
   },
   "keywords": [],
@@ -19,9 +19,11 @@
   },
   "dependencies": {
     "@mozilla/readability": "~0.4.2",
+    "@types/turndown": "~5.0.1",
     "@types/webextension-polyfill": "~0.10.0",
     "@types/websql": "~0.0.27",
     "dexie": "~3.2.3",
+    "turndown": "~7.1.1",
     "webextension-polyfill": "~0.10.0"
   }
 }
