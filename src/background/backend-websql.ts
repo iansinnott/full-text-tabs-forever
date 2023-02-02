@@ -1,5 +1,5 @@
-import { formatDebuggablePayload, shasum } from "../common/utils";
-import { Article, ArticleRow, Backend, RemoteProcWithSender } from "./backend";
+import { formatDebuggablePayload, getArticleFragments, shasum } from "../common/utils";
+import { Article, ArticleRow, Backend, RemoteProcWithSender, ResultRow } from "./backend";
 import Turndown from 'turndown'
 
 // Just for typing...
@@ -20,27 +20,13 @@ const defaults: WebSQLBackendOpts = {
 // the same document, for example text that says '404 not found'.
 const migrations = [
   `
-CREATE TABLE IF NOT EXISTS "urls" (
-  "url" TEXT UNIQUE NOT NULL,
-  "urlHash" VARCHAR(32) PRIMARY KEY NOT NULL,
-  "title" TEXT,
-  "lastVisit" INTEGER,
-  "hostname" TEXT,
-  "textContentHash" TEXT,
-  "createdAt" INTEGER NOT NULL
-);
-`,
-
-  `CREATE INDEX IF NOT EXISTS "urls_hostname" ON "urls" ("hostname");`,
-
-  `
-CREATE TABLE IF NOT EXISTS "documents" (
-  "textContentHash" TEXT PRIMARY KEY NOT NULL,
+CREATE TABLE IF NOT EXISTS "document" (
+  "id" INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
   "title" TEXT, 
   "url" TEXT UNIQUE NOT NULL,
   "excerpt" TEXT,
-  "textContent" TEXT,
   "mdContent" TEXT,
+  "mdContentHash" TEXT,
   "publicationDate" INTEGER,
   "hostname" TEXT,
   "lastVisit" INTEGER,
@@ -50,36 +36,46 @@ CREATE TABLE IF NOT EXISTS "documents" (
 );
   `,
 
-  `CREATE INDEX IF NOT EXISTS "documents_hostname" ON "documents" ("hostname");`,
+  `CREATE INDEX IF NOT EXISTS "document_hostname" ON "document" ("hostname");`,
+
+  `
+CREATE TABLE IF NOT EXISTS "document_fragment" (
+  "id" INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+  "entityId" INTEGER NOT NULL REFERENCES "document" ("id") ON DELETE CASCADE,
+  "attribute" TEXT, 
+  "value" TEXT,
+  "order" INTEGER,
+  "createdAt" INTEGER
+);
+  `,
 
   // @note Browser sqlite does not support FTS4 or 5, so we use FTS3. Also, 'if
   // not exists' is not supported on virtual tables.
   `
 CREATE VIRTUAL TABLE "fts" USING fts3(
-  url,
-  title,
-  excerpt,
-  textContent
+  entityId,
+  attribute,
+  value,
   tokenize='porter'
 );
 `,
 
   `
-  CREATE TRIGGER "fts_ai" AFTER INSERT ON "documents" BEGIN
-    INSERT INTO "fts" ("rowid", "url", "title", "excerpt", "textContent") VALUES (new.ROWID, new."url", new."title", new."excerpt", new."textContent");
+  CREATE TRIGGER "fts_ai" AFTER INSERT ON "document_fragment" BEGIN
+    INSERT INTO "fts" ("rowid", "entityId", "attribute", "value") VALUES (new."id", new."entityId", new."attribute", new."value");
   END;
   `,
 
   `
-  CREATE TRIGGER "fts_ad" AFTER DELETE ON "documents" BEGIN
-    DELETE FROM "fts" WHERE rowid=old.ROWID;
+  CREATE TRIGGER "fts_ad" AFTER DELETE ON "document_fragment" BEGIN
+    DELETE FROM "fts" WHERE rowid=old."id";
   END;
   `,
 
   `
-  CREATE TRIGGER IF NOT EXISTS "fts_au" AFTER UPDATE ON "documents" BEGIN
-    DELETE FROM "fts" WHERE rowid=old.ROWID;
-    INSERT INTO "fts" ("rowid", "url", "title", "excerpt", "textContent") VALUES (new.ROWID, new."url", new."title", new."excerpt", new."textContent");
+  CREATE TRIGGER IF NOT EXISTS "fts_au" AFTER UPDATE ON "document_fragment" BEGIN
+    DELETE FROM "fts" WHERE rowid=old."id";
+    INSERT INTO "fts" ("rowid", "entityId", "attribute", "value") VALUES (new."id", new."entityId", new."attribute", new."value");
   END;
     `
 ];
@@ -105,44 +101,53 @@ export class WebSQLBackend implements Backend {
     };
   };
 
-  indexPage: Backend["indexPage"] = async ({ htmlContent, date, ...payload }, sender) => {
+  indexPage: Backend["indexPage"] = async ({ htmlContent, date, textContent, ...payload }, sender) => {
     const { tab } = sender;
 
-    // remove adjacent whitespace since it serves no purpose. The html or
-    // markdown content stores formatting.
-    const plainText = payload.textContent.replace(/\s+/g, " ").trim();
-
-    // generate a hash of the text content
-    const textContentHash = await shasum(plainText);
-    let mdContent = "";
+    let mdContent: string | undefined = undefined;
+    let mdContentHash: string | undefined = undefined;
     try {
       mdContent = this.turndown.turndown(htmlContent);
+      mdContentHash = await shasum(mdContent);
     } catch (err) {
       console.error("turndown failed", err);
     }
 
+
     const u = new URL(tab?.url || "");
-    const document: ArticleRow = {
+    const document: Partial<ArticleRow> = {
       ...payload,
-      textContentHash,
       mdContent,
+      mdContentHash,
       publicationDate: date ? new Date(date).getTime() : undefined,
       url: u.href,
       hostname: u.hostname,
-      textContent: plainText,
       lastVisit: Date.now(),
       lastVisitDate: new Date().toISOString().split("T")[0],
-      createdAt: Date.now(),
     };
 
     console.log(`%c${"indexPage"}`, "color:lime;", tab?.url);
-    console.log(formatDebuggablePayload(document));
+    console.log(formatDebuggablePayload({
+      title: document.title,
+      textContent,
+      siteName: document.siteName,
+    }));
 
-    await this.upsertDocument(document);
+    const inserted = await this.upsertDocument(document);
+
+    if (inserted) {
+      console.log(`%c  ${"new insertion"}`, "color:gray;", `indexed doc:${inserted.insertId}, url:${u.href}`);
+      await this.upsertFragments(inserted.insertId, {
+        title: document.title,
+        url: u.href,
+        excerpt: document.excerpt,
+        textContent,
+      });
+    }
 
     return {
       ok: true,
-      message: `indexed doc:${textContentHash}, url:${u.href}`,
+      message: `indexed doc:${mdContentHash}, url:${u.href}`,
     };
   };
 
@@ -157,18 +162,23 @@ export class WebSQLBackend implements Backend {
   search: Backend["search"] = async (payload) => {
     const { query } = payload;
     console.log(`%c${"search"}`, "color:lime;", query);
-    const results = await this.findMany<ArticleRow>(`
+
+    // @note The SNIPPET syntax is FTS3 syntax, not FTS5. This cannot be copied to an FTS5 database and work
+    const results = await this.findMany<ResultRow>(`
       SELECT 
+        fts.rowid,
+        d.id as entityId,
+        fts.attribute,
+        SNIPPET(fts, '<mark>', '</mark>', '…', -1, 50) AS snippet,
         d.url,
         d.title,
         d.excerpt,
         d.lastVisit,
         d.lastVisitDate,
-        d.textContentHash,
-        d.createdAt,
-        SNIPPET(fts, -1, '<mark>', '</mark>', '…', 50) AS snippet
+        d.mdContentHash,
+        d.createdAt
       FROM fts
-        INNER JOIN documents d ON d.rowid = fts.rowid
+        INNER JOIN "document" d ON d.id = fts.entityId
       WHERE fts MATCH ?
       LIMIT 100;
     `, [query]);
@@ -183,7 +193,9 @@ export class WebSQLBackend implements Backend {
   // implementation details
   //
 
-  private upsertDocument = async (document: ArticleRow) => {
+  private upsertFragments = async (entityId: number, document: Partial<{ url: string, title: string, excerpt: string, textContent: string }>) => {
+    const fragments = getArticleFragments(document.textContent || "");
+
     // @note we NEED the 'OR IGNORE' as opposed to 'OR REPLACE' for now. The on
     // create trigger kept on firing so there were duplicate recors in the fts
     // table. might be solved by figuring out how to get FTS to use a text
@@ -191,14 +203,54 @@ export class WebSQLBackend implements Backend {
     // Update: I think it's becuase insert or replace causes a new ROWID to be
     // written (also a new autoincrement id if that's what you used). This
     // causes the insert trigger on sqlite.
+    const sql = `
+      INSERT OR IGNORE INTO "document_fragment" (
+        "entityId",
+        "attribute",
+        "value",
+        "order"
+      ) VALUES (
+        ?,
+        ?,
+        ?,
+        ?
+      );
+    `;
+
+    console.log({ entityId, fragments })
+
+    let params: [number, string, string, number][] = [];
+    if (document.title) params.push([entityId, "title", document.title, 0]);
+    if (document.excerpt) params.push([entityId, "excerpt", document.excerpt, 0]);
+    if (document.url) params.push([entityId, "url", document.url, 0]);
+    params = params.concat(fragments.map((fragment, i) => {
+      return [entityId, "content", fragment, i];
+    }));
+
+    return this.transaction((tx) => {
+      params.forEach((param) => {
+        tx.executeSql(sql, param);
+      });
+    });
+  }
+
+  private upsertDocument = async (document: Partial<ArticleRow>) => {
+    const doc = await this.findOne<ArticleRow>(`
+      SELECT id FROM "document" WHERE url = ?;
+    `, [document.url]);
+
+    if (doc) {
+      console.log("doc already exists, not updating", doc);
+      return;
+    }
+
     return this.executeSql(`
-      INSERT OR IGNORE INTO documents (
-        textContentHash,
+      INSERT INTO "document" (
         title,
         url,
         excerpt,
-        textContent,
         mdContent,
+        mdContentHash,
         publicationDate,
         hostname,
         lastVisit,
@@ -216,22 +268,20 @@ export class WebSQLBackend implements Backend {
         ?,
         ?,
         ?,
-        ?,
         ?
       )
     `, [
-      document.textContentHash,
       document.title,
       document.url,
       document.excerpt,
-      document.textContent,
       document.mdContent,
+      document.mdContentHash,
       document.publicationDate,
       document.hostname,
       document.lastVisit,
       document.lastVisitDate,
       document.extractor,
-      document.createdAt,
+      document.createdAt || Date.now(),
     ]);
   }
 
@@ -246,7 +296,7 @@ export class WebSQLBackend implements Backend {
   constructor(opts: WebSQLBackendOpts = defaults) {
     const { maxSize } = opts;
 
-    const _db = openDatabase("readflow", "1.0", "Readflow database", maxSize, () => {
+    const _db = openDatabase("fttf", "1.0", "Full Text Tabs Forever Database", maxSize, () => {
       console.log("Initial DB creation"); // only runs on initial creation
     });
 

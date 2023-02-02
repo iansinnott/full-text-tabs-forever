@@ -1,8 +1,10 @@
 import type { Article, ArticleRow } from "@/background/backend";
 
-export const formatDebuggablePayload = (payload: ArticleRow) => {
+export const formatDebuggablePayload = (payload: {
+  [key: string]: any;
+}) => {
   const maxTrim = 600;
-  const { title, textContent, date } = payload;
+  const { title, textContent, siteName } = payload;
   let trimmedBody = textContent
     .trim()
     .slice(0, maxTrim / 2)
@@ -20,11 +22,8 @@ export const formatDebuggablePayload = (payload: ArticleRow) => {
 
   return `
 ---
-extractor: ${payload.extractor}
 title: ${title}
-siteName: ${payload.siteName}
-date: ${date}
-_extractionTime: ${payload._extractionTime}
+siteName: ${siteName}
 ---
   
 ${trimmedBody}
@@ -38,3 +37,7 @@ export const shasum = async (text: string) => {
   const hashHex = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
   return hashHex;
 };
+
+export const getArticleFragments = (textContent: string): string[] => {
+  return textContent?.trim()?.split(/\n+/)?.map((x) => x.replace(/\s+/g, " ").trim()) || [];
+}

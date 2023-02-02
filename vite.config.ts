@@ -1,3 +1,4 @@
+import { svelte } from "@sveltejs/vite-plugin-svelte";
 import { defineConfig } from "vite";
 import { chromeExtension } from "vite-plugin-chrome-extension";
 
@@ -28,6 +29,7 @@ export default defineConfig({
     minify: process.env.NODE_ENV !== "development",
   },
   plugins: [
+    svelte(),
     // @ts-expect-error - vite-plugin-chrome-extension is poorly typed?
     chromeExtension(),
     // logPlugin(),

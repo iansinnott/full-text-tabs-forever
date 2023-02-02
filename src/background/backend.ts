@@ -14,8 +14,9 @@ export type Article = ReadabilityArticle & {
   _extractionTime: number;
 }
 
-export type ArticleRow = Omit<Article, 'htmlContent'> & {
-  textContentHash: string;
+export type ArticleRow = Omit<Article, 'htmlContent' | 'textContent'> & {
+  id: number;
+  mdContentHash?: string;
   mdContent?: string;
   url: string;
   hostname: string;
@@ -38,13 +39,17 @@ export type UrlRow = {
 }
 
 export type ResultRow = {
+  rowid: number;
+  entityId: number;
+  attribute: string;
+  snippet?: string;
   url: string;
   title?: string;
   excerpt?: string;
   lastVisit?: number; // Timestamp
   lastVisitDate?: string;
-  textContentHash?: string;
-  snippet?: string;
+  mdContentHash?: string;
+  createdAt: number; // Timestamp
 }
 
 type FirstArg<T> = T extends (arg: infer U, ...args: any[]) => any ? U : never;
