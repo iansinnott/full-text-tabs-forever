@@ -4,9 +4,12 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "//dev": "vite build -w was failing. something about the chrome extension vite plugin and the manifest. re-saving the manifest makes -w work, but that defeats the purpose of automated watch",
-    "dev": "watchexec -w src/ 'yarn vite build && node ./scripts/replace-manifest.cjs'",
-    "build": "vite build && node ./scripts/replace-manifest.cjs"
+    "////dev": "vite build -w was failing. something about the chrome extension vite plugin and the manifest. re-saving the manifest makes -w work, but that defeats the purpose of automated watch",
+    "dev": "concurrently 'npm run dev:webext' 'npm run dev:svelte'",
+    "dev:webext": "watchexec -w src/ \"yarn vite build -c vite.config.webext.ts && node ./scripts/replace-manifest.cjs\"",
+    "dev:svelte": "vite dev --clearScreen=false",
+    "build": "vite build && vite build -c vite.config.webext.ts && node ./scripts/replace-manifest.cjs",
+    "build:clean": "rm -rf ./dist/*"
   },
   "type": "module",
   "keywords": [],
@@ -14,6 +17,8 @@
   "license": "ISC",
   "devDependencies": {
     "@types/chrome": "~0.0.210",
+    "@types/node": "^18.11.19",
+    "concurrently": "^7.6.0",
     "tsx": "~3.12.2",
     "vite": "^4.0.4",
     "vite-plugin-chrome-extension": "0.0.7"
@@ -25,6 +30,7 @@
     "@types/webextension-polyfill": "~0.10.0",
     "@types/websql": "~0.0.27",
     "dexie": "~3.2.3",
+    "svelte": "^3.55.1",
     "turndown": "~7.1.1",
     "webextension-polyfill": "~0.10.0"
   }

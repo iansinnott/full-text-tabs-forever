@@ -65,3 +65,11 @@ if (adapter.onMessage) {
   // @ts-expect-error sendMessage types are wrong
   browser.runtime.onMessage.addListener((...args) => adapter.onMessage(...args));
 }
+
+// When the extension button is clicked, log a message
+browser.browserAction.onClicked.addListener(async () => {
+  console.log("Clicked!", browser.runtime.getURL("index.html"));
+  await browser.tabs.create({
+    url: browser.runtime.getURL("index.html"),
+  });
+});

@@ -1,6 +1,6 @@
 import { formatDebuggablePayload, getArticleFragments, shasum } from "../common/utils";
 import { Article, ArticleRow, Backend, RemoteProcWithSender, ResultRow } from "./backend";
-import Turndown from 'turndown'
+import Turndown from "turndown";
 
 // Just for typing...
 declare const openDatabase: typeof window.openDatabase;
@@ -77,7 +77,7 @@ CREATE VIRTUAL TABLE "fts" USING fts3(
     DELETE FROM "fts" WHERE rowid=old."id";
     INSERT INTO "fts" ("rowid", "entityId", "attribute", "value") VALUES (new."id", new."entityId", new."attribute", new."value");
   END;
-    `
+    `,
 ];
 
 export class WebSQLBackend implements Backend {
@@ -101,7 +101,10 @@ export class WebSQLBackend implements Backend {
     };
   };
 
-  indexPage: Backend["indexPage"] = async ({ htmlContent, date, textContent, ...payload }, sender) => {
+  indexPage: Backend["indexPage"] = async (
+    { htmlContent, date, textContent, ...payload },
+    sender
+  ) => {
     const { tab } = sender;
 
     let mdContent: string | undefined = undefined;
@@ -112,7 +115,6 @@ export class WebSQLBackend implements Backend {
     } catch (err) {
       console.error("turndown failed", err);
     }
-
 
     const u = new URL(tab?.url || "");
     const document: Partial<ArticleRow> = {
@@ -127,16 +129,22 @@ export class WebSQLBackend implements Backend {
     };
 
     console.log(`%c${"indexPage"}`, "color:lime;", tab?.url);
-    console.log(formatDebuggablePayload({
-      title: document.title,
-      textContent,
-      siteName: document.siteName,
-    }));
+    console.log(
+      formatDebuggablePayload({
+        title: document.title,
+        textContent,
+        siteName: document.siteName,
+      })
+    );
 
     const inserted = await this.upsertDocument(document);
 
     if (inserted) {
-      console.log(`%c  ${"new insertion"}`, "color:gray;", `indexed doc:${inserted.insertId}, url:${u.href}`);
+      console.log(
+        `%c  ${"new insertion"}`,
+        "color:gray;",
+        `indexed doc:${inserted.insertId}, url:${u.href}`
+      );
       await this.upsertFragments(inserted.insertId, {
         title: document.title,
         url: u.href,
@@ -164,7 +172,8 @@ export class WebSQLBackend implements Backend {
     console.log(`%c${"search"}`, "color:lime;", query);
 
     // @note The SNIPPET syntax is FTS3 syntax, not FTS5. This cannot be copied to an FTS5 database and work
-    const results = await this.findMany<ResultRow>(`
+    const results = await this.findMany<ResultRow>(
+      `
       SELECT 
         fts.rowid,
         d.id as entityId,
@@ -181,19 +190,24 @@ export class WebSQLBackend implements Backend {
         INNER JOIN "document" d ON d.id = fts.entityId
       WHERE fts MATCH ?
       LIMIT 100;
-    `, [query]);
+    `,
+      [query]
+    );
 
     return {
       ok: true,
       results,
-    }
-  }
+    };
+  };
 
   // ------------------------------------------------------
   // implementation details
   //
 
-  private upsertFragments = async (entityId: number, document: Partial<{ url: string, title: string, excerpt: string, textContent: string }>) => {
+  private upsertFragments = async (
+    entityId: number,
+    document: Partial<{ url: string; title: string; excerpt: string; textContent: string }>
+  ) => {
     const fragments = getArticleFragments(document.textContent || "");
 
     // @note we NEED the 'OR IGNORE' as opposed to 'OR REPLACE' for now. The on
@@ -217,34 +231,40 @@ export class WebSQLBackend implements Backend {
       );
     `;
 
-    console.log({ entityId, fragments })
+    console.log({ entityId, fragments });
 
     let params: [number, string, string, number][] = [];
     if (document.title) params.push([entityId, "title", document.title, 0]);
     if (document.excerpt) params.push([entityId, "excerpt", document.excerpt, 0]);
     if (document.url) params.push([entityId, "url", document.url, 0]);
-    params = params.concat(fragments.map((fragment, i) => {
-      return [entityId, "content", fragment, i];
-    }));
+    params = params.concat(
+      fragments.map((fragment, i) => {
+        return [entityId, "content", fragment, i];
+      })
+    );
 
     return this.transaction((tx) => {
       params.forEach((param) => {
         tx.executeSql(sql, param);
       });
     });
-  }
+  };
 
   private upsertDocument = async (document: Partial<ArticleRow>) => {
-    const doc = await this.findOne<ArticleRow>(`
+    const doc = await this.findOne<ArticleRow>(
+      `
       SELECT id FROM "document" WHERE url = ?;
-    `, [document.url]);
+    `,
+      [document.url]
+    );
 
     if (doc) {
       console.log("doc already exists, not updating", doc);
       return;
     }
 
-    return this.executeSql(`
+    return this.executeSql(
+      `
       INSERT INTO "document" (
         title,
         url,
@@ -270,20 +290,22 @@ export class WebSQLBackend implements Backend {
         ?,
         ?
       )
-    `, [
-      document.title,
-      document.url,
-      document.excerpt,
-      document.mdContent,
-      document.mdContentHash,
-      document.publicationDate,
-      document.hostname,
-      document.lastVisit,
-      document.lastVisitDate,
-      document.extractor,
-      document.createdAt || Date.now(),
-    ]);
-  }
+    `,
+      [
+        document.title,
+        document.url,
+        document.excerpt,
+        document.mdContent,
+        document.mdContentHash,
+        document.publicationDate,
+        document.hostname,
+        document.lastVisit,
+        document.lastVisitDate,
+        document.extractor,
+        document.createdAt || Date.now(),
+      ]
+    );
+  };
 
   private _db: Database;
   private _dbReady = false;
@@ -320,7 +342,7 @@ export class WebSQLBackend implements Backend {
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           sql TEXT UNIQUE NOT NULL,
           date TEXT
-        );`,
+        );`
       );
 
       // Run migrations
@@ -339,7 +361,7 @@ export class WebSQLBackend implements Backend {
 
       const exists = await this.findOne<{ id: number }>(
         `SELECT * FROM internal_migrations WHERE sql = ? LIMIT 1`,
-        [sql],
+        [sql]
       );
 
       if (exists) {
@@ -360,12 +382,8 @@ export class WebSQLBackend implements Backend {
       this._db.transaction(
         fn,
         (err) => reject(err),
-        () => resolve(null),
+        () => resolve(null)
       );
-    }).then((x) => {
-      console.warn("Transaction triggered. Transactions do not track mutations.");
-      // handleDbMutated(); // @see Note
-      return x;
     });
   };
 
@@ -379,7 +397,7 @@ export class WebSQLBackend implements Backend {
           // @ts-ignore supposed to return a bool here, but I couldn't find docs for what it signifies
           (_, err) => {
             reject(err);
-          },
+          }
         );
       });
     });
