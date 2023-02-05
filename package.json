@@ -5,9 +5,7 @@
   "main": "index.js",
   "scripts": {
     "////dev": "vite build -w was failing. something about the chrome extension vite plugin and the manifest. re-saving the manifest makes -w work, but that defeats the purpose of automated watch",
-    "dev": "concurrently 'npm run dev:webext' 'npm run dev:svelte'",
-    "dev:webext": "watchexec -w src/ \"yarn vite build -c vite.config.webext.ts && node ./scripts/replace-manifest.cjs\"",
-    "dev:svelte": "vite dev --clearScreen=false",
+    "dev": "watchexec -w src/ -w 'vite.config.ts' 'npm run build'",
     "build": "vite build && vite build -c vite.config.webext.ts && node ./scripts/replace-manifest.cjs",
     "build:clean": "rm -rf ./dist/*"
   },

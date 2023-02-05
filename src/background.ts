@@ -68,8 +68,17 @@ if (adapter.onMessage) {
 
 // When the extension button is clicked, log a message
 browser.browserAction.onClicked.addListener(async () => {
-  console.log("Clicked!", browser.runtime.getURL("index.html"));
-  await browser.tabs.create({
+  const [existingTab] = await browser.tabs.query({
     url: browser.runtime.getURL("index.html"),
   });
+
+  if (existingTab) {
+    await browser.tabs.update(existingTab.id, {
+      active: true,
+    });
+  } else {
+    await browser.tabs.create({
+      url: browser.runtime.getURL("index.html"),
+    });
+  }
 });
