@@ -57,9 +57,25 @@ const adapter = new BackendAdapter({
   // backend: new IndexedDbBackend(),
 });
 
-if (adapter.onInstalled) {
-  browser.runtime.onInstalled.addListener((...args) => adapter.onInstalled(...args));
+export type FTTF = {
+  adapter: BackendAdapter;
+};
+
+declare global {
+  interface Window {
+    fttf: FTTF;
+  }
 }
+
+if (typeof window !== "undefined") {
+  window.fttf = { adapter };
+}
+
+browser.runtime.onInstalled.addListener((...args) => {
+  if (adapter.onInstalled) {
+    adapter.onInstalled(...args);
+  }
+});
 
 if (adapter.onMessage) {
   // @ts-expect-error sendMessage types are wrong

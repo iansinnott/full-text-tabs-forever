@@ -168,18 +168,24 @@ export class WebSQLBackend implements Backend {
   };
 
   search: Backend["search"] = async (payload) => {
-    const { query } = payload;
+    const { query, limit = 100, offset = 0 } = payload;
     console.log(`%c${"search"}`, "color:lime;", query);
 
-    // @note The SNIPPET syntax is FTS3 syntax, not FTS5. This cannot be copied to an FTS5 database and work
-    const results = await this.findMany<ResultRow>(
-      `
+    const startTime = performance.now();
+    const [count, results] = await Promise.all([
+      this.findOne<{ count: number }>(`SELECT COUNT(*) as count FROM fts WHERE fts MATCH ?;`, [
+        query,
+      ]),
+      // @note The SNIPPET syntax is FTS3 syntax, not FTS5. This cannot be copied to an FTS5 database and work
+      this.findMany<ResultRow>(
+        `
       SELECT 
         fts.rowid,
         d.id as entityId,
         fts.attribute,
         SNIPPET(fts, '<mark>', '</mark>', '…', -1, 50) AS snippet,
         d.url,
+        d.hostname,
         d.title,
         d.excerpt,
         d.lastVisit,
@@ -189,14 +195,19 @@ export class WebSQLBackend implements Backend {
       FROM fts
         INNER JOIN "document" d ON d.id = fts.entityId
       WHERE fts MATCH ?
-      LIMIT 100;
+      LIMIT ${limit}
+      OFFSET ${offset};
     `,
-      [query]
-    );
+        [query]
+      ),
+    ]);
+    const endTime = performance.now();
 
     return {
       ok: true,
       results,
+      count: count?.count,
+      perfMs: endTime - startTime,
     };
   };
 
@@ -414,7 +425,8 @@ export class WebSQLBackend implements Backend {
     return items;
   };
 
-  private findOne = async <T = any>(sql: string, args?: ObjectArray): Promise<T | null> => {
+  // This is public for eas of fetching
+  findOne = async <T = any>(sql: string, args?: ObjectArray): Promise<T | null> => {
     const { rows } = await this.executeSql(sql, args);
 
     if (rows.length > 1) {

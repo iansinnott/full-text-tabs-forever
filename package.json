@@ -4,20 +4,30 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "////dev": "vite build -w was failing. something about the chrome extension vite plugin and the manifest. re-saving the manifest makes -w work, but that defeats the purpose of automated watch",
+    "//dev": "vite build -w was failing. something about the chrome extension vite plugin and the manifest. re-saving the manifest makes -w work, but that defeats the purpose of automated watch",
     "dev": "watchexec -w src/ -w 'vite.config.ts' 'npm run build'",
-    "build": "vite build && vite build -c vite.config.webext.ts && node ./scripts/replace-manifest.cjs",
-    "build:clean": "rm -rf ./dist/*"
+    "build": "npm run build:clean && vite build && vite build -c vite.config.webext.ts && node ./scripts/replace-manifest.cjs",
+    "build:clean": "rm -rf ./dist/*",
+    "check": "svelte-check --tsconfig ./tsconfig.json"
   },
   "type": "module",
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@tailwindcss/forms": "^0.5.3",
+    "@tailwindcss/line-clamp": "^0.4.2",
+    "@tailwindcss/typography": "^0.5.9",
     "@types/chrome": "~0.0.210",
     "@types/node": "^18.11.19",
+    "autoprefixer": "^10.4.13",
     "concurrently": "^7.6.0",
+    "postcss": "^8.4.21",
+    "svelte-check": "^3.0.3",
+    "svelte-preprocess": "^5.0.1",
+    "tailwindcss": "^3.2.4",
     "tsx": "~3.12.2",
+    "typescript": "^4.9.5",
     "vite": "^4.0.4",
     "vite-plugin-chrome-extension": "0.0.7"
   },
@@ -27,8 +37,10 @@
     "@types/turndown": "~5.0.1",
     "@types/webextension-polyfill": "~0.10.0",
     "@types/websql": "~0.0.27",
+    "classnames": "^2.3.2",
     "dexie": "~3.2.3",
     "svelte": "^3.55.1",
+    "svelte-markdown": "^0.2.3",
     "turndown": "~7.1.1",
     "webextension-polyfill": "~0.10.0"
   }

@@ -44,12 +44,17 @@ export type ResultRow = {
   attribute: string;
   snippet?: string;
   url: string;
+  hostname: string;
   title?: string;
   excerpt?: string;
   lastVisit?: number; // Timestamp
   lastVisitDate?: string;
   mdContentHash?: string;
   createdAt: number; // Timestamp
+}
+
+export type DetailRow = ResultRow & {
+  mdContent?: string;
 }
 
 type FirstArg<T> = T extends (arg: infer U, ...args: any[]) => any ? U : never;
@@ -66,5 +71,6 @@ export interface Backend {
   getPageStatus: RemoteProcWithSender;
   indexPage: RemoteProcWithSender<Article>;
   nothingToIndex: RemoteProcWithSender;
-  search: RemoteProc<{ query: string }, { ok: boolean, results: ResultRow[] }>;
+  search: RemoteProc<{ query: string, limit?: number, offset?: number }, { ok: boolean, results: ResultRow[], count?: number, perfMs: number }>;
+  findOne<T>(sql:string, args: ObjectArray): Promise<T | null>;
 }

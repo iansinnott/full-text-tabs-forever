@@ -1,3 +1,11 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 body {
-  background-color: burlywood;
+  @apply bg-slate-900 text-slate-100;
+}
+
+mark {
+  @apply bg-transparent text-[linen] border-dashed border-b border-pink-600;
 }
