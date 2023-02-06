@@ -23,6 +23,7 @@ export type ArticleRow = Omit<Article, 'htmlContent' | 'textContent'> & {
   searchWords?: string[];
   lastVisit?: number; // Timestamp
   lastVisitDate?: string;
+  updatedAt: number;
   createdAt: number; // Timestamp
   publicationDate?: number;
 }
@@ -50,6 +51,7 @@ export type ResultRow = {
   lastVisit?: number; // Timestamp
   lastVisitDate?: string;
   mdContentHash?: string;
+  updatedAt: number;
   createdAt: number; // Timestamp
 }
 
@@ -72,5 +74,5 @@ export interface Backend {
   indexPage: RemoteProcWithSender<Article>;
   nothingToIndex: RemoteProcWithSender;
   search: RemoteProc<{ query: string, limit?: number, offset?: number }, { ok: boolean, results: ResultRow[], count?: number, perfMs: number }>;
-  findOne<T>(sql:string, args: ObjectArray): Promise<T | null>;
+  findOne(query: { where:{ url: string } }): Promise<DetailRow | null>;
 }

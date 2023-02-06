@@ -18,6 +18,7 @@
   let results: ResultRow[] | undefined;
   let currentIndex = 0;
   let showDetails = false;
+  let enableMouseEvents = false;
   
   const debounce = <T extends (...args: any[]) => any>(fn: T, delay: number) => {
     let timeout: number;
@@ -28,11 +29,15 @@
       }, delay);
     };
   };
+  
+  const handleMouseMove = debounce((e: MouseEvent) => {
+    if (!enableMouseEvents) enableMouseEvents = true;
+  }, 32);
 
   const handleSearch = debounce(async (query: string) => {
     query = query.trim();
     if (query.length > 2) {
-      res = await window.fttf.adapter.backend.search({ query });
+      res = await window.fttf.adapter.backend.search({ query, limit: 500 });
       currentIndex = 0;
     } else {
       // Clear query
@@ -48,29 +53,40 @@
   const scrollIntoView = (i: number) => {
     const el = document.querySelector<HTMLDivElement>(`[data-groupIndex='${i}']`);
     if (el /* && ((el.offsetTop + el.offsetHeight) > window.innerHeight) */) {
-      el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      if (i === (urls.length -1)) {
+        // scroll to bottom
+        el.parentElement?.scrollTo({ top: el.offsetTop, behavior: 'smooth' });
+      } else {
+        el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
     }
   }
 
-  $: scrollIntoView(currentIndex);
+  let input: HTMLInputElement | null = null;
 
   const keybinds: Record<string, (e: KeyboardEvent) => void> = {
+    '/': () => {
+      input?.select();
+    },
     Escape: () => {
       if (showDetails) {
         showDetails = false;
       } else {
         q = "";
+        input?.focus()
       }
     },
     ArrowUp: () => {
       if (currentIndex > 0) {
         currentIndex--;
+        scrollIntoView(currentIndex);
       }
     },
     ArrowDown: () => {
       const len = Object.keys(groups || {}).length;
       if (currentIndex < (len - 1)) {
         currentIndex++;
+        scrollIntoView(currentIndex);
       }
     },
     Enter: (e) => {
@@ -128,8 +144,14 @@
 </script>
 
 <svelte:window
+  on:mousemove={handleMouseMove}
   on:keydown={(e) => {
+    // NOTE the mouse has odd behavior, at least in brave. It will send a
+    // mouseover event without being moved. They keyboard can be used to scroll
+    // so new elements fall below the mouse. they get a mouseover event. Thus
+    // this logic
     if (keybinds[e.key]) {
+      if (enableMouseEvents) enableMouseEvents = false; // See NOTE
       e.preventDefault();
       keybinds[e.key](e);
     }
@@ -147,6 +169,7 @@
       class="w-full block px-3 md:px-6 py-3 text-lg font-mono text-white bg-slate-800 focus:ring-2 ring-indigo-300 border-none rounded-lg"
       type="text"
       placeholder="Search.."
+      bind:this={input}
       bind:value={q}
     />
   </form>
@@ -155,18 +178,21 @@
       Showing {results?.length} of {res.count}. Took <code>{res.perfMs}</code>ms.
     {/if}
   </div>
-  <div class="results px-6 md:p-12 md:pt-6 overflow-auto flex flex-col space-y-4">
+  <div class="results px-6 md:p-12 md:pt-6 overflow-auto flex flex-col space-y-0">
     {#each Object.entries(groups || []) as [url, group], i (url)}
       {@const u = new URL(url)}
       <!-- svelte-ignore a11y-click-events-have-key-events -->
       <div
         data-groupIndex={i}
-        class={classNames("result-group p-2 -mx-2 rounded-lg", {
+        class={classNames("result-group p-3 -mx-2 rounded-lg", {
           "bg-slate-800": i === currentIndex,
           "bg-transparent": i !== currentIndex,
         })}
-        on:mouseenter={() => {
-          currentIndex = i;
+        on:focus={() => (currentIndex = i)}
+        on:mouseover={() => {
+          if (enableMouseEvents) {
+            currentIndex = i;
+          }
         }}
         on:click={(e) => {
           currentIndex = i;

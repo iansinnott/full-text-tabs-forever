@@ -1,5 +1,12 @@
 import { formatDebuggablePayload, getArticleFragments, shasum } from "../common/utils";
-import { Article, ArticleRow, Backend, RemoteProcWithSender, ResultRow } from "./backend";
+import {
+  Article,
+  ArticleRow,
+  Backend,
+  DetailRow,
+  RemoteProcWithSender,
+  ResultRow,
+} from "./backend";
 import Turndown from "turndown";
 
 // Just for typing...
@@ -78,6 +85,12 @@ CREATE VIRTUAL TABLE "fts" USING fts3(
     INSERT INTO "fts" ("rowid", "entityId", "attribute", "value") VALUES (new."id", new."entityId", new."attribute", new."value");
   END;
     `,
+
+  // Add updatedAt to the "document" table
+  `ALTER TABLE "document" ADD COLUMN "updatedAt" INTEGER;`,
+
+  // Set updatedAt to the createdAt value for all existing documents
+  `UPDATE "document" SET "updatedAt" = "createdAt";`,
 ];
 
 export class WebSQLBackend implements Backend {
@@ -173,7 +186,7 @@ export class WebSQLBackend implements Backend {
 
     const startTime = performance.now();
     const [count, results] = await Promise.all([
-      this.findOne<{ count: number }>(`SELECT COUNT(*) as count FROM fts WHERE fts MATCH ?;`, [
+      this.findOneRaw<{ count: number }>(`SELECT COUNT(*) as count FROM fts WHERE fts MATCH ?;`, [
         query,
       ]),
       // @note The SNIPPET syntax is FTS3 syntax, not FTS5. This cannot be copied to an FTS5 database and work
@@ -192,11 +205,12 @@ export class WebSQLBackend implements Backend {
         d.lastVisit,
         d.lastVisitDate,
         d.mdContentHash,
+        d.updatedAt,
         d.createdAt
       FROM fts
         INNER JOIN "document" d ON d.id = fts.entityId
       WHERE fts MATCH ?
-      ORDER BY d.createdAt DESC
+      ORDER BY d.updatedAt DESC
       LIMIT ${limit}
       OFFSET ${offset};
     `,
@@ -264,7 +278,7 @@ export class WebSQLBackend implements Backend {
   };
 
   private upsertDocument = async (document: Partial<ArticleRow>) => {
-    const doc = await this.findOne<ArticleRow>(
+    const doc = await this.findOneRaw<ArticleRow>(
       `
       SELECT id FROM "document" WHERE url = ?;
     `,
@@ -272,7 +286,11 @@ export class WebSQLBackend implements Backend {
     );
 
     if (doc) {
-      console.log("doc already exists, not updating", doc);
+      // update the document updatedAt time
+      await this.executeSql(`UPDATE "document" SET updatedAt = ? WHERE id = ?;`, [
+        Date.now(),
+        doc.id,
+      ]);
       return;
     }
 
@@ -289,8 +307,10 @@ export class WebSQLBackend implements Backend {
         lastVisit,
         lastVisitDate,
         extractor,
+        updatedAt,
         createdAt
       ) VALUES (
+        ?,
         ?,
         ?,
         ?,
@@ -315,6 +335,7 @@ export class WebSQLBackend implements Backend {
         document.lastVisit,
         document.lastVisitDate,
         document.extractor,
+        document.updatedAt || Date.now(),
         document.createdAt || Date.now(),
       ]
     );
@@ -372,7 +393,7 @@ export class WebSQLBackend implements Backend {
     for (let sql of migrations) {
       sql = sql.trim(); // @note We really should also strip leading whitespace. this is to help avoid sql differing due to formatting
 
-      const exists = await this.findOne<{ id: number }>(
+      const exists = await this.findOneRaw<{ id: number }>(
         `SELECT * FROM internal_migrations WHERE sql = ? LIMIT 1`,
         [sql]
       );
@@ -427,8 +448,14 @@ export class WebSQLBackend implements Backend {
     return items;
   };
 
+  findOne = async ({ where }): Promise<DetailRow | null> => {
+    return this.findOneRaw<DetailRow>(`SELECT * FROM "document" WHERE url = ? LIMIT 1`, [
+      where.url,
+    ]);
+  };
+
   // This is public for eas of fetching
-  findOne = async <T = any>(sql: string, args?: ObjectArray): Promise<T | null> => {
+  private findOneRaw = async <T = any>(sql: string, args?: ObjectArray): Promise<T | null> => {
     const { rows } = await this.executeSql(sql, args);
 
     if (rows.length > 1) {

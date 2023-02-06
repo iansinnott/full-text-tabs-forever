@@ -10,28 +10,28 @@
   
   const fetchRow = async (url: string) => {
     try {
-    row = await window.fttf.adapter.backend.findOne<DetailRow>(`SELECT * FROM "document" WHERE url = ?`, [url]);
+      row = await window.fttf.adapter.backend.findOne({ where: { url }});
     } catch (_err) {
       err = _err; 
     }
   };
 
   $: fetchRow(docUrl);
-  
   $: console.log({ detailRow: row });
 </script>
 
 <div class="prose prose-invert">
-  <h1 class="text-3xl">
-    {row?.title}
-  </h1>
   {#if row}
+    <h1 class="text-3xl">
+      {row?.title}
+    </h1>
     <SvelteMarkdown source={row.mdContent} />
   {:else if err}
     <div class="error">
       {err.message}
     </div>
   {:else}
-    <div class="loading">Loading...</div>
+    <!-- Intentionally left blank. Loading is local so it is a quick blip the user doesn't parse -->
+    <!-- <div class="loading">Loading...</div> -->
   {/if}
 </div>
