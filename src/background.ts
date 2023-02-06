@@ -4,6 +4,7 @@ import { Backend, SendResponse } from "./background/backend";
 // import { IndexedDbBackend } from "./background/backend-indexeddb";
 import { WebSQLBackend } from "./background/backend-websql";
 import { log } from "./common/logs";
+import { debounce } from "./common/utils";
 
 class BackendAdapter {
   backend: Backend;
@@ -81,6 +82,22 @@ if (adapter.onMessage) {
   // @ts-expect-error sendMessage types are wrong
   browser.runtime.onMessage.addListener((...args) => adapter.onMessage(...args));
 }
+
+// @note We do not support spas currently
+const updateHandler = debounce(
+  async (
+    tabId: number,
+    changeInfo: browser.Tabs.OnUpdatedChangeInfoType,
+    tab: browser.Tabs.Tab
+  ) => {
+    console.log("%ctab update", "color:gray;", "no action performed", tab.url);
+    // browser.tabs.sendMessage(tabId, ["onTabUpdated", { tabId, changeInfo }]);
+  },
+  200
+);
+
+// Listen for tab updates, because the content script normally only runs on load. This is for SPA apps
+browser.tabs.onUpdated.addListener(updateHandler);
 
 // When the extension button is clicked, log a message
 browser.browserAction.onClicked.addListener(async () => {

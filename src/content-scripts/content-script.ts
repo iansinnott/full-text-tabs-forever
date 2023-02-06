@@ -119,8 +119,7 @@ const main = async () => {
   log("result", result)
 };
 
-// Plumbing
-(async () => {
+const mainWrapper = async () => {
   // check if dom content has already been loaded
   if (document.readyState !== "complete") {
 
@@ -138,6 +137,18 @@ const main = async () => {
   }
 
   await main();
+}
+
+// Plumbing
+(async () => {
+
+  // listen for browser push state updates and hash changes
+  window.addEventListener("popstate", () => {
+    console.log('%cpopstate', 'color:orange;font-size:18px;', location.toString());
+    mainWrapper()
+  });
+
+  await mainWrapper()
 
   // Devtools cannot be exposed on window directly
   {

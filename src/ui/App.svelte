@@ -12,6 +12,7 @@
 
 <script lang="ts">
   import DetailsPanel from "./DetailsPanel.svelte";
+  import { debounce } from '../common/utils';
 
   let q = "";
   let res: Awaited<ReturnType<typeof window.fttf.adapter.backend.search>> | null = null;
@@ -20,19 +21,9 @@
   let showDetails = false;
   let enableMouseEvents = false;
   
-  const debounce = <T extends (...args: any[]) => any>(fn: T, delay: number) => {
-    let timeout: number;
-    return (...args: Parameters<T>) => {
-      clearTimeout(timeout);
-      timeout = window.setTimeout(() => {
-        fn(...args);
-      }, delay);
-    };
-  };
-  
-  const handleMouseMove = debounce((e: MouseEvent) => {
+  const handleMouseMove = (e: MouseEvent) => {
     if (!enableMouseEvents) enableMouseEvents = true;
-  }, 32);
+  };
 
   const handleSearch = debounce(async (query: string) => {
     query = query.trim();
@@ -228,12 +219,13 @@
     on:click={(e) => {
       showDetails = false;
     }}
-    transition:fly={{ x: 0, duration: 200 }}
+    in:fly={{ x: 200, duration: 2000 }}
+    out:fly={{ y: 2, duration: 2000 }}
     class={classNames(
-      "DetailPanel h-screen absolute top-0 bottom-0 w-full transition-all bg-zinc-900 shadow-lg overflow-auto p-6 md:p-12",
+      "DetailPanel h-screen absolute top-0 bottom-0 w-full bg-zinc-900 shadow-lg overflow-auto p-6 md:p-12",
       {
-        "left-[10%]": showDetails,
-        "left-full": !showDetails,
+        // "left-[10%]": showDetails,
+        // "left-full": !showDetails,
       }
     )}
   >

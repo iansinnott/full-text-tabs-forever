@@ -41,6 +41,7 @@ export type UrlRow = {
 
 export type ResultRow = {
   rowid: number;
+  id: number;
   entityId: number;
   attribute: string;
   snippet?: string;

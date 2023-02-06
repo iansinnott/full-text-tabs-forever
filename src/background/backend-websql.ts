@@ -102,9 +102,22 @@ export class WebSQLBackend implements Backend {
       const url = new URL(tab?.url || "");
       if (url.hostname === "localhost") shouldIndex = false;
       if (url.hostname.endsWith(".local")) shouldIndex = false;
+      const existing = await this.findOne({ where: { url: url.href } });
+      shouldIndex = !existing || !existing.mdContent; // Try to index if there is not yet any content
+      if (existing) {
+        this.touchDocument({
+          id: existing.id,
+          updatedAt: Date.now(),
+          lastVisit: Date.now(),
+          lastVisitDate: new Date().toISOString().split("T")[0],
+        });
+      }
     } catch (err) {
       // should not happen
-      throw err;
+      return {
+        shouldIndex: false,
+        error: err.message,
+      };
     }
 
     console.log(`%c${"getPageStatus"}`, "color:lime;", { shouldIndex, url: tab?.url }, payload);
@@ -277,6 +290,20 @@ export class WebSQLBackend implements Backend {
     });
   };
 
+  private touchDocument = async (document: Partial<ArticleRow> & { id: number }) => {
+    // update the document updatedAt time
+    await this.executeSql(
+      `
+        UPDATE "document" 
+        SET updatedAt = ?,
+            lastVisit = ?,
+            lastVisitDate = ?
+        WHERE id = ?;
+      `,
+      [document.updatedAt, document.lastVisit, document.lastVisitDate, document.id]
+    );
+  };
+
   private upsertDocument = async (document: Partial<ArticleRow>) => {
     const doc = await this.findOneRaw<ArticleRow>(
       `
@@ -287,10 +314,27 @@ export class WebSQLBackend implements Backend {
 
     if (doc) {
       // update the document updatedAt time
-      await this.executeSql(`UPDATE "document" SET updatedAt = ? WHERE id = ?;`, [
-        Date.now(),
-        doc.id,
-      ]);
+      await this.executeSql(
+        `
+        UPDATE "document" 
+        SET updatedAt = ?,
+            excerpt = ?,
+            mdContent = ?,
+            mdContentHash = ?,
+            lastVisit = ?,
+            lastVisitDate = ?
+        WHERE id = ?;
+      `,
+        [
+          Date.now(),
+          document.excerpt,
+          document.mdContent,
+          document.mdContentHash,
+          document.lastVisit,
+          document.lastVisitDate,
+          doc.id,
+        ]
+      );
       return;
     }
 

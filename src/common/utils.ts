@@ -41,3 +41,13 @@ export const shasum = async (text: string) => {
 export const getArticleFragments = (textContent: string): string[] => {
   return textContent?.trim()?.split(/\n+/)?.map((x) => x.replace(/\s+/g, " ").trim()) || [];
 }
+
+export const debounce = <T extends (...args: any[]) => any>(fn: T, delay: number) => {
+  let timeout: number;
+  return (...args: Parameters<T>) => {
+    clearTimeout(timeout);
+    timeout = window.setTimeout(() => {
+      fn(...args);
+    }, delay);
+  };
+};
