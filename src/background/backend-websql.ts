@@ -177,6 +177,7 @@ export class WebSQLBackend implements Backend {
         query,
       ]),
       // @note The SNIPPET syntax is FTS3 syntax, not FTS5. This cannot be copied to an FTS5 database and work
+      // @note Ordering by date as a rasonable sorting mechanism. some sort of 'rank' woudl be better but fts3 does not have it out of the box.
       this.findMany<ResultRow>(
         `
       SELECT 
@@ -195,6 +196,7 @@ export class WebSQLBackend implements Backend {
       FROM fts
         INNER JOIN "document" d ON d.id = fts.entityId
       WHERE fts MATCH ?
+      ORDER BY d.createdAt DESC
       LIMIT ${limit}
       OFFSET ${offset};
     `,

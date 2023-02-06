@@ -7,5 +7,5 @@ body {
 }
 
 mark {
-  @apply bg-transparent text-[linen] border-dashed border-b border-pink-600;
+  @apply bg-pink-900/50 border-dashed border-b border-pink-600 text-pink-200;
 }

@@ -26,12 +26,7 @@
     {row?.title}
   </h1>
   {#if row}
-    <SvelteMarkdown
-      on:parsed={() => {
-        console.log("Parsed");
-      }}
-      source={row.mdContent}
-    />
+    <SvelteMarkdown source={row.mdContent} />
   {:else if err}
     <div class="error">
       {err.message}
