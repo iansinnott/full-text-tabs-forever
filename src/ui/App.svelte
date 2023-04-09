@@ -219,8 +219,8 @@
     on:click={(e) => {
       showDetails = false;
     }}
-    in:fly={{ x: 200, duration: 2000 }}
-    out:fly={{ y: 2, duration: 2000 }}
+    in:fly={{ x: 200, duration: 200 }}
+    out:fly={{ y: 2, duration: 200 }}
     class={classNames(
       "DetailPanel h-screen absolute top-0 bottom-0 w-full bg-zinc-900 shadow-lg overflow-auto p-6 md:p-12",
       {
