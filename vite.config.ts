@@ -11,6 +11,15 @@ export default defineConfig({
     minify: process.env.NODE_ENV !== "development",
     emptyOutDir: false,
   },
+  server: {
+    headers: {
+      "Cross-Origin-Opener-Policy": "same-origin",
+      "Cross-Origin-Embedder-Policy": "require-corp",
+    },
+  },
+  optimizeDeps: {
+    exclude: ["@sqlite.org/sqlite-wasm"],
+  },
   plugins: [
     svelte({
       preprocess: vitePreprocess(),

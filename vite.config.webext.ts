@@ -9,10 +9,18 @@ export default defineConfig({
     },
 
     // Unminified code helps with debug stack traces
-    // @ts-ignore - need to add @types/node?
-    minify: process.env.NODE_ENV !== "development",
+    minify: false,
 
     emptyOutDir: false,
+  },
+  server: {
+    headers: {
+      "Cross-Origin-Opener-Policy": "same-origin",
+      "Cross-Origin-Embedder-Policy": "require-corp",
+    },
+  },
+  optimizeDeps: {
+    exclude: ["@sqlite.org/sqlite-wasm"],
   },
   plugins: [
     // @ts-expect-error - vite-plugin-chrome-extension is poorly typed?
