@@ -22,6 +22,16 @@
 
 <div class="prose prose-invert">
   {#if row}
+    <div class="Controls flex space-x-4">
+      <button
+        class="px-3 py-2 rounded border-white"
+        on:click|preventDefault={() => {
+          window.open(row?.url, "_blank");
+        }}
+      >
+        Open URL
+      </button>
+    </div>
     <h1 class="text-3xl">
       {row?.title}
     </h1>

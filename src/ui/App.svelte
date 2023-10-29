@@ -13,6 +13,7 @@
 <script lang="ts">
   import DetailsPanel from "./DetailsPanel.svelte";
   import { debounce } from '../common/utils';
+  import { onMount, tick } from 'svelte';
 
   let q = "";
   let res: Awaited<ReturnType<typeof window.fttf.adapter.backend.search>> | null = null;
@@ -82,13 +83,19 @@
     },
     Enter: (e) => {
       if (currentUrl && e.metaKey) {
+        showDetails = true;
+      } else {
         // open a new tab
         window.open(currentUrl, "_blank");
-      } else {
-        showDetails = true;
       }
     },
   };
+  
+  onMount(() => {
+    tick().then(() => {
+      input?.focus();
+    });
+  });
   
   const cleanUrl = (url: string) => {
     return url.replace(/^(https?:\/\/(?:www)?)/, '').replace(/\/$/, '');
@@ -154,9 +161,7 @@
     <!-- Intentionally empty for now. a placeholder -->
   </header>
   <form on:submit|preventDefault class="px-3 md:px-6 pt-3 md:pt-6">
-    <!-- svelte-ignore a11y-autofocus -->
     <input
-      autofocus
       class="w-full block px-3 md:px-6 py-3 text-lg font-mono text-white bg-slate-800 focus:ring-2 ring-indigo-300 border-none rounded-lg"
       type="text"
       placeholder="Search.."
@@ -222,7 +227,7 @@
     in:fly={{ x: 200, duration: 200 }}
     out:fly={{ y: 2, duration: 200 }}
     class={classNames(
-      "DetailPanel h-screen absolute top-0 bottom-0 w-full bg-zinc-900 shadow-lg overflow-auto p-6 md:p-12",
+      "DetailPanel h-screen absolute left-auto right-0 top-0 bottom-0 w-full max-w-[768px] bg-zinc-900 shadow-lg overflow-auto p-6 md:p-12",
       {
         // "left-[10%]": showDetails,
         // "left-full": !showDetails,
