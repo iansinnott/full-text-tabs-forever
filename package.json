@@ -33,6 +33,7 @@
   },
   "dependencies": {
     "@mozilla/readability": "~0.4.2",
+    "@sqlite.org/sqlite-wasm": "^3.43.2-build1",
     "@sveltejs/vite-plugin-svelte": "~2.0.2",
     "@types/turndown": "~5.0.1",
     "@types/webextension-polyfill": "~0.10.0",

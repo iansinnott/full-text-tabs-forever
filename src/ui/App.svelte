@@ -1,8 +1,8 @@
 <script context="module" lang="ts">
   import type { ResultRow } from '@/background/backend';
+  import type { FTTF } from '../background';
   import {fly} from 'svelte/transition'
   import classNames from 'classnames';
-  import type { FTTF } from '../background';
   declare global {
     interface Window {
       fttf: FTTF;
@@ -65,7 +65,9 @@
         showDetails = false;
       } else {
         q = "";
-        input?.focus()
+        tick().then(() => {
+          input?.focus();
+        });
       }
     },
     ArrowUp: () => {
@@ -225,9 +227,9 @@
       showDetails = false;
     }}
     in:fly={{ x: 200, duration: 200 }}
-    out:fly={{ y: 2, duration: 200 }}
+    out:fly={{ x: 200, duration: 200 }}
     class={classNames(
-      "DetailPanel h-screen absolute left-auto right-0 top-0 bottom-0 w-full max-w-[768px] bg-zinc-900 shadow-lg overflow-auto p-6 md:p-12",
+      "DetailPanel h-screen absolute left-auto right-0 top-0 bottom-0 w-full max-w-[768px] bg-zinc-900 shadow-lg shadow-black border-l border-[#33383f] overflow-auto p-6 md:p-12",
       {
         // "left-[10%]": showDetails,
         // "left-full": !showDetails,
