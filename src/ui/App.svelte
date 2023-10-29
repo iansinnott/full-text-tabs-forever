@@ -1,16 +1,47 @@
 <script context="module" lang="ts">
   import type { ResultRow } from '@/background/backend';
-  import type { FTTF } from '../background';
-  import {fly} from 'svelte/transition'
-  import classNames from 'classnames';
-  declare global {
-    interface Window {
-      fttf: FTTF;
-    }
-  }
+  // import type { FTTF } from '../background';
+  // import classNames from 'classnames';
+  // declare global {
+  //   interface Window {
+  //     fttf: FTTF;
+  //   }
+  // }
+
+  // if (typeof window !== "undefined") {
+  //   window.fttf = { 
+  //     adapter: {
+  //       onInstalled: async () => {
+  //         return chrome.runtime.sendMessage({ type: 'jello#onInstalled' })
+  //       },
+  //       onMessage: () => {
+  //         return true;
+  //       },
+  //       backend: {
+  //         search: async (query) => {
+  //           return chrome.runtime.sendMessage({ type: 'search', query })
+  //         },
+  //         getPageStatus: async (url) => {
+  //           return chrome.runtime.sendMessage({ type: 'getPageStatus', url })
+  //         },
+  //         indexPage: async (url) => {
+  //           return chrome.runtime.sendMessage({ type: 'indexPage', url })
+  //         },
+  //         nothingToIndex: async (url) => {
+  //           return chrome.runtime.sendMessage({ type: 'nothingToIndex', url })
+  //         },
+  //         findOne: async (url) => {
+  //           return chrome.runtime.sendMessage({ type: 'findOne', url })}
+  //       },
+  //     },
+  //   };
+  // }
+
+
 </script>
 
 <script lang="ts">
+  import {fly} from 'svelte/transition'
   import DetailsPanel from "./DetailsPanel.svelte";
   import { debounce } from '../common/utils';
   import { onMount, tick } from 'svelte';

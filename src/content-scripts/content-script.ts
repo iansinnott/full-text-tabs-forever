@@ -1,6 +1,6 @@
 import browser from "webextension-polyfill";
 import { Readability } from "@mozilla/readability";
-import type { RpcMessage } from "@/background/backend";
+import { RpcMessage } from "../background/backend";
 
 const rpc = async (message: RpcMessage) => {
   return browser.runtime.sendMessage(message);
@@ -14,7 +14,7 @@ const detectDate = () => {
   let date: string | null = null;
   try {
     const el = document.querySelector<HTMLMetaElement>(
-      'meta[property="article:published_time"],meta[property="og:pubdate"],meta[property="og:publish_date"],meta[name="citation_online_date"],meta[name="dc.Date"]',
+      'meta[property="article:published_time"],meta[property="og:pubdate"],meta[property="og:publish_date"],meta[name="citation_online_date"],meta[name="dc.Date"]'
     );
     if (el) {
       date = new Date(el.content).toISOString();
@@ -52,29 +52,29 @@ const main = async () => {
   await new Promise((resolve) => {
     // Wait for dom to stop changing for at least 1 second
     let len = document.body?.innerText?.length || 0;
-    let timeout: number
-    let timeout2: number
+    let timeout: NodeJS.Timeout;
+    let timeout2: NodeJS.Timeout;
 
     const fn = () => {
       const newLen = document.body?.innerText?.length || 0;
       if (newLen === len) {
-        clearTimeout(timeout2)
+        clearTimeout(timeout2);
         resolve(null);
       } else {
-        console.debug("Still waiting for dom to stop changing")
+        console.debug("Still waiting for dom to stop changing");
         len = newLen;
         timeout = setTimeout(fn, 1000);
       }
-    }
+    };
 
     // kick it off
     timeout = setTimeout(fn, 1000);
 
     // Resolve regardless if too much time ellapses
     timeout2 = setTimeout(() => {
-      clearTimeout(timeout)
-      resolve(null)
-    }, 10000)
+      clearTimeout(timeout);
+      resolve(null);
+    }, 10000);
   });
 
   // Wait for an idle moment so that we don't cause any dropped frames (hopefully)
@@ -94,7 +94,7 @@ const main = async () => {
   endTime = performance.now();
 
   if (!readabilityArticle) {
-    await rpc(["nothingToIndex"])
+    await rpc(["nothingToIndex"]);
     return;
   }
 
@@ -107,22 +107,24 @@ const main = async () => {
   });
 
   // @todo This is just a standin
-  const result = await rpc(["indexPage", {
-    ...rest,
-    _extractionTime: endTime - startTime,
-    extractor: "readability",
-    htmlContent: content,
-    textContent,
-    date,
-  }]);
+  const result = await rpc([
+    "indexPage",
+    {
+      ...rest,
+      _extractionTime: endTime - startTime,
+      extractor: "readability",
+      htmlContent: content,
+      textContent,
+      date,
+    },
+  ]);
 
-  log("result", result)
+  log("result", result);
 };
 
 const mainWrapper = async () => {
   // check if dom content has already been loaded
   if (document.readyState !== "complete") {
-
     // @note This can take _a while_, but is in place to account for apps that
     // may not have built the dom yet
     await new Promise((resolve) => {
@@ -137,25 +139,23 @@ const mainWrapper = async () => {
   }
 
   await main();
-}
+};
 
 // Plumbing
 (async () => {
-
   // listen for browser push state updates and hash changes
   window.addEventListener("popstate", () => {
-    console.log('%cpopstate', 'color:orange;font-size:18px;', location.toString());
-    mainWrapper()
+    console.log("%cpopstate", "color:orange;font-size:18px;", location.toString());
+    mainWrapper();
   });
 
-  await mainWrapper()
+  await mainWrapper();
 
   // Devtools cannot be exposed on window directly
   {
     const query = localStorage.getItem("@fttf/query");
     if (query) {
-      console.log(`%cquery('${query}')`, 'color:pink;', ' -> ', await rpc(["search", { query }]))
+      console.log(`%cquery('${query}')`, "color:pink;", " -> ", await rpc(["search", { query }]));
     }
   }
-
 })();

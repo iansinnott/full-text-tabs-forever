@@ -5,20 +5,26 @@ try {
   const manifestV3 = JSON.parse(
     readFileSync(path.resolve(__dirname, "../dist/manifest.json"), "utf8")
   );
-
-  manifestV3.manifest_version = 2;
-  manifestV3.background = {
-    page: "index.html",
-    persistent: true,
-  };
-  manifestV3.browser_action = manifestV3.action;
-  delete manifestV3["action"];
-  delete manifestV3["background"]["service_worker"];
   delete manifestV3["$schema"];
-  delete manifestV3["host_permissions"];
-  delete manifestV3["cross_origin_embedder_policy"];
-  delete manifestV3["cross_origin_opener_policy"];
-  delete manifestV3["content_security_policy"];
+
+  // manifestV3.manifest_version = 2;
+  // manifestV3.background = {
+  //   page: "index.html",
+  //   persistent: true,
+  // };
+  // manifestV3.browser_action = manifestV3.action;
+  // manifestV3["content_security_policy"] = manifestV3["content_security_policy"].extension_pages;
+
+  // delete manifestV3["action"];
+  // delete manifestV3["background"]["service_worker"];
+  // delete manifestV3["host_permissions"];
+
+  // This permission is not known in v3
+  if (manifestV3.manifest_version === 3) {
+    manifestV3.permissions = manifestV3.permissions.filter((permission) => {
+      return permission !== "<all_urls>";
+    });
+  }
 
   writeFileSync(
     path.resolve(__dirname, "../dist/manifest.json"),

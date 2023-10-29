@@ -1,7 +1,7 @@
 import { Runtime } from "webextension-polyfill";
 import type { Readability } from '@mozilla/readability'
 
-export type SendResponse = (response?: any) => Promise<void>;
+export type SendResponse = (response?: any) => void;
 
 export type RemoteProcWithSender<T = any, Ret = any> = (payload: T, sender: Runtime.MessageSender) => Promise<Ret>;
 export type RemoteProc<T = any, Ret = any> = (payload: T) => Promise<Ret>;

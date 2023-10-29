@@ -1,7 +1,22 @@
 import { formatDebuggablePayload } from "../common/utils";
-import { Article, Backend, RemoteProcWithSender } from "./backend";
+import { Article, Backend, DetailRow, RemoteProcWithSender } from "./backend";
 
 export class DebugBackend implements Backend {
+  search: Backend["search"] = async (search) => {
+    console.log(`backend#%c${"search"}`, "color:lime;", search);
+    return {
+      ok: true,
+      results: [],
+      count: 0,
+      perfMs: 0,
+    };
+  };
+
+  async findOne(query: { where: { url: string } }): Promise<DetailRow | null> {
+    console.log(`backend#%c${"findOne"}`, "color:lime;", query);
+    return null;
+  }
+
   getPageStatus: Backend["getPageStatus"] = async (payload, sender) => {
     const { tab } = sender;
     let shouldIndex = tab?.url?.startsWith("http"); // ignore chrome extensions, about:blank, etc

@@ -6,6 +6,7 @@
     "manifest_version": 3,
     "permissions": [
         "<all_urls>",
+        "action",
         "unlimitedStorage",
         "storage",
         "tabs",
