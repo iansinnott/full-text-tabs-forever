@@ -16,6 +16,9 @@ try {
   delete manifestV3["background"]["service_worker"];
   delete manifestV3["$schema"];
   delete manifestV3["host_permissions"];
+  delete manifestV3["cross_origin_embedder_policy"];
+  delete manifestV3["cross_origin_opener_policy"];
+  delete manifestV3["content_security_policy"];
 
   writeFileSync(
     path.resolve(__dirname, "../dist/manifest.json"),
