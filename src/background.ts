@@ -2,9 +2,8 @@
 
 import type { Backend, SendResponse } from "./background/backend";
 import { DebugBackend } from "./background/backend-debug";
-// import { IndexedDbBackend } from "./background/backend-indexeddb";
 // import { WebSQLBackend } from "./background/backend-websql";
-// import { SqliteWasmOPFSBackend } from "./background/backend-sqlite-opfs";
+import { SqliteWasmOPFSBackend } from "./background/backend-sqlite-opfs";
 import { log } from "./common/logs";
 import { debounce } from "./common/utils";
 
