@@ -9,7 +9,10 @@ export type RemoteProc<T = any, Ret = any> = (payload: T) => Promise<Ret>;
 type ReadabilityArticle = Omit<NonNullable<ReturnType<Readability['parse']>>, 'content'>
 export type Article = ReadabilityArticle & {
   extractor: string;
-  htmlContent: string;
+  /** Optional for now b/c i'm not sending it over the wire if turndown is used in the content script */
+  htmlContent?: string;
+  /** Optional because the parsing can fail */
+  mdContent?: string; 
   date?: string;
   _extractionTime: number;
 }

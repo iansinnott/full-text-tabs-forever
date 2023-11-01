@@ -3,8 +3,6 @@
 import type { Backend, SendResponse } from "./background/backend";
 import { DebugBackend } from "./background/backend-debug";
 import { VLCN } from "./background/backend-vlcn";
-// import { WebSQLBackend } from "./background/backend-websql";
-// import { SqliteWasmOPFSBackend } from "./background/backend-sqlite-opfs";
 import { log } from "./common/logs";
 import { debounce } from "./common/utils";
 

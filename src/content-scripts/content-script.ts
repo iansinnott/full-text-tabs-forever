@@ -1,6 +1,9 @@
 import browser from "webextension-polyfill";
 import { Readability } from "@mozilla/readability";
 import { RpcMessage } from "../background/backend";
+import TurndownService from "turndown";
+
+const turndown = new TurndownService();
 
 const rpc = async (message: RpcMessage) => {
   return browser.runtime.sendMessage(message);
@@ -101,6 +104,12 @@ const main = async () => {
   const date = detectDate();
   const { content, textContent, ...rest } = readabilityArticle;
 
+  // @todo Would be nice to not have to turndown for every page. This used to be
+  // in the background script but threw for dom reasons. Would need to modify
+  // turndown. NOTE: It supports running in node, but the internal env check
+  // thinks its in a browser
+  const mdContent = turndown.turndown(content);
+
   log("article:", textContent, {
     ...rest,
     date,
@@ -113,8 +122,9 @@ const main = async () => {
       ...rest,
       _extractionTime: endTime - startTime,
       extractor: "readability",
-      htmlContent: content,
+      // htmlContent: content,
       textContent,
+      mdContent,
       date,
     },
   ]);

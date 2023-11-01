@@ -7,11 +7,9 @@ import fs from "node:fs";
 export default defineConfig({
   build: {
     rollupOptions: {
-      // Vite was not ignoring tmp dir, which is the only reason I added this
       input: {
         index: "index.html",
         background: "src/background.ts",
-        "content-scripts/content-script": "src/content-scripts/content-script.ts",
       },
       output: {
         entryFileNames: "[name].js",

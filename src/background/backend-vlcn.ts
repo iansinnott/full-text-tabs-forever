@@ -118,18 +118,18 @@ export class VLCN implements Backend {
   };
 
   indexPage: Backend["indexPage"] = async (
-    { htmlContent, date, textContent, ...payload },
+    { /* htmlContent, */ date, textContent, mdContent, ...payload },
     sender
   ) => {
     const { tab } = sender;
 
-    let mdContent: string | undefined = undefined;
     let mdContentHash: string | undefined = undefined;
-    try {
-      mdContent = this.turndown.turndown(htmlContent);
-      mdContentHash = await shasum(mdContent);
-    } catch (err) {
-      console.error("turndown failed", err);
+    if (mdContent) {
+      try {
+        mdContentHash = await shasum(mdContent);
+      } catch (err) {
+        console.warn("shasum failed failed", err);
+      }
     }
 
     const u = new URL(tab?.url || "");
@@ -272,17 +272,19 @@ export class VLCN implements Backend {
         return [entityId, "content", fragment, i];
       })
     );
-
-    return this.transaction((tx) => {
-      params.forEach((param) => {
-        tx.executeSql(sql, param);
-      });
+    
+    await this._db.tx(async (tx) => {
+      for (const param of params) {
+        await tx.exec(sql, param);
+      }
     });
+
+    return
   };
 
   private touchDocument = async (document: Partial<ArticleRow> & { id: number }) => {
     // update the document updatedAt time
-    await this.executeSql(
+    await this._db.exec(
       `
         UPDATE "document" 
         SET updatedAt = ?,
@@ -304,7 +306,7 @@ export class VLCN implements Backend {
 
     if (doc) {
       // update the document updatedAt time
-      await this.executeSql(
+      await this._db.exec(
         `
         UPDATE "document" 
         SET updatedAt = ?,
@@ -328,7 +330,7 @@ export class VLCN implements Backend {
       return;
     }
 
-    return this.executeSql(
+    return this._db.exec(
       `
       INSERT INTO "document" (
         title,
@@ -445,42 +447,9 @@ export class VLCN implements Backend {
     }
   };
 
-  // @note `transaction` does not notify of changes on complete.
-  private transaction = (fn: SQLTransactionCallback) => {
-    return new Promise((resolve, reject) => {
-      this._db.transaction(
-        fn,
-        (err) => reject(err),
-        () => resolve(null)
-      );
-    });
-  };
-
-  private executeSql(sqlStatement: DOMString, args?: ObjectArray): Promise<SQLResultSet> {
-    return new Promise((resolve, reject) => {
-      this._db.transaction((tx) => {
-        tx.executeSql(
-          sqlStatement,
-          args,
-          (_, result) => resolve(result),
-          // @ts-ignore supposed to return a bool here, but I couldn't find docs for what it signifies
-          (_, err) => {
-            reject(err);
-          }
-        );
-      });
-    });
-  }
-
-  private findMany = async <T = any>(sql: string, args?: ObjectArray): Promise<T[]> => {
-    const { rows } = await this.executeSql(sql, args);
-    const items: T[] = [];
-
-    for (let i = 0; i < rows.length; i++) {
-      items.push(rows.item(i) as T);
-    }
-
-    return items;
+  private findMany = async <T extends {} = {}>(sql: string, args?: ObjectArray): Promise<T[]> => {
+    const xs = await this._db.execO<T>(sql, args);
+    return xs
   };
 
   findOne = async ({ where }): Promise<DetailRow | null> => {
@@ -489,7 +458,6 @@ export class VLCN implements Backend {
     ]);
   };
 
-  // This is public for eas of fetching
   private findOneRaw = async <T extends {} = {}>(sql: string, args?: ObjectArray): Promise<T | null> => {
     const xs = await this._db.execO<T>(sql, args);
 
