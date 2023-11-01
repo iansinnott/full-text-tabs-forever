@@ -8,9 +8,6 @@ dependencies:
   '@mozilla/readability':
     specifier: ~0.4.2
     version: 0.4.2
-  '@sqlite.org/sqlite-wasm':
-    specifier: ^3.43.2-build1
-    version: 3.43.2-build1
   '@sveltejs/vite-plugin-svelte':
     specifier: ~2.0.2
     version: 2.0.2(svelte@3.55.1)(vite@4.0.4)
@@ -23,6 +20,9 @@ dependencies:
   '@types/websql':
     specifier: ~0.0.27
     version: 0.0.27
+  '@vlcn.io/crsqlite-wasm':
+    specifier: 0.15.2
+    version: 0.15.2
   classnames:
     specifier: ^2.3.2
     version: 2.3.2
@@ -36,8 +36,8 @@ dependencies:
     specifier: ^0.2.3
     version: 0.2.3(svelte@3.55.1)
   turndown:
-    specifier: ~7.1.1
-    version: 7.1.1
+    specifier: https://github.com/iansinnott/turndown
+    version: github.com/iansinnott/turndown/c4d3be39184d895fc481b559594f036670f5eb1e
   webextension-polyfill:
     specifier: ~0.10.0
     version: 0.10.0
@@ -377,11 +377,6 @@ packages:
       fastq: 1.15.0
     dev: true
 
-  /@sqlite.org/sqlite-wasm@3.43.2-build1:
-    resolution: {integrity: sha512-f0qln3z0RFWV5WTwsidFRJ0e8dCeilGB4kKVUTA0IHVPIIAW75AWZKfPcI5kHiC+VIYhlT8lM3k+9MNeAcv9uA==}
-    hasBin: true
-    dev: false
-
   /@sveltejs/vite-plugin-svelte@2.0.2(svelte@3.55.1)(vite@4.0.4):
     resolution: {integrity: sha512-xCEan0/NNpQuL0l5aS42FjwQ6wwskdxC3pW1OeFtEKNZwRg7Evro9lac9HesGP6TdFsTv2xMes5ASQVKbCacxg==}
     engines: {node: ^14.18.0 || >= 16}
@@ -484,6 +479,24 @@ packages:
     resolution: {integrity: sha512-bmJkLrp/S1G1m/MEcCFuRYjSpgFIWt1KoglSw4D9i3veQBR6v0BYFmp7snK1u3ri53AFdLaRR8qwIsOzw1h8LA==}
     dev: false
 
+  /@vlcn.io/crsqlite-wasm@0.15.2:
+    resolution: {integrity: sha512-yftBNDo6oMUJmEpUYFeh5iftJVoYiXpECvjvAFVXaWX7FPaV+kTKtWK3I4x4mB9rXXu1gk1+12E78HNZO1a55w==}
+    dependencies:
+      '@vlcn.io/wa-sqlite': 0.21.0
+      '@vlcn.io/xplat-api': 0.14.1
+      async-mutex: 0.4.0
+    dev: false
+
+  /@vlcn.io/wa-sqlite@0.21.0:
+    resolution: {integrity: sha512-aCeTGIGyi+HOv8wzJQ8n4lG9XqjjBEKVAPLXq/dekW6AM/x0ITA5vAQ7YUhpn9xNq3U1cp5DPIX+vzMkpsRNww==}
+    dev: false
+
+  /@vlcn.io/xplat-api@0.14.1:
+    resolution: {integrity: sha512-Y63WDk0kkt6i1WzlD6StiFXXHP+YJaDO/SW0S9+dyoEZDvkDLHr1HrKsfBn1JreBnbCd5fOhm/gRP49m1Ksfhg==}
+    dependencies:
+      comlink: 4.4.1
+    dev: false
+
   /acorn-node@1.8.2:
     resolution: {integrity: sha512-8mt+fslDufLYntIoPAaIMUe/lrbrehIiwmR3t2k9LljIzoigEPF27eLk2hy8zSGzmR/ogr7zbRKINMo1u0yh5A==}
     dependencies:
@@ -547,6 +560,12 @@ packages:
     resolution: {integrity: sha512-hfJmKupmQN0lwi0xG6FQ5U8Rd97RnIERplymOv/qpq8AoNKPPAnxJadjFA23FNWm88wykh9HmpLJUUwUtNU/iw==}
     engines: {node: '>=6.0.0'}
     dev: true
+
+  /async-mutex@0.4.0:
+    resolution: {integrity: sha512-eJFZ1YhRR8UN8eBLoNzcDPcy/jqjsg6I1AP+KvWQX80BqOSW1oJPJXDylPUEeMr2ZQvHgnQ//Lp6f3RQ1zI7HA==}
+    dependencies:
+      tslib: 2.5.0
+    dev: false
 
   /autoprefixer@10.4.13(postcss@8.4.21):
     resolution: {integrity: sha512-49vKpMqcZYsJjwotvt4+h/BCjJVnhGwcLpDt5xkcaOG3eLrG/HUYLagrihYsQ+qrIBgIzX1Rw7a6L8I/ZA1Atg==}
@@ -713,6 +732,10 @@ packages:
   /color-name@1.1.4:
     resolution: {integrity: sha512-dOy+3AuW3a2wNbZHIuMZpTcgjGuLU/uBL/ubcZF9OXbDo8ff4O8yVp5Bf0efS8uEoYo5q4Fx7dY9OgQGXgAsQA==}
     dev: true
+
+  /comlink@4.4.1:
+    resolution: {integrity: sha512-+1dlx0aY5Jo1vHy/tSsIGpSkN4tS9rZSW8FIhG0JH/crs9wwweswIo/POr451r7bZww3hFbPAKnTpimzL/mm4Q==}
+    dev: false
 
   /concat-map@0.0.1:
     resolution: {integrity: sha512-/Srv4dswyQNBfohGpz9o6Yb3Gz3SrUDqBH5rTuhGR7ahtlbYKnVxw2bCFMRljaA7EXHaXZ8wsHdodFvbkhKmqg==}
@@ -2183,7 +2206,6 @@ packages:
 
   /tslib@2.5.0:
     resolution: {integrity: sha512-336iVw3rtn2BUK7ORdIAHTyxHGRIHVReokCR3XjbckJMK7ms8FysBfhLR8IXnAgy7T0PTPNBWKiH514FOW/WSg==}
-    dev: true
 
   /tsx@3.12.2:
     resolution: {integrity: sha512-ykAEkoBg30RXxeOMVeZwar+JH632dZn9EUJVyJwhfag62k6UO/dIyJEV58YuLF6e5BTdV/qmbQrpkWqjq9cUnQ==}
@@ -2195,12 +2217,6 @@ packages:
     optionalDependencies:
       fsevents: 2.3.2
     dev: true
-
-  /turndown@7.1.1:
-    resolution: {integrity: sha512-BEkXaWH7Wh7e9bd2QumhfAXk5g34+6QUmmWx+0q6ThaVOLuLUqsnkq35HQ5SBHSaxjSfSM7US5o4lhJNH7B9MA==}
-    dependencies:
-      domino: 2.1.6
-    dev: false
 
   /typescript@4.9.5:
     resolution: {integrity: sha512-1FXk9E2Hm+QzZQ7z+McJiHL4NW1F2EzMu9Nq9i3zAaGqibafqYwCVU6WyWAuyQRRzOlxou8xZSyXLEN8oKj24g==}
@@ -2383,3 +2399,13 @@ packages:
       y18n: 5.0.8
       yargs-parser: 21.1.1
     dev: true
+
+  github.com/iansinnott/turndown/c4d3be39184d895fc481b559594f036670f5eb1e:
+    resolution: {tarball: https://codeload.github.com/iansinnott/turndown/tar.gz/c4d3be39184d895fc481b559594f036670f5eb1e}
+    name: turndown
+    version: 7.1.2
+    prepare: true
+    requiresBuild: true
+    dependencies:
+      domino: 2.1.6
+    dev: false

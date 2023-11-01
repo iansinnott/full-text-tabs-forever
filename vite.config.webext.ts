@@ -7,10 +7,7 @@ export default defineConfig({
     rollupOptions: {
       input: "src/manifest.json",
     },
-
-    // Unminified code helps with debug stack traces
     minify: false,
-
     emptyOutDir: false,
   },
   server: {
@@ -20,7 +17,7 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    exclude: ["@sqlite.org/sqlite-wasm"],
+    exclude: ["@sqlite.org/sqlite-wasm", "@vlcn.io/crsqlite-wasm"],
   },
   plugins: [
     // @ts-expect-error - vite-plugin-chrome-extension is poorly typed?

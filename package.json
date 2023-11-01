@@ -6,7 +6,9 @@
   "scripts": {
     "//dev": "vite build -w was failing. something about the chrome extension vite plugin and the manifest. re-saving the manifest makes -w work, but that defeats the purpose of automated watch",
     "dev": "watchexec -w src/ -w 'vite.config.ts' 'npm run build'",
-    "build": "npm run build:clean && vite build && vite build -c vite.config.webext.ts && node ./scripts/replace-manifest.cjs",
+    "build2": "npm run build:clean && vite build && vite build -c vite.config.webext.ts && node ./scripts/replace-manifest.cjs",
+    "build": "npm run build:clean && vite build && npm run manifest && node ./scripts/replace-manifest.cjs",
+    "manifest": "cp ./src/manifest.json ./dist/manifest.json",
     "build:clean": "rm -rf ./dist/*",
     "check": "svelte-check --tsconfig ./tsconfig.json"
   },
@@ -33,16 +35,16 @@
   },
   "dependencies": {
     "@mozilla/readability": "~0.4.2",
-    "@sqlite.org/sqlite-wasm": "^3.43.2-build1",
     "@sveltejs/vite-plugin-svelte": "~2.0.2",
     "@types/turndown": "~5.0.1",
     "@types/webextension-polyfill": "~0.10.0",
     "@types/websql": "~0.0.27",
+    "@vlcn.io/crsqlite-wasm": "0.15.2",
     "classnames": "^2.3.2",
     "dexie": "~3.2.3",
     "svelte": "^3.55.1",
     "svelte-markdown": "^0.2.3",
-    "turndown": "~7.1.1",
+    "turndown": "https://github.com/iansinnott/turndown",
     "webextension-polyfill": "~0.10.0"
   }
 }

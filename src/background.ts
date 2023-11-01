@@ -2,8 +2,9 @@
 
 import type { Backend, SendResponse } from "./background/backend";
 import { DebugBackend } from "./background/backend-debug";
+import { VLCN } from "./background/backend-vlcn";
 // import { WebSQLBackend } from "./background/backend-websql";
-import { SqliteWasmOPFSBackend } from "./background/backend-sqlite-opfs";
+// import { SqliteWasmOPFSBackend } from "./background/backend-sqlite-opfs";
 import { log } from "./common/logs";
 import { debounce } from "./common/utils";
 
@@ -54,9 +55,13 @@ class BackendAdapter {
 }
 
 const adapter = new BackendAdapter({
-  // backend: new SqliteWasmOPFSBackend(),
-  backend: new DebugBackend(),
+  backend: new VLCN(),
+  // backend: new DebugBackend(),
 });
+
+// Expose for debugging
+// @example await fttf.backend._db.execO(`select * from sqlite_master;`)
+globalThis.fttf = adapter
 
 export type FTTF = {
   adapter: BackendAdapter;

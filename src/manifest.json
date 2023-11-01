@@ -12,7 +12,7 @@
         "activeTab"
     ],
     "background": {
-        "service_worker": "background.ts",
+        "service_worker": "background.js",
         "type": "module"
     },
     "action": {
@@ -37,7 +37,7 @@
                 "<all_urls>"
             ],
             "js": [
-                "content-scripts/content-script.ts"
+                "content-scripts/content-script.js"
             ]
         }
     ]
