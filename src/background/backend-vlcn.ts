@@ -159,9 +159,10 @@ export class VLCN implements Backend {
       console.log(
         `%c  ${"new insertion"}`,
         "color:gray;",
-        `indexed doc:${inserted.insertId}, url:${u.href}`
+        `indexed doc:${inserted.id}, url:${u.href}`
       );
-      await this.upsertFragments(inserted.insertId, {
+
+      await this.upsertFragments(inserted.id, {
         title: document.title,
         url: u.href,
         excerpt: document.excerpt,
@@ -200,7 +201,7 @@ export class VLCN implements Backend {
         fts.rowid,
         d.id as entityId,
         fts.attribute,
-        SNIPPET(fts, '<mark>', '</mark>', '…', -1, 50) AS snippet,
+        SNIPPET(fts, -1, '<mark>', '</mark>', '…', 63) AS snippet,
         d.url,
         d.hostname,
         d.title,
@@ -327,10 +328,12 @@ export class VLCN implements Backend {
           doc.id,
         ]
       );
+
+      // Return nothing to indicate that nothing was inserted
       return;
     }
 
-    return this._db.exec(
+    await this._db.execO<ArticleRow>(
       `
       INSERT INTO "document" (
         title,
@@ -375,15 +378,21 @@ export class VLCN implements Backend {
         document.createdAt || Date.now(),
       ]
     );
+    
+    return this.findOne({ where: { url : document.url } });
   };
 
+  // @ts-expect-error TS rightly thinks this is not initialized, however, the
+  // rest of the code won't run until it is so I find it helpful to not
+  // constantly have to null-check this
   private _db: DB;
+
   private _dbReady = false;
-  private turndown = new Turndown({
-    headingStyle: "atx",
-    codeBlockStyle: "fenced",
-    hr: "---",
-  });
+  // private turndown = new Turndown({
+  //   headingStyle: "atx",
+  //   codeBlockStyle: "fenced",
+  //   hr: "---",
+  // });
 
   constructor() {
     this.init()

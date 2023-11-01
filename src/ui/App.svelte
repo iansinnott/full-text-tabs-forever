@@ -1,53 +1,14 @@
-<script context="module" lang="ts">
-  import type { ResultRow } from '@/background/backend';
-  // import type { FTTF } from '../background';
-  // import classNames from 'classnames';
-  // declare global {
-  //   interface Window {
-  //     fttf: FTTF;
-  //   }
-  // }
-
-  // if (typeof window !== "undefined") {
-  //   window.fttf = { 
-  //     adapter: {
-  //       onInstalled: async () => {
-  //         return chrome.runtime.sendMessage({ type: 'jello#onInstalled' })
-  //       },
-  //       onMessage: () => {
-  //         return true;
-  //       },
-  //       backend: {
-  //         search: async (query) => {
-  //           return chrome.runtime.sendMessage({ type: 'search', query })
-  //         },
-  //         getPageStatus: async (url) => {
-  //           return chrome.runtime.sendMessage({ type: 'getPageStatus', url })
-  //         },
-  //         indexPage: async (url) => {
-  //           return chrome.runtime.sendMessage({ type: 'indexPage', url })
-  //         },
-  //         nothingToIndex: async (url) => {
-  //           return chrome.runtime.sendMessage({ type: 'nothingToIndex', url })
-  //         },
-  //         findOne: async (url) => {
-  //           return chrome.runtime.sendMessage({ type: 'findOne', url })}
-  //       },
-  //     },
-  //   };
-  // }
-
-
-</script>
-
 <script lang="ts">
+  import type { ResultRow } from '@/background/backend';
   import {fly} from 'svelte/transition'
   import DetailsPanel from "./DetailsPanel.svelte";
   import { debounce } from '../common/utils';
   import { onMount, tick } from 'svelte';
+  import classNames from 'classnames';
+  import { fttf } from './lib/rpc';
 
   let q = "";
-  let res: Awaited<ReturnType<typeof window.fttf.adapter.backend.search>> | null = null;
+  let res: Awaited<ReturnType<typeof fttf.adapter.backend.search>> | null = null;
   let results: ResultRow[] | undefined;
   let currentIndex = 0;
   let showDetails = false;
@@ -60,8 +21,9 @@
   const handleSearch = debounce(async (query: string) => {
     query = query.trim();
     if (query.length > 2) {
-      res = await window.fttf.adapter.backend.search({ query, limit: 500 });
+      res = await fttf.adapter.backend.search({ query, limit: 500 });
       currentIndex = 0;
+      console.log('res', res);
     } else {
       // Clear query
       res = null;

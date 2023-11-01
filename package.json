@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "//dev": "vite build -w was failing. something about the chrome extension vite plugin and the manifest. re-saving the manifest makes -w work, but that defeats the purpose of automated watch",
-    "dev": "watchexec -w src/ -w 'vite.config.ts' -w 'vite.conig.content-script.ts' 'npm run build'",
+    "dev": "watchexec -w src/ -w 'vite.config.ts' -w 'vite.config.content-script.ts' 'npm run build'",
     "//build": "it's ultimately chrome's fault that we need a separate build for content-script. Unlike the service worker you cannot specify type:module, so... the script can't have imports.",
     "build": "npm run build:clean && vite build && npm run manifest && node ./scripts/replace-manifest.cjs && vite build -c vite.config.content-script.ts",
     "manifest": "cp ./src/manifest.json ./dist/manifest.json",

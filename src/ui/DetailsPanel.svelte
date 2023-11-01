@@ -1,6 +1,7 @@
 <script lang="ts">
   import classNames from "classnames";
-  import type { ResultRow , DetailRow} from "@/background/backend";
+  import type { ResultRow , DetailRow } from "@/background/backend";
+  import { fttf } from './lib/rpc';
   import SvelteMarkdown from "svelte-markdown";
   
   // Note this will not have the content. we need a separate fetch for that
@@ -11,7 +12,7 @@
   
   const fetchRow = async (url: string) => {
     try {
-      row = await window.fttf.adapter.backend.findOne({ where: { url }});
+      row = await fttf.adapter.backend.findOne({ where: { url }});
     } catch (_err) {
       err = _err; 
     }
@@ -54,6 +55,5 @@
     </div>
   {:else}
     <!-- Intentionally left blank. Loading is local so it is a quick blip the user doesn't parse -->
-    <!-- <div class="loading">Loading...</div> -->
   {/if}
 </div>

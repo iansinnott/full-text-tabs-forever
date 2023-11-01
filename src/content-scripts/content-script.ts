@@ -3,7 +3,11 @@ import { Readability } from "@mozilla/readability";
 import { RpcMessage } from "../background/backend";
 import TurndownService from "turndown";
 
-const turndown = new TurndownService();
+const turndown = new TurndownService({
+  headingStyle: "atx",
+  codeBlockStyle: "fenced",
+  hr: "---",
+});
 
 const rpc = async (message: RpcMessage) => {
   return browser.runtime.sendMessage(message);
