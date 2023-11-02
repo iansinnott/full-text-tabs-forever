@@ -1,6 +1,7 @@
-import initWasm, { type DB } from "@vlcn.io/crsqlite-wasm";
+import initWasm, { SQLite3, type DB } from "@vlcn.io/crsqlite-wasm";
 // @ts-expect-error TS doesn't understand this?
 import wasmUrl from "@vlcn.io/crsqlite-wasm/crsqlite.wasm?url";
+import { } from '@vlcn.io/wa-sqlite'
 import Turndown from "turndown";
 import { formatDebuggablePayload, getArticleFragments, shasum } from "../common/utils";
 import {
@@ -11,6 +12,98 @@ import {
   RemoteProcWithSender,
   ResultRow,
 } from "./backend";
+
+type SQLiteArg = NonNullable<Parameters<DB['execO']>[1]>[number];
+const argToSqlite = (v: unknown): SQLiteArg | undefined => {
+ switch (typeof v) {
+  case 'string':
+  case 'number':
+  case 'bigint':
+    return v;
+
+  case 'boolean': 
+    return Number(v);        
+
+  case 'symbol': 
+    return v.toString();
+  
+  case 'function':
+  default:
+    if (Array.isArray(v)) {
+      return v;
+    } else if (v === null) {
+      return v;
+    } else if (typeof v === 'object' && v !== null) {
+      return JSON.stringify(v);
+    } else {
+      return undefined;
+    }
+ }
+}
+
+const validate = (values: Record<string, unknown>) => {
+    const keys: string[] = []
+    const vals: SQLiteArg[] = []
+    let invalid: Record<string, any> | undefined = undefined;
+
+    for (const [k,v] of Object.entries(values)) {
+      const x = argToSqlite(v);
+      if (x !== undefined) {
+        keys.push(k);
+        vals.push(x); 
+      } else {
+        if (!invalid) invalid = {};
+        invalid[k] = v;
+      }
+    }
+    
+    return { keys, vals, invalid };
+  }
+
+const SQLFormat = {
+  /**
+   * A template literal to make querying easier. Unlike the others this one just
+   * takes a template string and tries to extract the variables into positoinal
+  * args.
+   */
+   format: (strings: TemplateStringsArray, ...values: any[]) => {
+     let str = '';
+     const args: SQLiteArg[] = [];
+    let invalid: Record<number, any> | undefined = undefined;
+     
+     strings.forEach((string, i) => {
+       const v = argToSqlite(values[i]);
+        if (v !== undefined) {
+          str += string + '?';
+          args.push(v);
+        } else {
+          if (!invalid) invalid = {};
+          invalid[i] = values[i];
+          str += string;
+        }
+     });
+
+     return [str, args] as const;
+   },
+  
+  insert: (table: string, values: Record<string, unknown>) => {
+    const { keys, vals, invalid} = validate(values);
+    const sql = `INSERT INTO ${table} (${keys.join(", ")}) VALUES (${keys
+      .map(() => "?")
+      .join(", ")})`;
+      
+    return [sql, vals, invalid] as const;
+  },
+  update: (table: string, values: Record<string, unknown>, condition: string) => {
+    const { keys, vals, invalid } = validate(values);
+    const sql = `UPDATE ${table} SET ${keys
+      .map(key => `${key} = ?`)
+      .join(", ")} WHERE ${condition}`;
+      
+    return [sql, vals, invalid] as const;
+  }
+}
+
 
 // @note In order to avoid duplication, since we're indexing every URL the user
 // visits, a document has a 1:n relationship with a URL. Multiple URLs can have
@@ -29,12 +122,15 @@ CREATE TABLE IF NOT EXISTS "document" (
   "lastVisit" INTEGER,
   "lastVisitDate" TEXT,
   "extractor" TEXT,
-  "createdAt" INTEGER NOT NULL
+  "createdAt" INTEGER NOT NULL,
+  "updatedAt" INTEGER
 );
   `,
 
   `CREATE INDEX IF NOT EXISTS "document_hostname" ON "document" ("hostname");`,
 
+]
+const ftsMigrations =[
   `
 CREATE TABLE IF NOT EXISTS "document_fragment" (
   "id" INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -45,9 +141,7 @@ CREATE TABLE IF NOT EXISTS "document_fragment" (
   "createdAt" INTEGER
 );
   `,
-
-  // @note Browser sqlite does not support FTS4 or 5, so we use FTS3. Also, 'if
-  // not exists' is not supported on virtual tables.
+  
   `
 CREATE VIRTUAL TABLE "fts" USING fts5(
   entityId,
@@ -75,15 +169,60 @@ CREATE VIRTUAL TABLE "fts" USING fts5(
     INSERT INTO "fts" ("rowid", "entityId", "attribute", "value") VALUES (new."id", new."entityId", new."attribute", new."value");
   END;
     `,
-
-  // Add updatedAt to the "document" table
-  `ALTER TABLE "document" ADD COLUMN "updatedAt" INTEGER;`,
-
-  // Set updatedAt to the createdAt value for all existing documents
-  `UPDATE "document" SET "updatedAt" = "createdAt";`,
 ];
 
+/**
+ * Run migrations against a database
+ */
+const migrate = async ({ migrations, db }: { migrations: string[], db: DB }) => {
+  for (let sql of migrations) {
+    sql = sql.trim(); // @note We really should also strip leading whitespace. this is to help avoid sql differing due to formatting
+
+    const exists = await db.execO<{ id: number }>(
+      `SELECT * FROM internal_migrations WHERE sql = ? LIMIT 1`,
+      [sql]
+    );
+
+    if (exists.length) {
+      console.debug("migration already run, skipping ::", exists[0].id);
+      continue;
+    }
+
+    await db.exec(sql);
+    await db.exec(`INSERT INTO internal_migrations (sql, date) VALUES (?, ?)`, [
+      sql,
+      new Date().toISOString(),
+    ]);
+  }
+};
+
+
 export class VLCN implements Backend {
+  error: Error | null = null;
+
+  getStatus: Backend["getStatus"] = async () => {
+    if (this.error) {
+      return {
+        ok: false,
+        error: this.error.message,
+        detail: {
+          stack: this.error.stack,
+        }
+      };
+    }
+
+    if (!this._dbReady) {
+      return {
+        ok: false,
+        error: "db not ready",
+      };
+    }
+
+    return {
+      ok: true,
+    }
+  };
+
   getPageStatus: Backend["getPageStatus"] = async (payload, sender) => {
     const { tab } = sender;
     let shouldIndex = tab?.url?.startsWith("http"); // ignore chrome extensions, about:blank, etc
@@ -193,10 +332,8 @@ export class VLCN implements Backend {
       this.findOneRaw<{ count: number }>(`SELECT COUNT(*) as count FROM fts WHERE fts MATCH ?;`, [
         query,
       ]),
-      // @note The SNIPPET syntax is FTS3 syntax, not FTS5. This cannot be copied to an FTS5 database and work
       // @note Ordering by date as a rasonable sorting mechanism. some sort of 'rank' woudl be better but fts3 does not have it out of the box.
-      this.findMany<ResultRow>(
-        `
+      this.sql<ResultRow>`
       SELECT 
         fts.rowid,
         d.id as entityId,
@@ -213,13 +350,10 @@ export class VLCN implements Backend {
         d.createdAt
       FROM fts
         INNER JOIN "document" d ON d.id = fts.entityId
-      WHERE fts MATCH ?
+      WHERE fts MATCH ${query}
       ORDER BY d.updatedAt DESC
       LIMIT ${limit}
-      OFFSET ${offset};
-    `,
-        [query]
-      ),
+      OFFSET ${offset};`
     ]);
     const endTime = performance.now();
 
@@ -285,16 +419,13 @@ export class VLCN implements Backend {
 
   private touchDocument = async (document: Partial<ArticleRow> & { id: number }) => {
     // update the document updatedAt time
-    await this._db.exec(
-      `
+    await this.sql`
         UPDATE "document" 
-        SET updatedAt = ?,
-            lastVisit = ?,
-            lastVisitDate = ?
-        WHERE id = ?;
-      `,
-      [document.updatedAt, document.lastVisit, document.lastVisitDate, document.id]
-    );
+        SET updatedAt = ${document.updatedAt},
+            lastVisit = ${document.lastVisit},
+            lastVisitDate = ${document.lastVisitDate}
+        WHERE id = ${document.id};
+      `;
   };
 
   private upsertDocument = async (document: Partial<ArticleRow>) => {
@@ -307,77 +438,42 @@ export class VLCN implements Backend {
 
     if (doc) {
       // update the document updatedAt time
-      await this._db.exec(
-        `
-        UPDATE "document" 
-        SET updatedAt = ?,
-            excerpt = ?,
-            mdContent = ?,
-            mdContentHash = ?,
-            lastVisit = ?,
-            lastVisitDate = ?
-        WHERE id = ?;
-      `,
-        [
-          Date.now(),
-          document.excerpt,
-          document.mdContent,
-          document.mdContentHash,
-          document.lastVisit,
-          document.lastVisitDate,
-          doc.id,
-        ]
-      );
+      const [sql, args, invalid] = SQLFormat.update(`document`, {
+        updatedAt: Date.now(), 
+        excerpt: document.excerpt,
+        mdContent: document.mdContent,
+        mdContentHash: document.mdContentHash,
+        lastVisit: document.lastVisit,
+        lastVisitDate: document.lastVisitDate
+      }, `id = ${doc.id}`);
+
+      console.debug('upsertDocument ::', sql, args, invalid);
 
       // Return nothing to indicate that nothing was inserted
       return;
     }
 
-    await this._db.execO<ArticleRow>(
-      `
-      INSERT INTO "document" (
-        title,
-        url,
-        excerpt,
-        mdContent,
-        mdContentHash,
-        publicationDate,
-        hostname,
-        lastVisit,
-        lastVisitDate,
-        extractor,
-        updatedAt,
-        createdAt
-      ) VALUES (
-        ?,
-        ?,
-        ?,
-        ?,
-        ?,
-        ?,
-        ?,
-        ?,
-        ?,
-        ?,
-        ?,
-        ?
-      )
-    `,
-      [
-        document.title,
-        document.url,
-        document.excerpt,
-        document.mdContent,
-        document.mdContentHash,
-        document.publicationDate,
-        document.hostname,
-        document.lastVisit,
-        document.lastVisitDate,
-        document.extractor,
-        document.updatedAt || Date.now(),
-        document.createdAt || Date.now(),
-      ]
-    );
+    const [sql, args, invalid] = SQLFormat.insert(`document`, {
+        title: document.title,
+        url: document.url,
+        excerpt: document.excerpt,
+        mdContent: document.mdContent,
+        mdContentHash: document.mdContentHash,
+        publicationDate: document.publicationDate,
+        hostname: document.hostname,
+        lastVisit: document.lastVisit,
+        lastVisitDate: document.lastVisitDate,
+        extractor: document.extractor,
+        updatedAt: document.updatedAt || Date.now(),
+        createdAt: document.createdAt || Date.now(),
+    });
+    
+    console.debug('upsertDocument ::', sql, args, invalid);
+    
+    await this._db.exec(sql, args);
+    
+    // Add to the staging db as well
+    await this._stagingDb.exec(sql, args);
     
     return this.findOne({ where: { url : document.url } });
   };
@@ -386,6 +482,8 @@ export class VLCN implements Backend {
   // rest of the code won't run until it is so I find it helpful to not
   // constantly have to null-check this
   private _db: DB;
+  // @ts-expect-error
+  private _stagingDb: DB;
 
   private _dbReady = false;
   // private turndown = new Turndown({
@@ -404,62 +502,54 @@ export class VLCN implements Backend {
         throw err;
       });
   }
-
-  private init = async () => {
-    try {
-      const sqlite = await initWasm(() => wasmUrl);
-      console.debug("sqlite wasm loaded ::", wasmUrl);
-
-      const dbPath = "my-database.db"
+  
+  initDb = async ({ dbPath, sqlite, migrations }: { dbPath: string, sqlite: SQLite3, migrations: string[] }) => {
       const db = await sqlite.open(dbPath);
-      this._db = db;
+
       console.debug(`db opened: :: ${dbPath}`);
 
       // Make sure migration table exists
-      await this._db.exec(
+      await db.exec(
         `CREATE TABLE IF NOT EXISTS internal_migrations (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           sql TEXT UNIQUE NOT NULL,
           date TEXT
         );`
       );
-      console.debug("migrations table :: ensured");
       
       // Run migrations
-      await this.migrate();
+      console.debug("migrations :: start");
+      await migrate({ migrations, db });
+      console.debug("migrations :: complete", migrations.length);
+      
+      return db;
+  };
+
+  private init = async () => {
+    try {
+      const sqlite = await initWasm(() => wasmUrl);
+      console.debug("sqlite wasm loaded ::", wasmUrl);
+      this._db = await this.initDb({ dbPath: "fttf_20231102.sqlite", sqlite, migrations: [
+        ...migrations,
+        ...ftsMigrations,
+      ] });
+      this._stagingDb = await this.initDb({ dbPath: "fttf_20231102.bak.sqlite", sqlite, migrations });
+    this._dbReady = true;
     } catch (err) {
       console.error("Error running migrations", err);
+      this.error = err
       throw err;
     }
-
-    this._dbReady = true;
   };
 
-  private migrate = async () => {
-    for (let sql of migrations) {
-      sql = sql.trim(); // @note We really should also strip leading whitespace. this is to help avoid sql differing due to formatting
-
-      const exists = await this.findOneRaw<{ id: number }>(
-        `SELECT * FROM internal_migrations WHERE sql = ? LIMIT 1`,
-        [sql]
-      );
-
-      if (exists) {
-        continue;
-      }
-
-      await this._db.exec(sql);
-      await this._db.exec(`INSERT INTO internal_migrations (sql, date) VALUES (?, ?)`, [
-        sql,
-        new Date().toISOString(),
-      ]);
-    }
-  };
-
-  private findMany = async <T extends {} = {}>(sql: string, args?: ObjectArray): Promise<T[]> => {
-    const xs = await this._db.execO<T>(sql, args);
-    return xs
-  };
+  /**
+   * A template literal to make querying easier. Will forward ot execO once args are formatted.
+   */
+   sql = async <T extends {} = {}>(strings: TemplateStringsArray, ...values: any[]) => {
+     const [str, args] = SQLFormat.format(strings, ...values);
+     console.debug('sql ::', str, args)
+     return this._db.execO<T>(str, args);
+   };
 
   findOne = async ({ where }): Promise<DetailRow | null> => {
     return this.findOneRaw<DetailRow>(`SELECT * FROM "document" WHERE url = ? LIMIT 1`, [

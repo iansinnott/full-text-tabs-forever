@@ -2,6 +2,12 @@ import { formatDebuggablePayload } from "../common/utils";
 import { Article, Backend, DetailRow, RemoteProcWithSender } from "./backend";
 
 export class DebugBackend implements Backend {
+  getStatus: Backend["getStatus"] = async () => {
+    return {
+      ok: true,
+    };
+  };
+
   search: Backend["search"] = async (search) => {
     console.log(`backend#%c${"search"}`, "color:lime;", search);
     return {

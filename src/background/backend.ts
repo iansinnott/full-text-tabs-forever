@@ -70,10 +70,12 @@ export type RpcMessage =
   | [method: "indexPage", payload: FirstArg<Backend["indexPage"]>]
   | [method: "nothingToIndex"]
   | [method: "getStats"]
+  | [method: "getStatus"]
   | [method: "search", payload: FirstArg<Backend["search"]>]
   | [method: string, payload: any];
 
 export interface Backend {
+  getStatus(): Promise<{ ok: true } | { ok: false; error: string; detail?: any }>;
   getPageStatus: RemoteProcWithSender;
   indexPage: RemoteProcWithSender<Article>;
   nothingToIndex: RemoteProcWithSender;

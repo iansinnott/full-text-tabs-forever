@@ -4,6 +4,9 @@
       onInstalled: async () => { },
       onMessage: () => true,
       backend: {
+        getStatus() {
+          return chrome.runtime.sendMessage([ 'getStatus' ]);
+        },
         search: async (query) => {
           return chrome.runtime.sendMessage([ 'search', query ]);
         },

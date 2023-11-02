@@ -12,7 +12,7 @@
   let results: ResultRow[] | undefined;
   let currentIndex = 0;
   let showDetails = false;
-  let enableMouseEvents = false;
+  let enableMouseEvents = false ;
   
   const handleMouseMove = (e: MouseEvent) => {
     if (!enableMouseEvents) enableMouseEvents = true;
@@ -86,10 +86,19 @@
     },
   };
   
-  onMount(() => {
-    tick().then(() => {
-      input?.focus();
-    });
+  let error: string | null = null;
+  let errorDetail: any = null;
+  
+  onMount(async () => {
+    await tick()
+    input?.focus();
+
+    const status = await fttf.adapter.backend.getStatus()
+    
+    if (!status.ok) {
+      error = status.error
+      errorDetail = status.detail
+    }
   });
   
   const cleanUrl = (url: string) => {
@@ -169,6 +178,14 @@
       Showing {results?.length} of {res.count}. Took <code>{res.perfMs}</code>ms.
     {/if}
   </div>
+  {#if error}
+    <div
+      class="error px-6 md:px-12 py-6 text-sm text-red-200 bg-red-900/70 m-6 rounded-lg border border-red-600"
+    >
+      <h3 class="text-3xl">Error: <code>{error}</code></h3>
+      <pre>{errorDetail?.stack}</pre>
+    </div>
+  {/if}
   <div class="results px-6 md:p-12 md:pt-6 overflow-auto flex flex-col space-y-0">
     {#each Object.entries(groups || []) as [url, group], i (url)}
       {@const u = new URL(url)}
@@ -222,11 +239,7 @@
     in:fly={{ x: 200, duration: 200 }}
     out:fly={{ x: 200, duration: 200 }}
     class={classNames(
-      "DetailPanel h-screen absolute left-auto right-0 top-0 bottom-0 w-full max-w-[768px] bg-zinc-900 shadow-lg shadow-black border-l border-[#33383f] overflow-auto p-6 md:p-12",
-      {
-        // "left-[10%]": showDetails,
-        // "left-full": !showDetails,
-      }
+      "DetailPanel h-screen absolute left-auto right-0 top-0 bottom-0 w-full max-w-[768px] bg-zinc-900 shadow-lg shadow-black border-l border-[#33383f] overflow-auto p-6 md:p-12"
     )}
   >
     {#if currentUrl}
