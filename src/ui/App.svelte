@@ -7,6 +7,7 @@
   import classNames from 'classnames';
   import { fttf } from './lib/rpc';
   import { makeHighlights} from './lib/dom'
+  import ResultRowView from './ResultRowView.svelte';
 
   let q = "";
   let res: Awaited<ReturnType<typeof fttf.adapter.backend.search>> | null = null;
@@ -163,22 +164,18 @@
   $: urls = Object.keys(groups || {});
   $: currentUrl = urls.at(currentIndex);
 
-  // This highlighting logic WORKS unless you delet the text in the search bar
-  // all at once. Then the whole page crashes.
-  // $: if (results && results.length) {
-  //   // @ts-expect-error TS is wrong
-  //   CSS.highlights.delete('snippet');
-  //   tick().then(() => {
-  //     // @ts-expect-error TS is wrong
-  //     const els = [...document.querySelectorAll('[data-has-snippet]')].map(x => x.childNodes[0])
-  //     const hl = makeHighlights(els, q)
-  //     // @ts-expect-error TS is wrong
-  //     CSS.highlights.set('snippet', hl);
-  //   })
-  // } else {
-  //   // @ts-expect-error TS is wrong
-  //   CSS.highlights.delete('snippet');
-  // }
+  // @ts-expect-error TS is wrong. the highlights api is too new
+  $: if (typeof CSS.highlights !== undefined && results?.length && q.length > 2) {
+    requestAnimationFrame(() => {
+      console.log('setting highlight')
+      // @ts-expect-error TS is wrong
+      const els = [...document.querySelectorAll('[data-has-snippet]')].map(x => x.childNodes[0])
+      if (els.length === 0) return
+      const hl = makeHighlights(els, q)
+      // @ts-expect-error TS is wrong. the highlights api is too new
+      CSS.highlights.set('snippet', hl);
+    });
+  }
 </script>
 
 <svelte:window
@@ -257,9 +254,7 @@
           </div>
         </a>
         {#each group.hits as hit (hit.rowid)}
-          <div data-has-snippet="1" class="fts-result pl-7">
-            {@html hit.snippet}
-          </div>
+          <ResultRowView item={hit} {q} />
         {/each}
       </div>
     {/each}
@@ -287,11 +282,6 @@
 {/if}
 
 <style>
-  ::highlight(snippet) {
-    background-color: #fbbf24;
-    color: #1f2937;
-  }
-
   .App {
     display: grid;
     grid-template-columns: 1fr;

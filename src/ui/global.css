@@ -9,3 +9,7 @@ body {
 mark {
   @apply bg-pink-900/50 border-dashed border-b border-pink-600 text-pink-200;
 }
+
+::highlight(snippet) {
+  @apply bg-pink-900/50 bg-pink-200 text-pink-900 underline;
+}
