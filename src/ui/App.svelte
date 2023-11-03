@@ -164,6 +164,8 @@
   $: urls = Object.keys(groups || {});
   $: currentUrl = urls.at(currentIndex);
 
+  // NOTE: make sure q is long enough. otherwise the whole app hangs, without
+  // error. Unclear why, since in that state there are no dom nodes to handle
   // @ts-expect-error TS is wrong. the highlights api is too new
   $: if (typeof CSS.highlights !== undefined && results?.length && q.length > 2) {
     requestAnimationFrame(() => {
