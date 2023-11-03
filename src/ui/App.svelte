@@ -6,6 +6,7 @@
   import { onMount, tick } from 'svelte';
   import classNames from 'classnames';
   import { fttf } from './lib/rpc';
+  import { makeHighlights} from './lib/dom'
 
   let q = "";
   let res: Awaited<ReturnType<typeof fttf.adapter.backend.search>> | null = null;
@@ -29,6 +30,22 @@
       res = null;
     }
   }, 100);
+  
+  const findRanges = (str: string, query: string) => {
+    const ranges: [number, number][] = [];
+    const q = query.toLowerCase();
+    const s = str.toLowerCase();
+    let i = 0;
+    while (i < s.length) {
+      const idx = s.indexOf(q, i);
+      if (idx === -1) {
+        break;
+      }
+      ranges.push([idx, idx + q.length]);
+      i = idx + q.length;
+    }
+    return ranges;
+  };
 
   const getFaviconByUrl = (url: string) => {
     const u = new URL(url);
@@ -104,6 +121,8 @@
   const cleanUrl = (url: string) => {
     return url.replace(/^(https?:\/\/(?:www)?)/, '').replace(/\/$/, '');
   }
+  
+
 
   const groupByUrl = (results?: ResultRow[]) => {
     if (!results) {
@@ -143,6 +162,23 @@
   $: groups = groupByUrl(results);
   $: urls = Object.keys(groups || {});
   $: currentUrl = urls.at(currentIndex);
+
+  // This highlighting logic WORKS unless you delet the text in the search bar
+  // all at once. Then the whole page crashes.
+  // $: if (results && results.length) {
+  //   // @ts-expect-error TS is wrong
+  //   CSS.highlights.delete('snippet');
+  //   tick().then(() => {
+  //     // @ts-expect-error TS is wrong
+  //     const els = [...document.querySelectorAll('[data-has-snippet]')].map(x => x.childNodes[0])
+  //     const hl = makeHighlights(els, q)
+  //     // @ts-expect-error TS is wrong
+  //     CSS.highlights.set('snippet', hl);
+  //   })
+  // } else {
+  //   // @ts-expect-error TS is wrong
+  //   CSS.highlights.delete('snippet');
+  // }
 </script>
 
 <svelte:window
@@ -221,7 +257,7 @@
           </div>
         </a>
         {#each group.hits as hit (hit.rowid)}
-          <div class="fts-result pl-7">
+          <div data-has-snippet="1" class="fts-result pl-7">
             {@html hit.snippet}
           </div>
         {/each}
@@ -251,6 +287,11 @@
 {/if}
 
 <style>
+  ::highlight(snippet) {
+    background-color: #fbbf24;
+    color: #1f2937;
+  }
+
   .App {
     display: grid;
     grid-template-columns: 1fr;

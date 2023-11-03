@@ -129,8 +129,6 @@ CREATE TABLE IF NOT EXISTS "document" (
 
   `CREATE INDEX IF NOT EXISTS "document_hostname" ON "document" ("hostname");`,
 
-]
-const ftsMigrations =[
   `
 CREATE TABLE IF NOT EXISTS "document_fragment" (
   "id" INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -142,6 +140,10 @@ CREATE TABLE IF NOT EXISTS "document_fragment" (
 );
   `,
   
+];
+
+// NOTE: This is unused until this lands: https://github.com/vlcn-io/js/issues/31
+const ftsMigrations =[
   `
 CREATE VIRTUAL TABLE "fts" USING fts5(
   entityId,
@@ -329,16 +331,16 @@ export class VLCN implements Backend {
 
     const startTime = performance.now();
     const [count, results] = await Promise.all([
-      this.findOneRaw<{ count: number }>(`SELECT COUNT(*) as count FROM fts WHERE fts MATCH ?;`, [
-        query,
+      this.findOneRaw<{ count: number }>(`SELECT COUNT(*) as count FROM document_fragment WHERE "value" like ?;`, [
+        '%'+query+'%',
       ]),
       // @note Ordering by date as a rasonable sorting mechanism. some sort of 'rank' woudl be better but fts3 does not have it out of the box.
       this.sql<ResultRow>`
       SELECT 
-        fts.rowid,
+        frag.id as "rowid",
         d.id as entityId,
-        fts.attribute,
-        SNIPPET(fts, -1, '<mark>', '</mark>', '…', 63) AS snippet,
+        frag.attribute,
+        frag.value as "snippet",
         d.url,
         d.hostname,
         d.title,
@@ -348,13 +350,40 @@ export class VLCN implements Backend {
         d.mdContentHash,
         d.updatedAt,
         d.createdAt
-      FROM fts
-        INNER JOIN "document" d ON d.id = fts.entityId
-      WHERE fts MATCH ${query}
+      FROM document_fragment frag
+        INNER JOIN "document" d ON d.id = frag.entityId
+      WHERE frag."value" like ${'%'+query+'%'}
       ORDER BY d.updatedAt DESC
       LIMIT ${limit}
       OFFSET ${offset};`
     ]);
+    // const [count, results] = await Promise.all([
+    //   this.findOneRaw<{ count: number }>(`SELECT COUNT(*) as count FROM fts WHERE fts MATCH ?;`, [
+    //     query,
+    //   ]),
+    //   // @note Ordering by date as a rasonable sorting mechanism. some sort of 'rank' woudl be better but fts3 does not have it out of the box.
+    //   this.sql<ResultRow>`
+    //   SELECT 
+    //     fts.rowid,
+    //     d.id as entityId,
+    //     fts.attribute,
+    //     SNIPPET(fts, -1, '<mark>', '</mark>', '…', 63) AS snippet,
+    //     d.url,
+    //     d.hostname,
+    //     d.title,
+    //     d.excerpt,
+    //     d.lastVisit,
+    //     d.lastVisitDate,
+    //     d.mdContentHash,
+    //     d.updatedAt,
+    //     d.createdAt
+    //   FROM fts
+    //     INNER JOIN "document" d ON d.id = fts.entityId
+    //   WHERE fts MATCH ${query}
+    //   ORDER BY d.updatedAt DESC
+    //   LIMIT ${limit}
+    //   OFFSET ${offset};`
+    // ]);
     const endTime = performance.now();
 
     return {
@@ -396,20 +425,20 @@ export class VLCN implements Backend {
       );
     `;
 
-    console.log({ entityId, fragments });
-
-    let params: [number, string, string, number][] = [];
-    if (document.title) params.push([entityId, "title", document.title, 0]);
-    if (document.excerpt) params.push([entityId, "excerpt", document.excerpt, 0]);
-    if (document.url) params.push([entityId, "url", document.url, 0]);
-    params = params.concat(
-      fragments.map((fragment, i) => {
+    let triples: [e: number, a: string, v: string, o: number][] = [];
+    if (document.title) triples.push([entityId, "title", document.title, 0]);
+    if (document.excerpt) triples.push([entityId, "excerpt", document.excerpt, 0]);
+    if (document.url) triples.push([entityId, "url", document.url, 0]);
+    triples = triples.concat(
+      fragments.filter(x => x.trim()).map((fragment, i) => {
         return [entityId, "content", fragment, i];
       })
     );
     
+    console.debug('upsertFragments :: triples', triples);
+    
     await this._db.tx(async (tx) => {
-      for (const param of params) {
+      for (const param of triples) {
         await tx.exec(sql, param);
       }
     });
@@ -529,12 +558,9 @@ export class VLCN implements Backend {
     try {
       const sqlite = await initWasm(() => wasmUrl);
       console.debug("sqlite wasm loaded ::", wasmUrl);
-      this._db = await this.initDb({ dbPath: "fttf_20231102.sqlite", sqlite, migrations: [
-        ...migrations,
-        ...ftsMigrations,
-      ] });
+      this._db = await this.initDb({ dbPath: "fttf_20231102.3.sqlite", sqlite, migrations });
       this._stagingDb = await this.initDb({ dbPath: "fttf_20231102.bak.sqlite", sqlite, migrations });
-    this._dbReady = true;
+      this._dbReady = true;
     } catch (err) {
       console.error("Error running migrations", err);
       this.error = err
