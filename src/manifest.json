@@ -8,6 +8,8 @@
         "<all_urls>",
         "unlimitedStorage",
         "storage",
+        "downloads",
+        "fileSystem",
         "tabs",
         "activeTab"
     ],

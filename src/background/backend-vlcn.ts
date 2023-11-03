@@ -140,6 +140,9 @@ CREATE TABLE IF NOT EXISTS "document_fragment" (
 );
   `,
   
+  // `SELECT crsql_as_crr('document');`,
+  // `SELECT crsql_as_crr('document_fragment');`,
+  
 ];
 
 // NOTE: This is unused until this lands: https://github.com/vlcn-io/js/issues/31
@@ -582,6 +585,59 @@ export class VLCN implements Backend {
       where.url,
     ]);
   };
+  
+  async exportJson() {
+    const data = {
+      document: await this._db.execA(`SELECT * FROM document;`),
+      document_fragment: await this._db.execA(`SELECT * FROM document_fragment;`),
+    };
+    const str =  JSON.stringify(data);
+    const blob = new Blob([str], { type: "application/json" });
+    
+    // Rather than URL.createObjectURL, we use a FileReader to create a usable
+    // URL. This is because the download API requires a URL, and web workers
+    // don't support the blob URL api. Not memory efficient, but it will work of
+    // the chrome extension is allowed to consume enough memory to encode the
+    // database tables.
+    const blobUrl = await new Promise<string>((resolve, reject) => {
+      let reader = new FileReader();
+      reader.onload = function() {
+        let buffer = reader.result;
+        if (buffer) {
+          resolve(`data:${blob.type};base64,${btoa(new Uint8Array(buffer as ArrayBufferLike).reduce((data, byte) => data + String.fromCharCode(byte), ''))}`);
+        } else {
+          reject('Buffer is null');
+        }
+      };
+      reader.onerror = function() {
+        reject('Error reading blob as ArrayBuffer');
+      };
+      reader.readAsArrayBuffer(blob);
+    });
+
+    await chrome.downloads.download({
+      url: blobUrl,
+      filename: `fttf-${Date.now()}.json`,
+      saveAs: true,
+    });
+  }
+  
+  /** Totally untested. Might not actualy work */
+  async importJson(json: Record<string, any[][]>) {
+     console.log('importJson :: documents', json.document.length); 
+     console.log('importJson :: fragments', json.document_fragment.length); 
+     
+     await this._db.tx(async (tx) => {
+       for (const row of json.document) {
+         await tx.exec(`INSERT OR IGNORE INTO document (` + row.map((_, i) => `"${json.document[0][i]}"`).join(', ') + `) VALUES (` + row.map(() => '?').join(', ') + `);`, row);
+       }
+       for (const row of json.document_fragment) {
+         await tx.exec(`INSERT OR IGNORE INTO document (` + row.map((_, i) => `"${json.document[0][i]}"`).join(', ') + `) VALUES (` + row.map(() => '?').join(', ') + `);`, row);
+       }
+     });
+     
+     console.log('importJson :: complete');
+  }
 
   private findOneRaw = async <T extends {} = {}>(sql: string, args?: ObjectArray): Promise<T | null> => {
     const xs = await this._db.execO<T>(sql, args);

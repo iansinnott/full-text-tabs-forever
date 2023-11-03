@@ -71,8 +71,12 @@ export type RpcMessage =
   | [method: "nothingToIndex"]
   | [method: "getStats"]
   | [method: "getStatus"]
+  | [method: "exportJson"]
+  | [method: "importJson"]
   | [method: "search", payload: FirstArg<Backend["search"]>]
   | [method: string, payload: any];
+  
+export type DBDump = Record<string, any[][]>
 
 export interface Backend {
   getStatus(): Promise<{ ok: true } | { ok: false; error: string; detail?: any }>;
@@ -81,4 +85,6 @@ export interface Backend {
   nothingToIndex: RemoteProcWithSender;
   search: RemoteProc<{ query: string, limit?: number, offset?: number }, { ok: boolean, results: ResultRow[], count?: number, perfMs: number }>;
   findOne(query: { where:{ url: string } }): Promise<DetailRow | null>;
+  exportJson?(): Promise<any>;
+  importJson?(data: DBDump): Promise<any>;
 }

@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { ResultRow } from '@/background/backend';
-  import {fly} from 'svelte/transition'
+  import {fly, slide} from 'svelte/transition'
   import DetailsPanel from "./DetailsPanel.svelte";
   import { debounce } from '../common/utils';
   import { onMount, tick } from 'svelte';
@@ -8,6 +8,7 @@
   import { fttf } from './lib/rpc';
   import { makeHighlights} from './lib/dom'
   import ResultRowView from './ResultRowView.svelte';
+  import Menu from './Menu.svelte';
 
   let q = "";
   let res: Awaited<ReturnType<typeof fttf.adapter.backend.search>> | null = null;
@@ -102,6 +103,14 @@
         window.open(currentUrl, "_blank");
       }
     },
+    'cmd+k': () => {
+      menuOpen = !menuOpen;
+      if (menuOpen) {
+        tick().then(() => {
+          document.querySelector<HTMLInputElement>("input[data-menu-input]")?.focus();
+        });
+      }
+    },
   };
   
   let error: string | null = null;
@@ -123,7 +132,7 @@
     return url.replace(/^(https?:\/\/(?:www)?)/, '').replace(/\/$/, '');
   }
   
-
+  let menuOpen = false;
 
   const groupByUrl = (results?: ResultRow[]) => {
     if (!results) {
@@ -187,10 +196,13 @@
     // mouseover event without being moved. They keyboard can be used to scroll
     // so new elements fall below the mouse. they get a mouseover event. Thus
     // this logic
-    if (keybinds[e.key]) {
+    const key = e.key;
+    const isModifierPressed = e.ctrlKey || e.metaKey;
+    const keybind = isModifierPressed ? `cmd+${key}` : key;
+    if (keybinds[keybind]) {
       if (enableMouseEvents) enableMouseEvents = false; // See NOTE
       e.preventDefault();
-      keybinds[e.key](e);
+      keybinds[keybind](e);
     }
   }}
 />
@@ -262,6 +274,14 @@
     {/each}
   </div>
 </div>
+
+{#if menuOpen}
+  <Menu
+    onClose={() => {
+      menuOpen = false;
+    }}
+  />
+{/if}
 
 {#if showDetails}
   <!-- svelte-ignore a11y-click-events-have-key-events -->
