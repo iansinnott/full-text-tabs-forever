@@ -1,3 +1,5 @@
+import { MIN_QUERY_LENGTH } from "./constants";
+
 export const findRanges = (str: string, query: string) => {
   const ranges: [number, number][] = [];
   const s = str.toLowerCase();
@@ -5,7 +7,7 @@ export const findRanges = (str: string, query: string) => {
     .toLowerCase()
     .split(" ")
     .map((x) => x.trim())
-    .filter((x) => x.length > 2);
+    .filter((x) => x.length >= MIN_QUERY_LENGTH);
 
   for (const q of queries) {
     let i = 0;

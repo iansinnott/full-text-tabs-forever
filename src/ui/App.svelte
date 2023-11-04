@@ -9,6 +9,7 @@
   import { makeHighlights} from './lib/dom'
   import ResultRowView from './ResultRowView.svelte';
   import Menu from './Menu.svelte';
+  import { MIN_QUERY_LENGTH } from './lib/constants';
 
   let q = "";
   let res: Awaited<ReturnType<typeof fttf.adapter.backend.search>> | null = null;
@@ -23,7 +24,7 @@
 
   const handleSearch = debounce(async (query: string) => {
     query = query.trim();
-    if (query.length > 2) {
+    if (query.length >= MIN_QUERY_LENGTH) {
       res = await fttf.adapter.backend.search({ query, limit: 500 });
       currentIndex = 0;
       console.log('res', res);
@@ -33,22 +34,6 @@
     }
   }, 120);
   
-  const findRanges = (str: string, query: string) => {
-    const ranges: [number, number][] = [];
-    const q = query.toLowerCase();
-    const s = str.toLowerCase();
-    let i = 0;
-    while (i < s.length) {
-      const idx = s.indexOf(q, i);
-      if (idx === -1) {
-        break;
-      }
-      ranges.push([idx, idx + q.length]);
-      i = idx + q.length;
-    }
-    return ranges;
-  };
-
   const getFaviconByUrl = (url: string) => {
     const u = new URL(url);
     return `https://www.google.com/s2/favicons?domain=${u.hostname}`;
@@ -176,7 +161,7 @@
   // NOTE: make sure q is long enough. otherwise the whole app hangs, without
   // error. Unclear why, since in that state there are no dom nodes to handle
   // @ts-expect-error TS is wrong. the highlights api is too new
-  $: if (typeof CSS.highlights !== undefined && results?.length && q.length > 2) {
+  $: if (typeof CSS.highlights !== undefined && results?.length && q.length >= MIN_QUERY_LENGTH) {
     requestAnimationFrame(() => {
       console.log('setting highlight')
       // @ts-expect-error TS is wrong
