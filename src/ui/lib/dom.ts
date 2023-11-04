@@ -1,7 +1,11 @@
 export const findRanges = (str: string, query: string) => {
   const ranges: [number, number][] = [];
   const s = str.toLowerCase();
-  const queries = query.toLowerCase().split(" ");
+  const queries = query
+    .toLowerCase()
+    .split(" ")
+    .map((x) => x.trim())
+    .filter((x) => x.length > 2);
 
   for (const q of queries) {
     let i = 0;
