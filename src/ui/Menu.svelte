@@ -34,8 +34,6 @@
     c.name.toLowerCase().includes(filterText.toLowerCase())
   );
 
-  const len = commands.length;
-
   const scrollIntoView = (index: number) => {
     const el = document.querySelector(`.commands:nth-child(${index + 1})`);
     if (el) {
@@ -56,7 +54,7 @@
       }
     },
     ArrowDown: () => {
-      if (currentIndex < len - 1) {
+      if (currentIndex < filteredCommands.length - 1) {
         currentIndex++;
         scrollIntoView(currentIndex);
       }
@@ -91,6 +89,7 @@
     <input
       type="text"
       bind:value={filterText}
+      on:input={() => (currentIndex = 0)}
       data-menu-input
       class="appearance-none w-full outline-none focus:ring-0 text-white text-lg bg-[#1d1d1d] rounded-t-lg px-3 py-3 border-none border-b border-zinc-600"
     />
@@ -118,7 +117,7 @@
     />
   </form>
   <div class="commands p-2 text-lg">
-    {#each filteredCommands as command, i}
+    {#each filteredCommands as command, i (command.name)}
       <div
         on:mouseenter={() => {
           currentIndex = i;

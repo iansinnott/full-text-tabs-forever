@@ -31,7 +31,7 @@
       // Clear query
       res = null;
     }
-  }, 100);
+  }, 120);
   
   const findRanges = (str: string, query: string) => {
     const ranges: [number, number][] = [];

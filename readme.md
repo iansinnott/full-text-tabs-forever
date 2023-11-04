@@ -1,3 +1,7 @@
-# TODO
+# Testing
 
-- use a staging database write write first and then verify integrity
+This project uses `bun` as a unit testing framework, but not (currently) as a bundler. You will need to install `bun`, then:
+
+`bun test`
+
+Or, `pnpm run test` if you prefer.

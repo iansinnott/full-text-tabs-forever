@@ -329,13 +329,17 @@ export class VLCN implements Backend {
   };
 
   search: Backend["search"] = async (payload) => {
-    const { query, limit = 100, offset = 0 } = payload;
+    let { query, limit = 100, offset = 0 } = payload;
     console.log(`%c${"search"}`, "color:lime;", query);
+    
+    query = query.trim();
+    query = query.replace(/\s+/g, '%'); 
+    query = `%${query}%`
 
     const startTime = performance.now();
     const [count, results] = await Promise.all([
       this.findOneRaw<{ count: number }>(`SELECT COUNT(*) as count FROM document_fragment WHERE "value" like ?;`, [
-        '%'+query+'%',
+        query,
       ]),
       // @note Ordering by date as a rasonable sorting mechanism. some sort of 'rank' woudl be better but fts3 does not have it out of the box.
       this.sql<ResultRow>`
@@ -355,7 +359,7 @@ export class VLCN implements Backend {
         d.createdAt
       FROM document_fragment frag
         INNER JOIN "document" d ON d.id = frag.entityId
-      WHERE frag."value" like ${'%'+query+'%'}
+      WHERE frag."value" like ${query}
       ORDER BY d.updatedAt DESC
       LIMIT ${limit}
       OFFSET ${offset};`

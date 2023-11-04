@@ -1,15 +1,18 @@
 export const findRanges = (str: string, query: string) => {
   const ranges: [number, number][] = [];
-  const q = query.toLowerCase();
   const s = str.toLowerCase();
-  let i = 0;
-  while (i < s.length) {
-    const idx = s.indexOf(q, i);
-    if (idx === -1) {
-      break;
+  const queries = query.toLowerCase().split(" ");
+
+  for (const q of queries) {
+    let i = 0;
+    while (i < s.length) {
+      const idx = s.indexOf(q, i);
+      if (idx === -1) {
+        break;
+      }
+      ranges.push([idx, idx + q.length]);
+      i = idx + q.length;
     }
-    ranges.push([idx, idx + q.length]);
-    i = idx + q.length;
   }
   return ranges;
 };

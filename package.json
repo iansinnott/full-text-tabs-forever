@@ -10,10 +10,11 @@
     "build": "npm run build:clean && vite build && npm run manifest && node ./scripts/replace-manifest.cjs && vite build -c vite.config.content-script.ts",
     "manifest": "cp ./src/manifest.json ./dist/manifest.json",
     "build:clean": "rm -rf ./dist/*",
-    "check": "svelte-check --tsconfig ./tsconfig.json"
+    "check": "svelte-check --tsconfig ./tsconfig.json",
+    "test": "bun test"
   },
   "type": "module",
-  "keywords": [],
+  "keywords": [ ],
   "author": "",
   "license": "ISC",
   "devDependencies": {
@@ -23,6 +24,7 @@
     "@types/chrome": "~0.0.210",
     "@types/node": "^18.11.19",
     "autoprefixer": "^10.4.13",
+    "bun-types": "1.0.8",
     "concurrently": "^7.6.0",
     "postcss": "^8.4.21",
     "svelte-check": "^3.0.3",
