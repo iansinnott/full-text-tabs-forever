@@ -2,6 +2,7 @@ import { svelte, vitePreprocess } from "@sveltejs/vite-plugin-svelte";
 import { defineConfig } from "vite";
 import path from "node:path";
 import fs from "node:fs";
+import archiver from "archiver";
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -50,6 +51,47 @@ export default defineConfig({
           fs.copyFileSync(sourcePath, destinationPath);
           console.log(`[copy-plugin] ${sourcePath} -> ${destinationPath}`);
         }
+      },
+    },
+    {
+      name: "zip-plugin",
+      apply: "build",
+      enforce: "post",
+      writeBundle() {
+        const output = fs.createWriteStream(__dirname + "/fttf.zip");
+        const archive = archiver("zip", {
+          zlib: { level: 9 }, // Sets the compression level.
+        });
+
+        // listen for all archive data to be processed
+        output.on("close", function() {
+          console.log(archive.pointer() + " total bytes");
+          console.log("Archiver has been finalized and the output file descriptor has closed.");
+        });
+
+        // good practice to catch warnings (ie stat failures and other non-blocking errors)
+        archive.on("warning", function(err) {
+          if (err.code === "ENOENT") {
+            // log warning
+          } else {
+            // throw error
+            throw err;
+          }
+        });
+
+        // good practice to catch this error explicitly
+        archive.on("error", function(err) {
+          throw err;
+        });
+
+        // pipe archive data to the file
+        archive.pipe(output);
+
+        // append files from a directory
+        archive.directory(__dirname + "/dist/", false);
+
+        // finalize the archive (ie we are done appending files but streams have to finish yet)
+        archive.finalize();
       },
     },
   ],
