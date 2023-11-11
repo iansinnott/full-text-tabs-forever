@@ -27,7 +27,7 @@
     if (query.length >= MIN_QUERY_LENGTH) {
       res = await fttf.adapter.backend.search({ query, limit: 500 });
       currentIndex = 0;
-      console.log('res', res);
+      console.log('[search-results]', res);
     } else {
       // Clear query
       res = null;
@@ -163,13 +163,16 @@
   // @ts-expect-error TS is wrong. the highlights api is too new
   $: if (typeof CSS.highlights !== undefined && results?.length && q.length >= MIN_QUERY_LENGTH) {
     requestAnimationFrame(() => {
-      console.log('setting highlight')
+      console.time('highlight-results')
+
       // @ts-expect-error TS is wrong
       const els = [...document.querySelectorAll('[data-has-snippet]')].map(x => x.childNodes[0])
       if (els.length === 0) return
       const hl = makeHighlights(els, q)
       // @ts-expect-error TS is wrong. the highlights api is too new
       CSS.highlights.set('snippet', hl);
+
+      console.timeEnd('highlight-results')
     });
   }
 </script>
