@@ -7,14 +7,14 @@
     "permissions": [
         "<all_urls>",
         "unlimitedStorage",
-        "storage",
         "downloads",
         "tabs",
         "activeTab"
     ],
     "icons": {
-        "icon-1": "assets/icon-1.png",
-        "icon-2": "assets/icon-2.png"
+        "16": "assets/icon_16.png",
+        "48": "assets/icon_48.png",
+        "128": "assets/icon_128.png"
     },
     "background": {
         "service_worker": "background.js",
