@@ -73,6 +73,7 @@ export type RpcMessage =
   | [method: "getStatus"]
   | [method: "exportJson"]
   | [method: "importJson"]
+  | [method: "reindex"]
   | [method: "search", payload: FirstArg<Backend["search"]>]
   | [method: string, payload: any];
   

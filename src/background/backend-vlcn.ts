@@ -139,10 +139,6 @@ CREATE TABLE IF NOT EXISTS "document_fragment" (
   "createdAt" INTEGER
 );
   `,
-  
-  // `SELECT crsql_as_crr('document');`,
-  // `SELECT crsql_as_crr('document_fragment');`,
-  
 ];
 
 // NOTE: This is unused until this lands: https://github.com/vlcn-io/js/issues/31
@@ -152,7 +148,7 @@ CREATE VIRTUAL TABLE "fts" USING fts5(
   entityId,
   attribute,
   value,
-  tokenize='porter'
+  tokenize='porter unicode61 remove_diacritics 1'
 );
 `,
 
@@ -180,7 +176,7 @@ CREATE VIRTUAL TABLE "fts" USING fts5(
  * Run migrations against a database
  */
 const migrate = async ({ migrations, db }: { migrations: string[], db: DB }) => {
-  for (let sql of migrations) {
+  for (let sql of [...migrations, ...ftsMigrations]) {
     sql = sql.trim(); // @note We really should also strip leading whitespace. this is to help avoid sql differing due to formatting
 
     const exists = await db.execO<{ id: number }>(
@@ -332,49 +328,23 @@ export class VLCN implements Backend {
     let { query, limit = 100, offset = 0 } = payload;
     console.log(`%c${"search"}`, "color:lime;", query);
     
-    query = query.trim();
-    query = query.replace(/\s+/g, '%'); 
-    query = `%${query}%`
-
     const startTime = performance.now();
-    const [count, results] = await Promise.all([
-      this.findOneRaw<{ count: number }>(`SELECT COUNT(*) as count FROM document_fragment WHERE "value" like ?;`, [
-        query,
-      ]),
-      // @note Ordering by date as a rasonable sorting mechanism. some sort of 'rank' woudl be better but fts3 does not have it out of the box.
-      this.sql<ResultRow>`
-      SELECT 
-        frag.id as "rowid",
-        d.id as entityId,
-        frag.attribute,
-        frag.value as "snippet",
-        d.url,
-        d.hostname,
-        d.title,
-        d.excerpt,
-        d.lastVisit,
-        d.lastVisitDate,
-        d.mdContentHash,
-        d.updatedAt,
-        d.createdAt
-      FROM document_fragment frag
-        INNER JOIN "document" d ON d.id = frag.entityId
-      WHERE frag."value" like ${query}
-      ORDER BY d.updatedAt DESC
-      LIMIT ${limit}
-      OFFSET ${offset};`
-    ]);
+
+    // Modify query if using with LIKE rather than FTS
+    // query = query.trim();
+    // query = query.replace(/\s+/g, '%'); 
+    // query = `%${query}%`
+
     // const [count, results] = await Promise.all([
-    //   this.findOneRaw<{ count: number }>(`SELECT COUNT(*) as count FROM fts WHERE fts MATCH ?;`, [
+    //   this.findOneRaw<{ count: number }>(`SELECT COUNT(*) as count FROM document_fragment WHERE "value" like ?;`, [
     //     query,
     //   ]),
-    //   // @note Ordering by date as a rasonable sorting mechanism. some sort of 'rank' woudl be better but fts3 does not have it out of the box.
     //   this.sql<ResultRow>`
     //   SELECT 
-    //     fts.rowid,
+    //     frag.id as "rowid",
     //     d.id as entityId,
-    //     fts.attribute,
-    //     SNIPPET(fts, -1, '<mark>', '</mark>', '…', 63) AS snippet,
+    //     frag.attribute,
+    //     frag.value as "snippet",
     //     d.url,
     //     d.hostname,
     //     d.title,
@@ -384,13 +354,43 @@ export class VLCN implements Backend {
     //     d.mdContentHash,
     //     d.updatedAt,
     //     d.createdAt
-    //   FROM fts
-    //     INNER JOIN "document" d ON d.id = fts.entityId
-    //   WHERE fts MATCH ${query}
+    //   FROM document_fragment frag
+    //     INNER JOIN "document" d ON d.id = frag.entityId
+    //   WHERE frag."value" like ${query}
     //   ORDER BY d.updatedAt DESC
     //   LIMIT ${limit}
     //   OFFSET ${offset};`
     // ]);
+    const [count, results] = await Promise.all([
+      this.findOneRaw<{ count: number }>(`SELECT COUNT(*) as count FROM fts WHERE fts MATCH ?;`, [
+        query,
+      ]),
+      // @note Ordering by date as a rasonable sorting mechanism. would be good
+      // to support dynamically sorting by fts.rank also. Also, downranking
+      // search engine results (check hostname for google, duckduckgo, kagi,
+      // etc)
+      this.sql<ResultRow>`
+      SELECT 
+        fts.rowid,
+        d.id as entityId,
+        fts.attribute,
+        SNIPPET(fts, -1, '<mark>', '</mark>', '…', 63) AS snippet,
+        d.url,
+        d.hostname,
+        d.title,
+        d.excerpt,
+        d.lastVisit,
+        d.lastVisitDate,
+        d.mdContentHash,
+        d.updatedAt,
+        d.createdAt
+      FROM fts
+        INNER JOIN "document" d ON d.id = fts.entityId
+      WHERE fts MATCH ${query}
+      ORDER BY d.updatedAt DESC
+      LIMIT ${limit}
+      OFFSET ${offset};`
+    ]);
     const endTime = performance.now();
 
     return {
@@ -589,6 +589,14 @@ export class VLCN implements Backend {
       where.url,
     ]);
   };
+  
+  async reindex() {
+    return this._db.tx(async (tx) => {
+      await tx.exec(`DELETE FROM "fts";`);
+      await tx.exec(`INSERT INTO "fts" (rowid, entityId, attribute, value)
+                     SELECT "id", "entityId", "attribute", "value" FROM "document_fragment";`);
+    });
+  }
   
   async exportJson() {
     const data = {

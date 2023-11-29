@@ -28,6 +28,14 @@
         return true;
       },
     },
+    {
+      name: "Reindex",
+      exec: async () => {
+        const res = await rpc(["reindex"]);
+        console.log("reindex", res);
+        return true;
+      },
+    },
   ];
 
   $: filteredCommands = commands.filter((c) =>

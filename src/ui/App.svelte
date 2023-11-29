@@ -107,6 +107,11 @@
 
     const status = await fttf.adapter.backend.getStatus()
     
+    if (typeof window !== 'undefined') {
+      // @ts-expect-error
+      window.fttf = fttf;
+    }
+    
     if (!status.ok) {
       error = status.error
       errorDetail = status.detail

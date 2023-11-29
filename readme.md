@@ -1,3 +1,5 @@
+Available in the [Chrome Web Store](https://chrome.google.com/webstore/detail/full-text-tabs-forever/gfmbnlbnapjmffgcnbopfgmflmlfghel).
+
 # Testing
 
 This project uses `bun` as a unit testing framework, but not (currently) as a bundler. You will need to install `bun`, then:
