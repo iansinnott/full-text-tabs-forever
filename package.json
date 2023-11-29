@@ -47,7 +47,7 @@
     "classnames": "^2.3.2",
     "dexie": "~3.2.3",
     "svelte": "^3.55.1",
-    "svelte-markdown": "^0.2.3",
+    "svelte-markdown": "^0.4.0",
     "turndown": "https://github.com/iansinnott/turndown",
     "webextension-polyfill": "~0.10.0"
   }

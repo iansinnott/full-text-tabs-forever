@@ -84,7 +84,7 @@ export interface Backend {
   getPageStatus: RemoteProcWithSender;
   indexPage: RemoteProcWithSender<Article>;
   nothingToIndex: RemoteProcWithSender;
-  search: RemoteProc<{ query: string, limit?: number, offset?: number }, { ok: boolean, results: ResultRow[], count?: number, perfMs: number }>;
+  search: RemoteProc<{ query: string, limit?: number, offset?: number, orderBy: "updatedAt" | "rank" }, { ok: boolean, results: ResultRow[], count?: number, perfMs: number }>;
   findOne(query: { where:{ url: string } }): Promise<DetailRow | null>;
   exportJson?(): Promise<any>;
   importJson?(data: DBDump): Promise<any>;

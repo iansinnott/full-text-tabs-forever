@@ -24,7 +24,7 @@
   const handleSearch = debounce(async (query: string) => {
     query = query.trim();
     if (query.length >= MIN_QUERY_LENGTH) {
-      res = await fttf.adapter.backend.search({ query, limit: 500 });
+      res = await fttf.adapter.backend.search({ query, limit: 500, orderBy: 'updatedAt' });
       currentIndex = 0;
       console.log('[search-results]', res);
     } else {

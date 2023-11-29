@@ -33,8 +33,8 @@ dependencies:
     specifier: ^3.55.1
     version: 3.55.1
   svelte-markdown:
-    specifier: ^0.2.3
-    version: 0.2.3(svelte@3.55.1)
+    specifier: ^0.4.0
+    version: 0.4.0(svelte@3.55.1)
   turndown:
     specifier: https://github.com/iansinnott/turndown
     version: github.com/iansinnott/turndown/c4d3be39184d895fc481b559594f036670f5eb1e
@@ -461,8 +461,8 @@ packages:
     resolution: {integrity: sha512-o0J30wqycjF5miWDKYKKzzOU1ZTLuA42HZ4HE7/zqTOc/jTLdQ5NhYWvsRQo45Nfi1KHoRdNhteSI4BAxTF1Pg==}
     dev: true
 
-  /@types/marked@4.0.8:
-    resolution: {integrity: sha512-HVNzMT5QlWCOdeuBsgXP8EZzKUf0+AXzN+sLmjvaB3ZlLqO+e4u0uXrdw9ub69wBKFs+c6/pA4r9sy6cCDvImw==}
+  /@types/marked@5.0.2:
+    resolution: {integrity: sha512-OucS4KMHhFzhz27KxmWg7J+kIYqyqoW5kdIEI319hqARQQUTqhao3M/F+uFnDXD0Rg72iDDZxZNxq5gvctmLlg==}
     dev: false
 
   /@types/node@18.11.19:
@@ -1734,9 +1734,9 @@ packages:
       p-defer: 1.0.0
     dev: true
 
-  /marked@4.2.12:
-    resolution: {integrity: sha512-yr8hSKa3Fv4D3jdZmtMMPghgVt6TWbk86WQaWhDloQjRSQhMMYCAro7jP7VDJrjjdV8pxVxMssXS8B8Y5DZ5aw==}
-    engines: {node: '>= 12'}
+  /marked@5.1.2:
+    resolution: {integrity: sha512-ahRPGXJpjMjwSOlBoTMZAK7ATXkli5qCPxZ21TG44rx1KEo44bii4ekgTDQPNRQ4Kh7JMb9Ub1PVk1NxRSsorg==}
+    engines: {node: '>= 16'}
     hasBin: true
     dev: false
 
@@ -2282,13 +2282,13 @@ packages:
       svelte: 3.55.1
     dev: false
 
-  /svelte-markdown@0.2.3(svelte@3.55.1):
-    resolution: {integrity: sha512-2h680NzTXnAD0CXhxe3GeHl6W+ayG4iKQRl+BIDRw+R0mUE0OiNxP1Vt8Rn+aWevB/LBiBIPCAwvL+0BkG057A==}
+  /svelte-markdown@0.4.0(svelte@3.55.1):
+    resolution: {integrity: sha512-d8xYJoPhhiLn/tFrO54V5p22q2+I7It8w3CpTv+O+h99LlgehxK9XwdISVBl2aNcLbLX128Nz/vu7GScWhVZjw==}
     peerDependencies:
-      svelte: ^3.0.0
+      svelte: ^4.0.0
     dependencies:
-      '@types/marked': 4.0.8
-      marked: 4.2.12
+      '@types/marked': 5.0.2
+      marked: 5.1.2
       svelte: 3.55.1
     dev: false
 

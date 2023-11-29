@@ -325,42 +325,12 @@ export class VLCN implements Backend {
   };
 
   search: Backend["search"] = async (payload) => {
-    let { query, limit = 100, offset = 0 } = payload;
+    let { query, limit = 100, offset = 0, orderBy = 'updatedAt' } = payload;
     console.log(`%c${"search"}`, "color:lime;", query);
     
     const startTime = performance.now();
+    const _orderBy = orderBy === 'rank' ? 'fts.rank' : 'd.updatedAt';
 
-    // Modify query if using with LIKE rather than FTS
-    // query = query.trim();
-    // query = query.replace(/\s+/g, '%'); 
-    // query = `%${query}%`
-
-    // const [count, results] = await Promise.all([
-    //   this.findOneRaw<{ count: number }>(`SELECT COUNT(*) as count FROM document_fragment WHERE "value" like ?;`, [
-    //     query,
-    //   ]),
-    //   this.sql<ResultRow>`
-    //   SELECT 
-    //     frag.id as "rowid",
-    //     d.id as entityId,
-    //     frag.attribute,
-    //     frag.value as "snippet",
-    //     d.url,
-    //     d.hostname,
-    //     d.title,
-    //     d.excerpt,
-    //     d.lastVisit,
-    //     d.lastVisitDate,
-    //     d.mdContentHash,
-    //     d.updatedAt,
-    //     d.createdAt
-    //   FROM document_fragment frag
-    //     INNER JOIN "document" d ON d.id = frag.entityId
-    //   WHERE frag."value" like ${query}
-    //   ORDER BY d.updatedAt DESC
-    //   LIMIT ${limit}
-    //   OFFSET ${offset};`
-    // ]);
     const [count, results] = await Promise.all([
       this.findOneRaw<{ count: number }>(`SELECT COUNT(*) as count FROM fts WHERE fts MATCH ?;`, [
         query,
@@ -383,11 +353,20 @@ export class VLCN implements Backend {
         d.lastVisitDate,
         d.mdContentHash,
         d.updatedAt,
-        d.createdAt
+        d.createdAt,
+        fts.rank,
+        CASE 
+          WHEN d.hostname IN ('localhost') THEN -50
+          WHEN d.hostname IN ('google.com', 'www.google.com', 'kagi.com', 'duckduckgo.com', 'bing.com') THEN -10 
+          WHEN d.hostname IN ('amazon.com', 'www.amazon.com') THEN -5
+          ELSE 0 
+        END AS rank_modifier
       FROM fts
         INNER JOIN "document" d ON d.id = fts.entityId
       WHERE fts MATCH ${query}
-      ORDER BY d.updatedAt DESC
+      ORDER BY 
+        rank_modifier DESC,
+        ${_orderBy} DESC
       LIMIT ${limit}
       OFFSET ${offset};`
     ]);
