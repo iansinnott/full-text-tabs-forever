@@ -1,12 +1,11 @@
 <script lang="ts">
   import type { ResultRow } from '@/background/backend';
-  import {fly, slide} from 'svelte/transition'
+  import { fly } from 'svelte/transition'
   import DetailsPanel from "./DetailsPanel.svelte";
   import { debounce } from '../common/utils';
   import { onMount, tick } from 'svelte';
   import classNames from 'classnames';
   import { fttf } from './lib/rpc';
-  import { makeHighlights} from './lib/dom'
   import ResultRowView from './ResultRowView.svelte';
   import Menu from './Menu.svelte';
   import { MIN_QUERY_LENGTH } from './lib/constants';
@@ -162,24 +161,6 @@
   $: groups = groupByUrl(results);
   $: urls = Object.keys(groups || {});
   $: currentUrl = urls.at(currentIndex);
-
-  // NOTE: make sure q is long enough. otherwise the whole app hangs, without
-  // error. Unclear why, since in that state there are no dom nodes to handle
-  // @ts-expect-error TS is wrong. the highlights api is too new
-  $: if (typeof CSS.highlights !== undefined && results?.length && q.length >= MIN_QUERY_LENGTH) {
-    requestAnimationFrame(() => {
-      console.time('highlight-results')
-
-      // @ts-expect-error TS is wrong
-      const els = [...document.querySelectorAll('[data-has-snippet]')].map(x => x.childNodes[0])
-      if (els.length === 0) return
-      const hl = makeHighlights(els, q)
-      // @ts-expect-error TS is wrong. the highlights api is too new
-      CSS.highlights.set('snippet', hl);
-
-      console.timeEnd('highlight-results')
-    });
-  }
 </script>
 
 <svelte:window
@@ -261,7 +242,7 @@
           </div>
         </a>
         {#each group.hits as hit (hit.rowid)}
-          <ResultRowView item={hit} {q} />
+          <ResultRowView item={hit} />
         {/each}
       </div>
     {/each}

@@ -1,3 +1,8 @@
+/**
+ * This is not used as of this commit. Likely to be removed. It was used when
+ * sqlite fts wasn't available to provide highlighting via the SNIPPET function.
+ */
+
 import { MIN_QUERY_LENGTH } from "./constants";
 
 export const findRanges = (str: string, query: string) => {

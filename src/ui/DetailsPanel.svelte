@@ -1,6 +1,5 @@
 <script lang="ts">
-  import classNames from "classnames";
-  import type { ResultRow , DetailRow } from "@/background/backend";
+  import type { DetailRow } from "@/background/backend";
   import { fttf } from './lib/rpc';
   import SvelteMarkdown from "svelte-markdown";
   
