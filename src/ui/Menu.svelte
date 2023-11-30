@@ -3,6 +3,7 @@
   import { fly } from "svelte/transition";
   import { each } from "svelte/internal";
   import { rpc } from "./lib/rpc";
+  import { displaySettings } from "./store/displaySettings";
   let _class: string = "";
   export { _class as class };
   export let open: boolean = false;
@@ -13,7 +14,7 @@
 
   const commands = [
     {
-      name: "Import...",
+      name: "DB: Import...",
       exec: async () => {
         console.log("import");
         fileInput?.click();
@@ -21,7 +22,7 @@
       },
     },
     {
-      name: "Export...",
+      name: "DB: Export...",
       exec: async () => {
         console.log("export");
         await rpc(["exportJson"]);
@@ -29,7 +30,14 @@
       },
     },
     {
-      name: "Reindex",
+      name: "UI: Toggle Show Stats",
+      exec: async () => {
+        displaySettings.update((s) => ({ ...s, showStats: !s.showStats }));
+        return true;
+      },
+    },
+    {
+      name: "Dev: Reindex",
       exec: async () => {
         const res = await rpc(["reindex"]);
         console.log("reindex", res);

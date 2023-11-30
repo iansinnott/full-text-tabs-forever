@@ -5,10 +5,11 @@
   import { debounce } from '../common/utils';
   import { onMount, tick } from 'svelte';
   import classNames from 'classnames';
-  import { fttf } from './lib/rpc';
+  import { fttf, rpc } from './lib/rpc';
   import ResultRowView from './ResultRowView.svelte';
   import Menu from './Menu.svelte';
   import { MIN_QUERY_LENGTH } from './lib/constants';
+  import { displaySettings } from './store/displaySettings';
 
   let q = "";
   let res: Awaited<ReturnType<typeof fttf.adapter.backend.search>> | null = null;
@@ -97,28 +98,62 @@
     },
   };
   
+  let loading = true;
   let error: string | null = null;
   let errorDetail: any = null;
+  type Stats = {
+    Documents: string;
+    Fragments: string;
+    Size: string;
+  };
+  let stats: Stats | null = null;
   
   onMount(async () => {
     await tick()
     input?.focus();
 
-    const status = await fttf.adapter.backend.getStatus()
+    let status = await fttf.adapter.backend.getStatus()
     
     if (typeof window !== 'undefined') {
       // @ts-expect-error
       window.fttf = fttf;
     }
     
+    // Wait. Sometimes the backend takes a while to start up
+    if (!status.ok) {
+      for (const wait of [100, 200, 300, 400, 500]) {
+        await new Promise((resolve) => setTimeout(resolve, wait));
+        status = await fttf.adapter.backend.getStatus()
+        if (status.ok) {
+          break;
+        }
+      }
+    }
+    
+    // If still not OK assume it's an error
     if (!status.ok) {
       error = status.error
       errorDetail = status.detail
+    } else {
+      loading = false;
+      const _stats = (await rpc(['getStats'])) as {
+        document: { count: number; },
+        document_fragment: { count: number; },
+        db: { size_bytes: number; }
+      }
+      
+      console.log('[stats]', _stats);
+      
+      stats = {
+        Documents: _stats.document.count.toLocaleString(),
+        Fragments: _stats.document_fragment.count.toLocaleString(),
+        'Size': (_stats.db.size_bytes / 1024 / 1024).toFixed(2) + 'MB',
+      }
     }
   });
   
   const cleanUrl = (url: string) => {
-    return url.replace(/^(https?:\/\/(?:www)?)/, '').replace(/\/$/, '');
+    return url.replace(/^(https?:\/\/(?:www\.)?)/, '').replace(/\/$/, '');
   }
   
   let menuOpen = false;
@@ -197,6 +232,12 @@
   <div class="stats px-6 md:px-12 py-6 text-sm text-slate-400">
     {#if res}
       Showing {results?.length} of {res.count}. Took <code>{res.perfMs}</code>ms.
+    {:else if stats && $displaySettings.showStats}
+      <div class="inline-stats flex space-x-4" in:fly|local={{ y: -20, duration: 150 }}>
+        {#each Object.entries(stats) as [k, v]}
+          <span><strong>{k}:</strong> {v}</span>
+        {/each}
+      </div>
     {/if}
   </div>
   {#if error}
