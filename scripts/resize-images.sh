@@ -24,6 +24,7 @@ sizes=(16 48 128)
 
 # Generate the icons
 for size in "${sizes[@]}"; do
+  base_name=$(basename "$input_file" .png)
   echo "Generating ${size}x${size} icon..."
-  convert $input_file -resize ${size}x${size} $output_dir/icon_${size}.png
+  convert "$input_file" -resize "${size}x${size}" "$output_dir/${base_name}_${size}.png"
 done
