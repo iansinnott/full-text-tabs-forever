@@ -21,8 +21,8 @@
         "type": "module"
     },
     "action": {
-        "default_icon": "assets/star-empty-38.png",
-        "default_title": "Bookmark it!"
+        "default_icon": "/assets/icon-cropped-1_48.png",
+        "default_title": "Open Tab History"
     },
     "host_permissions": [
         "<all_urls>"
