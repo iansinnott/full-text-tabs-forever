@@ -577,6 +577,26 @@ export class VLCN implements Backend {
     });
   }
   
+  async getStats() {
+    const [document, document_fragment, db_size] = await Promise.all([
+      this._db.execO<{ count: number }>(`SELECT COUNT(*) as count FROM document;`),
+      this._db.execO<{ count: number }>(`SELECT COUNT(*) as count FROM document_fragment;`),
+      this._db.execO<{ size: number }>(`SELECT (page_count * page_size) as size FROM pragma_page_count(), pragma_page_size();`),
+    ]);
+    
+    return {
+      document: {
+        count: document[0].count,
+      },
+      document_fragment: {
+        count: document_fragment[0].count,
+      },
+      db: {
+        size_bytes: db_size[0].size,
+      }
+    };
+  }
+  
   async exportJson() {
     const data = {
       document: await this._db.execA(`SELECT * FROM document;`),
