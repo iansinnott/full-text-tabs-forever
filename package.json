@@ -14,7 +14,7 @@
     "test": "bun test"
   },
   "type": "module",
-  "keywords": [],
+  "keywords": [ ],
   "author": "",
   "license": "ISC",
   "devDependencies": {
@@ -43,7 +43,7 @@
     "@types/turndown": "~5.0.1",
     "@types/webextension-polyfill": "~0.10.0",
     "@types/websql": "~0.0.27",
-    "@vlcn.io/crsqlite-wasm": "0.16.0-next.0",
+    "@vlcn.io/crsqlite-wasm": "0.16.0-next.2",
     "classnames": "^2.3.2",
     "dexie": "~3.2.3",
     "svelte": "^3.55.1",
