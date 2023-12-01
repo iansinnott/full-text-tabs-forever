@@ -36,6 +36,12 @@
     }
   }, 120);
   
+  // Re-search if the preprocessQuery setting changes
+  $: {
+    preprocessQuery;
+    handleSearch(q);
+  }
+  
   const getFaviconByUrl = (url: string) => {
     const u = new URL(url);
     return `https://www.google.com/s2/favicons?domain=${u.hostname}`;
