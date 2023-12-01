@@ -36,7 +36,12 @@ export class DebugBackend implements Backend {
       throw err;
     }
 
-    console.log(`%c${"getPageStatus"}`, "color:lime;", { shouldIndex, url: tab?.url }, payload);
+    console.log(
+      `%c${"getPageStatus"}`,
+      "color:lime;",
+      { shouldIndex, url: tab?.url },
+      payload,
+    );
 
     return {
       shouldIndex,
@@ -48,10 +53,14 @@ export class DebugBackend implements Backend {
 
     // remove adjacent whitespace since it serves no purpose. The html or
     // markdown content stores formatting.
-    const plainText = payload.textContent.replace(/[ \t]+/g, " ").replace(/\n+/g, "\n");
+    const plainText = payload.textContent
+      .replace(/[ \t]+/g, " ")
+      .replace(/\n+/g, "\n");
 
     console.log(`%c${"indexPage"}`, "color:lime;", tab?.url);
-    console.log(formatDebuggablePayload({ ...payload, textContent: plainText }));
+    console.log(
+      formatDebuggablePayload({ ...payload, textContent: plainText }),
+    );
     return {
       message: "debug backend does not index pages",
     };

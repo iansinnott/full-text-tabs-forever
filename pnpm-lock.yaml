@@ -76,6 +76,9 @@ devDependencies:
   postcss:
     specifier: ^8.4.21
     version: 8.4.21
+  prettier:
+    specifier: 3.1.0
+    version: 3.1.0
   svelte-check:
     specifier: ^3.0.3
     version: 3.0.3(postcss@8.4.21)(svelte@3.55.1)
@@ -1986,6 +1989,12 @@ packages:
   /prettier@1.19.1:
     resolution: {integrity: sha512-s7PoyDv/II1ObgQunCbB9PdLmUcBZcnWOcxDh7O0N/UwDEsHyqkW+Qh28jW+mVuCdx7gLB0BotYI1Y6uI9iyew==}
     engines: {node: '>=4'}
+    hasBin: true
+    dev: true
+
+  /prettier@3.1.0:
+    resolution: {integrity: sha512-TQLvXjq5IAibjh8EpBIkNKxO749UEWABoiIZehEPiY4GNpVdhaFKqSTu+QrlU6D2dPAfubRmtJTi4K4YkQ5eXw==}
+    engines: {node: '>=14'}
     hasBin: true
     dev: true
 

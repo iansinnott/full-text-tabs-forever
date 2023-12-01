@@ -1,3 +1,3 @@
 export function log(...args: string[]) {
-    console.log(...args);
+  console.log(...args);
 }

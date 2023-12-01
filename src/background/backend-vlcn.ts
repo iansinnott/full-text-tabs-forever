@@ -1,9 +1,13 @@
 import initWasm, { SQLite3, type DB } from "@vlcn.io/crsqlite-wasm";
 // @ts-expect-error TS doesn't understand this?
 import wasmUrl from "@vlcn.io/crsqlite-wasm/crsqlite.wasm?url";
-import { } from '@vlcn.io/wa-sqlite'
+import {} from "@vlcn.io/wa-sqlite";
 import Turndown from "turndown";
-import { formatDebuggablePayload, getArticleFragments, shasum } from "../common/utils";
+import {
+  formatDebuggablePayload,
+  getArticleFragments,
+  shasum,
+} from "../common/utils";
 import {
   Article,
   ArticleRow,
@@ -13,106 +17,113 @@ import {
   ResultRow,
 } from "./backend";
 
-
 function prepareFtsQuery(query: string): string {
-  return query.split(' ').map((word) => {
-    // Escape double quotes in the query
-    const escapedWord = word.trim().replace(/"/g, '""');
-    // Wrap the query in double quotes to treat it as a literal string
-    return `"${escapedWord}"`;
-  }).join(' ') + "*"; // The logic here is to wrap the final word with a wildcard. Might need some experimentation
+  return (
+    query
+      .split(" ")
+      .map((word) => {
+        // Escape double quotes in the query
+        const escapedWord = word.trim().replace(/"/g, '""');
+        // Wrap the query in double quotes to treat it as a literal string
+        return `"${escapedWord}"`;
+      })
+      .join(" ") + "*"
+  ); // The logic here is to wrap the final word with a wildcard. Might need some experimentation
 }
-type SQLiteArg = NonNullable<Parameters<DB['execO']>[1]>[number];
+type SQLiteArg = NonNullable<Parameters<DB["execO"]>[1]>[number];
 const argToSqlite = (v: unknown): SQLiteArg | undefined => {
- switch (typeof v) {
-  case 'string':
-  case 'number':
-  case 'bigint':
-    return v;
-
-  case 'boolean': 
-    return Number(v);        
-
-  case 'symbol': 
-    return v.toString();
-  
-  case 'function':
-  default:
-    if (Array.isArray(v)) {
+  switch (typeof v) {
+    case "string":
+    case "number":
+    case "bigint":
       return v;
-    } else if (v === null) {
-      return v;
-    } else if (typeof v === 'object' && v !== null) {
-      return JSON.stringify(v);
-    } else {
-      return undefined;
-    }
- }
-}
+
+    case "boolean":
+      return Number(v);
+
+    case "symbol":
+      return v.toString();
+
+    case "function":
+    default:
+      if (Array.isArray(v)) {
+        return v;
+      } else if (v === null) {
+        return v;
+      } else if (typeof v === "object" && v !== null) {
+        return JSON.stringify(v);
+      } else {
+        return undefined;
+      }
+  }
+};
 
 const validate = (values: Record<string, unknown>) => {
-    const keys: string[] = []
-    const vals: SQLiteArg[] = []
-    let invalid: Record<string, any> | undefined = undefined;
+  const keys: string[] = [];
+  const vals: SQLiteArg[] = [];
+  let invalid: Record<string, any> | undefined = undefined;
 
-    for (const [k,v] of Object.entries(values)) {
-      const x = argToSqlite(v);
-      if (x !== undefined) {
-        keys.push(k);
-        vals.push(x); 
-      } else {
-        if (!invalid) invalid = {};
-        invalid[k] = v;
-      }
+  for (const [k, v] of Object.entries(values)) {
+    const x = argToSqlite(v);
+    if (x !== undefined) {
+      keys.push(k);
+      vals.push(x);
+    } else {
+      if (!invalid) invalid = {};
+      invalid[k] = v;
     }
-    
-    return { keys, vals, invalid };
   }
+
+  return { keys, vals, invalid };
+};
 
 const SQLFormat = {
   /**
    * A template literal to make querying easier. Unlike the others this one just
    * takes a template string and tries to extract the variables into positoinal
-  * args.
+   * args.
    */
-   format: (strings: TemplateStringsArray, ...values: any[]) => {
-     let str = '';
-     const args: SQLiteArg[] = [];
+  format: (strings: TemplateStringsArray, ...values: any[]) => {
+    let str = "";
+    const args: SQLiteArg[] = [];
     let invalid: Record<number, any> | undefined = undefined;
-     
-     strings.forEach((string, i) => {
-       const v = argToSqlite(values[i]);
-        if (v !== undefined) {
-          str += string + '?';
-          args.push(v);
-        } else {
-          if (!invalid) invalid = {};
-          invalid[i] = values[i];
-          str += string;
-        }
-     });
 
-     return [str, args] as const;
-   },
-  
+    strings.forEach((string, i) => {
+      const v = argToSqlite(values[i]);
+      if (v !== undefined) {
+        str += string + "?";
+        args.push(v);
+      } else {
+        if (!invalid) invalid = {};
+        invalid[i] = values[i];
+        str += string;
+      }
+    });
+
+    return [str, args] as const;
+  },
+
   insert: (table: string, values: Record<string, unknown>) => {
-    const { keys, vals, invalid} = validate(values);
+    const { keys, vals, invalid } = validate(values);
     const sql = `INSERT INTO ${table} (${keys.join(", ")}) VALUES (${keys
       .map(() => "?")
       .join(", ")})`;
-      
+
     return [sql, vals, invalid] as const;
   },
-  update: (table: string, values: Record<string, unknown>, condition: string) => {
+  update: (
+    table: string,
+    values: Record<string, unknown>,
+    condition: string,
+  ) => {
     const { keys, vals, invalid } = validate(values);
     const sql = `UPDATE ${table} SET ${keys
-      .map(key => `${key} = ?`)
+      .map((key) => `${key} = ?`)
       .join(", ")} WHERE ${condition}`;
-      
-    return [sql, vals, invalid] as const;
-  }
-}
 
+    return [sql, vals, invalid] as const;
+  },
+};
 
 // @note In order to avoid duplication, since we're indexing every URL the user
 // visits, a document has a 1:n relationship with a URL. Multiple URLs can have
@@ -151,7 +162,7 @@ CREATE TABLE IF NOT EXISTS "document_fragment" (
 ];
 
 // NOTE: This is unused until this lands: https://github.com/vlcn-io/js/issues/31
-const ftsMigrations =[
+const ftsMigrations = [
   `
 CREATE VIRTUAL TABLE "fts" USING fts5(
   entityId,
@@ -184,13 +195,19 @@ CREATE VIRTUAL TABLE "fts" USING fts5(
 /**
  * Run migrations against a database
  */
-const migrate = async ({ migrations, db }: { migrations: string[], db: DB }) => {
+const migrate = async ({
+  migrations,
+  db,
+}: {
+  migrations: string[];
+  db: DB;
+}) => {
   for (let sql of [...migrations, ...ftsMigrations]) {
     sql = sql.trim(); // @note We really should also strip leading whitespace. this is to help avoid sql differing due to formatting
 
     const exists = await db.execO<{ id: number }>(
       `SELECT * FROM internal_migrations WHERE sql = ? LIMIT 1`,
-      [sql]
+      [sql],
     );
 
     if (exists.length) {
@@ -206,7 +223,6 @@ const migrate = async ({ migrations, db }: { migrations: string[], db: DB }) => 
   }
 };
 
-
 export class VLCN implements Backend {
   error: Error | null = null;
 
@@ -217,7 +233,7 @@ export class VLCN implements Backend {
         error: this.error.message,
         detail: {
           stack: this.error.stack,
-        }
+        },
       };
     }
 
@@ -230,7 +246,7 @@ export class VLCN implements Backend {
 
     return {
       ok: true,
-    }
+    };
   };
 
   getPageStatus: Backend["getPageStatus"] = async (payload, sender) => {
@@ -259,7 +275,12 @@ export class VLCN implements Backend {
       };
     }
 
-    console.log(`%c${"getPageStatus"}`, "color:lime;", { shouldIndex, url: tab?.url }, payload);
+    console.log(
+      `%c${"getPageStatus"}`,
+      "color:lime;",
+      { shouldIndex, url: tab?.url },
+      payload,
+    );
 
     return {
       shouldIndex,
@@ -268,7 +289,7 @@ export class VLCN implements Backend {
 
   indexPage: Backend["indexPage"] = async (
     { /* htmlContent, */ date, textContent, mdContent, ...payload },
-    sender
+    sender,
   ) => {
     const { tab } = sender;
 
@@ -299,7 +320,7 @@ export class VLCN implements Backend {
         title: document.title,
         textContent,
         siteName: document.siteName,
-      })
+      }),
     );
 
     const inserted = await this.upsertDocument(document);
@@ -308,7 +329,7 @@ export class VLCN implements Backend {
       console.log(
         `%c  ${"new insertion"}`,
         "color:gray;",
-        `indexed doc:${inserted.id}, url:${u.href}`
+        `indexed doc:${inserted.id}, url:${u.href}`,
       );
 
       await this.upsertFragments(inserted.id, {
@@ -334,20 +355,27 @@ export class VLCN implements Backend {
   };
 
   search: Backend["search"] = async (payload) => {
-    let { query, limit = 100, offset = 0, orderBy = 'updatedAt', preprocessQuery = true } = payload;
+    let {
+      query,
+      limit = 100,
+      offset = 0,
+      orderBy = "updatedAt",
+      preprocessQuery = true,
+    } = payload;
     console.log(`%c${"search"}`, "color:lime;", query);
-    
+
     if (preprocessQuery) {
       query = prepareFtsQuery(query);
     }
-    
+
     const startTime = performance.now();
-    const _orderBy = orderBy === 'rank' ? 'fts.rank' : 'd.updatedAt';
+    const _orderBy = orderBy === "rank" ? "fts.rank" : "d.updatedAt";
 
     const [count, results] = await Promise.all([
-      this.findOneRaw<{ count: number }>(`SELECT COUNT(*) as count FROM fts WHERE fts MATCH ?;`, [
-        query,
-      ]),
+      this.findOneRaw<{ count: number }>(
+        `SELECT COUNT(*) as count FROM fts WHERE fts MATCH ?;`,
+        [query],
+      ),
       // @note Ordering by date as a rasonable sorting mechanism. would be good
       // to support dynamically sorting by fts.rank also. Also, downranking
       // search engine results (check hostname for google, duckduckgo, kagi,
@@ -381,7 +409,7 @@ export class VLCN implements Backend {
         rank_modifier DESC,
         ${_orderBy} DESC
       LIMIT ${limit}
-      OFFSET ${offset};`
+      OFFSET ${offset};`,
     ]);
     const endTime = performance.now();
 
@@ -400,7 +428,12 @@ export class VLCN implements Backend {
 
   private upsertFragments = async (
     entityId: number,
-    document: Partial<{ url: string; title: string; excerpt: string; textContent: string }>
+    document: Partial<{
+      url: string;
+      title: string;
+      excerpt: string;
+      textContent: string;
+    }>,
   ) => {
     const fragments = getArticleFragments(document.textContent || "");
 
@@ -427,26 +460,31 @@ export class VLCN implements Backend {
 
     let triples: [e: number, a: string, v: string, o: number][] = [];
     if (document.title) triples.push([entityId, "title", document.title, 0]);
-    if (document.excerpt) triples.push([entityId, "excerpt", document.excerpt, 0]);
+    if (document.excerpt)
+      triples.push([entityId, "excerpt", document.excerpt, 0]);
     if (document.url) triples.push([entityId, "url", document.url, 0]);
     triples = triples.concat(
-      fragments.filter(x => x.trim()).map((fragment, i) => {
-        return [entityId, "content", fragment, i];
-      })
+      fragments
+        .filter((x) => x.trim())
+        .map((fragment, i) => {
+          return [entityId, "content", fragment, i];
+        }),
     );
-    
-    console.debug('upsertFragments :: triples', triples);
-    
+
+    console.debug("upsertFragments :: triples", triples);
+
     await this._db.tx(async (tx) => {
       for (const param of triples) {
         await tx.exec(sql, param);
       }
     });
 
-    return
+    return;
   };
 
-  private touchDocument = async (document: Partial<ArticleRow> & { id: number }) => {
+  private touchDocument = async (
+    document: Partial<ArticleRow> & { id: number },
+  ) => {
     // update the document updatedAt time
     await this.sql`
         UPDATE "document" 
@@ -462,49 +500,53 @@ export class VLCN implements Backend {
       `
       SELECT id FROM "document" WHERE url = ?;
     `,
-      [document.url]
+      [document.url],
     );
 
     if (doc) {
       // update the document updatedAt time
-      const [sql, args, invalid] = SQLFormat.update(`document`, {
-        updatedAt: Date.now(), 
-        excerpt: document.excerpt,
-        mdContent: document.mdContent,
-        mdContentHash: document.mdContentHash,
-        lastVisit: document.lastVisit,
-        lastVisitDate: document.lastVisitDate
-      }, `id = ${doc.id}`);
+      const [sql, args, invalid] = SQLFormat.update(
+        `document`,
+        {
+          updatedAt: Date.now(),
+          excerpt: document.excerpt,
+          mdContent: document.mdContent,
+          mdContentHash: document.mdContentHash,
+          lastVisit: document.lastVisit,
+          lastVisitDate: document.lastVisitDate,
+        },
+        `id = ${doc.id}`,
+      );
 
-      console.debug('upsertDocument ::', sql, args, invalid);
+      console.debug("upsertDocument ::", sql, args, invalid);
 
       // Return nothing to indicate that nothing was inserted
       return;
     }
 
     const [sql, args, invalid] = SQLFormat.insert(`document`, {
-        title: document.title,
-        url: document.url,
-        excerpt: document.excerpt,
-        mdContent: document.mdContent,
-        mdContentHash: document.mdContentHash,
-        publicationDate: document.publicationDate,
-        hostname: document.hostname,
-        lastVisit: document.lastVisit,
-        lastVisitDate: document.lastVisitDate,
-        extractor: document.extractor,
-        updatedAt: document.updatedAt || Date.now(),
-        createdAt: document.createdAt || Date.now(),
+      title: document.title,
+      url: document.url,
+      excerpt: document.excerpt,
+      mdContent: document.mdContent,
+      mdContentHash: document.mdContentHash,
+      publicationDate: document.publicationDate,
+      hostname: document.hostname,
+      lastVisit: document.lastVisit,
+      lastVisitDate: document.lastVisitDate,
+      extractor: document.extractor,
+      updatedAt: document.updatedAt || Date.now(),
+      createdAt: document.createdAt || Date.now(),
     });
-    
-    console.debug('upsertDocument ::', sql, args, invalid);
-    
+
+    console.debug("upsertDocument ::", sql, args, invalid);
+
     await this._db.exec(sql, args);
-    
+
     // Add to the staging db as well
     await this._stagingDb.exec(sql, args);
-    
-    return this.findOne({ where: { url : document.url } });
+
+    return this.findOne({ where: { url: document.url } });
   };
 
   // @ts-expect-error TS rightly thinks this is not initialized, however, the
@@ -531,39 +573,55 @@ export class VLCN implements Backend {
         throw err;
       });
   }
-  
-  initDb = async ({ dbPath, sqlite, migrations }: { dbPath: string, sqlite: SQLite3, migrations: string[] }) => {
-      const db = await sqlite.open(dbPath);
 
-      console.debug(`db opened: :: ${dbPath}`);
+  initDb = async ({
+    dbPath,
+    sqlite,
+    migrations,
+  }: {
+    dbPath: string;
+    sqlite: SQLite3;
+    migrations: string[];
+  }) => {
+    const db = await sqlite.open(dbPath);
 
-      // Make sure migration table exists
-      await db.exec(
-        `CREATE TABLE IF NOT EXISTS internal_migrations (
+    console.debug(`db opened: :: ${dbPath}`);
+
+    // Make sure migration table exists
+    await db.exec(
+      `CREATE TABLE IF NOT EXISTS internal_migrations (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           sql TEXT UNIQUE NOT NULL,
           date TEXT
-        );`
-      );
-      
-      // Run migrations
-      console.debug("migrations :: start");
-      await migrate({ migrations, db });
-      console.debug("migrations :: complete", migrations.length);
-      
-      return db;
+        );`,
+    );
+
+    // Run migrations
+    console.debug("migrations :: start");
+    await migrate({ migrations, db });
+    console.debug("migrations :: complete", migrations.length);
+
+    return db;
   };
 
   private init = async () => {
     try {
       const sqlite = await initWasm(() => wasmUrl);
       console.debug("sqlite wasm loaded ::", wasmUrl);
-      this._db = await this.initDb({ dbPath: "fttf_20231102.3.sqlite", sqlite, migrations });
-      this._stagingDb = await this.initDb({ dbPath: "fttf_20231102.bak.sqlite", sqlite, migrations });
+      this._db = await this.initDb({
+        dbPath: "fttf_20231102.3.sqlite",
+        sqlite,
+        migrations,
+      });
+      this._stagingDb = await this.initDb({
+        dbPath: "fttf_20231102.bak.sqlite",
+        sqlite,
+        migrations,
+      });
       this._dbReady = true;
     } catch (err) {
       console.error("Error running migrations", err);
-      this.error = err
+      this.error = err;
       throw err;
     }
   };
@@ -571,18 +629,22 @@ export class VLCN implements Backend {
   /**
    * A template literal to make querying easier. Will forward ot execO once args are formatted.
    */
-   sql = async <T extends {} = {}>(strings: TemplateStringsArray, ...values: any[]) => {
-     const [str, args] = SQLFormat.format(strings, ...values);
-     console.debug('sql ::', str, args)
-     return this._db.execO<T>(str, args);
-   };
+  sql = async <T extends {} = {}>(
+    strings: TemplateStringsArray,
+    ...values: any[]
+  ) => {
+    const [str, args] = SQLFormat.format(strings, ...values);
+    console.debug("sql ::", str, args);
+    return this._db.execO<T>(str, args);
+  };
 
   findOne = async ({ where }): Promise<DetailRow | null> => {
-    return this.findOneRaw<DetailRow>(`SELECT * FROM "document" WHERE url = ? LIMIT 1`, [
-      where.url,
-    ]);
+    return this.findOneRaw<DetailRow>(
+      `SELECT * FROM "document" WHERE url = ? LIMIT 1`,
+      [where.url],
+    );
   };
-  
+
   async reindex() {
     return this._db.tx(async (tx) => {
       await tx.exec(`DELETE FROM "fts";`);
@@ -590,14 +652,20 @@ export class VLCN implements Backend {
                      SELECT "id", "entityId", "attribute", "value" FROM "document_fragment";`);
     });
   }
-  
+
   async getStats() {
     const [document, document_fragment, db_size] = await Promise.all([
-      this._db.execO<{ count: number }>(`SELECT COUNT(*) as count FROM document;`),
-      this._db.execO<{ count: number }>(`SELECT COUNT(*) as count FROM document_fragment;`),
-      this._db.execO<{ size: number }>(`SELECT (page_count * page_size) as size FROM pragma_page_count(), pragma_page_size();`),
+      this._db.execO<{ count: number }>(
+        `SELECT COUNT(*) as count FROM document;`,
+      ),
+      this._db.execO<{ count: number }>(
+        `SELECT COUNT(*) as count FROM document_fragment;`,
+      ),
+      this._db.execO<{ size: number }>(
+        `SELECT (page_count * page_size) as size FROM pragma_page_count(), pragma_page_size();`,
+      ),
     ]);
-    
+
     return {
       document: {
         count: document[0].count,
@@ -607,18 +675,20 @@ export class VLCN implements Backend {
       },
       db: {
         size_bytes: db_size[0].size,
-      }
+      },
     };
   }
-  
+
   async exportJson() {
     const data = {
       document: await this._db.execA(`SELECT * FROM document;`),
-      document_fragment: await this._db.execA(`SELECT * FROM document_fragment;`),
+      document_fragment: await this._db.execA(
+        `SELECT * FROM document_fragment;`,
+      ),
     };
-    const str =  JSON.stringify(data);
+    const str = JSON.stringify(data);
     const blob = new Blob([str], { type: "application/json" });
-    
+
     // Rather than URL.createObjectURL, we use a FileReader to create a usable
     // URL. This is because the download API requires a URL, and web workers
     // don't support the blob URL api. Not memory efficient, but it will work of
@@ -626,16 +696,23 @@ export class VLCN implements Backend {
     // database tables.
     const blobUrl = await new Promise<string>((resolve, reject) => {
       let reader = new FileReader();
-      reader.onload = function() {
+      reader.onload = function () {
         let buffer = reader.result;
         if (buffer) {
-          resolve(`data:${blob.type};base64,${btoa(new Uint8Array(buffer as ArrayBufferLike).reduce((data, byte) => data + String.fromCharCode(byte), ''))}`);
+          resolve(
+            `data:${blob.type};base64,${btoa(
+              new Uint8Array(buffer as ArrayBufferLike).reduce(
+                (data, byte) => data + String.fromCharCode(byte),
+                "",
+              ),
+            )}`,
+          );
         } else {
-          reject('Buffer is null');
+          reject("Buffer is null");
         }
       };
-      reader.onerror = function() {
-        reject('Error reading blob as ArrayBuffer');
+      reader.onerror = function () {
+        reject("Error reading blob as ArrayBuffer");
       };
       reader.readAsArrayBuffer(blob);
     });
@@ -646,29 +723,48 @@ export class VLCN implements Backend {
       saveAs: true,
     });
   }
-  
+
   /** Totally untested. Might not actualy work */
   async importJson(json: Record<string, any[][]>) {
-     console.log('importJson :: documents', json.document.length); 
-     console.log('importJson :: fragments', json.document_fragment.length); 
-     
-     await this._db.tx(async (tx) => {
-       for (const row of json.document) {
-         await tx.exec(`INSERT OR IGNORE INTO document (` + row.map((_, i) => `"${json.document[0][i]}"`).join(', ') + `) VALUES (` + row.map(() => '?').join(', ') + `);`, row);
-       }
-       for (const row of json.document_fragment) {
-         await tx.exec(`INSERT OR IGNORE INTO document (` + row.map((_, i) => `"${json.document[0][i]}"`).join(', ') + `) VALUES (` + row.map(() => '?').join(', ') + `);`, row);
-       }
-     });
-     
-     console.log('importJson :: complete');
+    console.log("importJson :: documents", json.document.length);
+    console.log("importJson :: fragments", json.document_fragment.length);
+
+    await this._db.tx(async (tx) => {
+      for (const row of json.document) {
+        await tx.exec(
+          `INSERT OR IGNORE INTO document (` +
+            row.map((_, i) => `"${json.document[0][i]}"`).join(", ") +
+            `) VALUES (` +
+            row.map(() => "?").join(", ") +
+            `);`,
+          row,
+        );
+      }
+      for (const row of json.document_fragment) {
+        await tx.exec(
+          `INSERT OR IGNORE INTO document (` +
+            row.map((_, i) => `"${json.document[0][i]}"`).join(", ") +
+            `) VALUES (` +
+            row.map(() => "?").join(", ") +
+            `);`,
+          row,
+        );
+      }
+    });
+
+    console.log("importJson :: complete");
   }
 
-  private findOneRaw = async <T extends {} = {}>(sql: string, args?: ObjectArray): Promise<T | null> => {
+  private findOneRaw = async <T extends {} = {}>(
+    sql: string,
+    args?: ObjectArray,
+  ): Promise<T | null> => {
     const xs = await this._db.execO<T>(sql, args);
 
     if (xs.length > 1) {
-      console.warn("findOne returned more than one result. Returning first result.");
+      console.warn(
+        "findOne returned more than one result. Returning first result.",
+      );
     }
 
     if (xs.length === 0) {
