@@ -37,6 +37,13 @@
       },
     },
     {
+      name: "Dev: Toggle Query Processing",
+      exec: async () => {
+        displaySettings.update((s) => ({ ...s, preprocessQuery: !s.preprocessQuery }));
+        return true;
+      },
+    },
+    {
       name: "Dev: Reindex",
       exec: async () => {
         const res = await rpc(["reindex"]);
