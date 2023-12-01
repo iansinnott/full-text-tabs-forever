@@ -13,6 +13,15 @@ import {
   ResultRow,
 } from "./backend";
 
+
+function prepareFtsQuery(query: string): string {
+  return query.split(' ').map((word) => {
+    // Escape double quotes in the query
+    const escapedWord = word.trim().replace(/"/g, '""');
+    // Wrap the query in double quotes to treat it as a literal string
+    return `"${escapedWord}"`;
+  }).join(' ') + "*"; // The logic here is to wrap the final word with a wildcard. Might need some experimentation
+}
 type SQLiteArg = NonNullable<Parameters<DB['execO']>[1]>[number];
 const argToSqlite = (v: unknown): SQLiteArg | undefined => {
  switch (typeof v) {
@@ -325,8 +334,12 @@ export class VLCN implements Backend {
   };
 
   search: Backend["search"] = async (payload) => {
-    let { query, limit = 100, offset = 0, orderBy = 'updatedAt' } = payload;
+    let { query, limit = 100, offset = 0, orderBy = 'updatedAt', preprocessQuery = true } = payload;
     console.log(`%c${"search"}`, "color:lime;", query);
+    
+    if (preprocessQuery) {
+      query = prepareFtsQuery(query);
+    }
     
     const startTime = performance.now();
     const _orderBy = orderBy === 'rank' ? 'fts.rank' : 'd.updatedAt';
@@ -377,6 +390,7 @@ export class VLCN implements Backend {
       results,
       count: count?.count,
       perfMs: endTime - startTime,
+      query,
     };
   };
 
