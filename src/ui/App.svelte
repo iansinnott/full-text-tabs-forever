@@ -54,10 +54,14 @@
   let input: HTMLInputElement | null = null;
 
   const keybinds: Record<string, (e: KeyboardEvent) => void> = {
-    '/': () => {
-      input?.select();
+    '/': (e) => {
+      if (document.activeElement !== input) {
+        e.preventDefault();
+        input?.select();
+      }
     },
-    Escape: () => {
+    Escape: (e) => {
+      e.preventDefault();
       if (showDetails) {
         showDetails = false;
       } else {
@@ -67,13 +71,15 @@
         });
       }
     },
-    ArrowUp: () => {
+    ArrowUp: (e) => {
+      e.preventDefault();
       if (currentIndex > 0) {
         currentIndex--;
         scrollIntoView(currentIndex);
       }
     },
-    ArrowDown: () => {
+    ArrowDown: (e) => {
+      e.preventDefault();
       const len = Object.keys(groups || {}).length;
       if (currentIndex < (len - 1)) {
         currentIndex++;
@@ -81,6 +87,7 @@
       }
     },
     Enter: (e) => {
+      e.preventDefault();
       if (currentUrl && e.metaKey) {
         showDetails = true;
       } else {
@@ -210,7 +217,6 @@
     const keybind = isModifierPressed ? `cmd+${key}` : key;
     if (keybinds[keybind]) {
       if (enableMouseEvents) enableMouseEvents = false; // See NOTE
-      e.preventDefault();
       keybinds[keybind](e);
     }
   }}
