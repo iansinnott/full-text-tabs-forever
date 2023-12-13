@@ -17,22 +17,14 @@ class BackendAdapter {
     log("@todo Check if the backend is available");
   }
 
-  onMessage(
-    message: any,
-    sender: chrome.runtime.MessageSender,
-    sendResponse: SendResponse,
-  ) {
+  onMessage(message: any, sender: chrome.runtime.MessageSender, sendResponse: SendResponse) {
     let waitForResponse = false;
     try {
       const { tab } = sender;
       const [method, payload] = message as [string, any];
 
       if (sender.url !== tab?.url) {
-        console.log(
-          `%cinfo`,
-          "color:yellow;",
-          "sender URL and tab URL differ. probably iframe",
-        );
+        console.log(`%cinfo`, "color:yellow;", "sender URL and tab URL differ. probably iframe");
       }
 
       // @ts-ignore This could be handled better. unimportant for now
@@ -48,12 +40,7 @@ class BackendAdapter {
             sendResponse({ error: err.message });
           });
       } else {
-        console.warn(
-          `%c${method}`,
-          "color:yellow;",
-          "is not a valid method",
-          payload,
-        );
+        console.warn(`%c${method}`, "color:yellow;", "is not a valid method", payload);
         sendResponse({ error: `'${method}' is not a valid RPC` });
       }
     } catch (err) {
@@ -65,13 +52,16 @@ class BackendAdapter {
   }
 }
 
+// Although there were initially multiple adapters there is no mainly one.
 const adapter = new BackendAdapter({
   backend: new VLCN(),
   // backend: new DebugBackend(),
 });
 
-// Expose for debugging
-// @example await fttf.backend._db.execO(`select * from sqlite_master;`)
+/**
+ * Expose for debugging
+ * @example await fttf.backend._db.execO(`select * from sqlite_master;`)
+ */
 globalThis.fttf = adapter;
 
 export type FTTF = {
@@ -90,15 +80,11 @@ if (adapter.onMessage) {
 
 // @note We do not support spas currently
 const updateHandler = debounce(
-  async (
-    tabId: number,
-    changeInfo: chrome.tabs.TabChangeInfo,
-    tab: chrome.tabs.Tab,
-  ) => {
-    console.log("%ctab update", "color:gray;", "no action performed", tab.url);
+  async (tabId: number, changeInfo: chrome.tabs.TabChangeInfo, tab: chrome.tabs.Tab) => {
+    console.debug("%ctab update", "color:gray;", "no action performed", tab.url);
     // browser.tabs.sendMessage(tabId, ["onTabUpdated", { tabId, changeInfo }]);
   },
-  200,
+  200
 );
 
 // Listen for tab updates, because the content script normally only runs on load. This is for SPA apps

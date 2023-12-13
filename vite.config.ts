@@ -32,6 +32,8 @@ export default defineConfig({
     svelte({
       preprocess: vitePreprocess(),
     }),
+
+    // Copy assets to dist
     {
       name: "copy-plugin",
       apply: "build",
@@ -53,6 +55,8 @@ export default defineConfig({
         }
       },
     },
+
+    // Create zip dist file for upload to chrome web store
     {
       name: "zip-plugin",
       apply: "build",
@@ -60,19 +64,19 @@ export default defineConfig({
       writeBundle() {
         const output = fs.createWriteStream(__dirname + "/fttf.zip");
         const archive = archiver("zip", {
-          zlib: { level: 9 }, // Sets the compression level.
+          zlib: { level: 9 },
         });
 
         // listen for all archive data to be processed
-        output.on("close", function() {
+        output.on("close", function () {
           console.log(archive.pointer() + " total bytes");
           console.log("Archiver has been finalized and the output file descriptor has closed.");
         });
 
         // good practice to catch warnings (ie stat failures and other non-blocking errors)
-        archive.on("warning", function(err) {
+        archive.on("warning", function (err) {
           if (err.code === "ENOENT") {
-            // log warning
+            console.warn("no file", err);
           } else {
             // throw error
             throw err;
@@ -80,7 +84,7 @@ export default defineConfig({
         });
 
         // good practice to catch this error explicitly
-        archive.on("error", function(err) {
+        archive.on("error", function (err) {
           throw err;
         });
 

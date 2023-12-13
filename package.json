@@ -1,5 +1,5 @@
 {
-  "name": "hello-world",
+  "name": "full-text-tabs-forever",
   "version": "1.1.2",
   "description": "",
   "main": "index.js",
@@ -14,7 +14,7 @@
     "test": "bun test"
   },
   "type": "module",
-  "keywords": [],
+  "keywords": [ "search", "browser history" ],
   "author": "",
   "license": "ISC",
   "devDependencies": {

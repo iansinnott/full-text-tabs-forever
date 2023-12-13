@@ -1,6 +1,6 @@
 import browser from "webextension-polyfill";
 import { Readability } from "@mozilla/readability";
-import { RpcMessage } from "../background/backend";
+import type { RpcMessage } from "../background/backend";
 
 const rpc = async (message: RpcMessage) => {
   return browser.runtime.sendMessage(message);
@@ -162,17 +162,9 @@ const mainWrapper = async () => {
 (async () => {
   // listen for browser push state updates and hash changes
   window.addEventListener("popstate", () => {
-    console.log("%cpopstate", "color:orange;font-size:18px;", location.toString());
+    console.debug("%cpopstate", "color:orange;font-size:18px;", location.toString());
     mainWrapper();
   });
 
   await mainWrapper();
-
-  // Devtools cannot be exposed on window directly
-  {
-    const query = localStorage.getItem("@fttf/query");
-    if (query) {
-      console.log(`%cquery('${query}')`, "color:pink;", " -> ", await rpc(["search", { query }]));
-    }
-  }
 })();
