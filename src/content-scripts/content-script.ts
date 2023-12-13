@@ -1,13 +1,6 @@
 import browser from "webextension-polyfill";
 import { Readability } from "@mozilla/readability";
 import { RpcMessage } from "../background/backend";
-import TurndownService from "turndown";
-
-const turndown = new TurndownService({
-  headingStyle: "atx",
-  codeBlockStyle: "fenced",
-  hr: "---",
-});
 
 const rpc = async (message: RpcMessage) => {
   return browser.runtime.sendMessage(message);
@@ -21,14 +14,12 @@ const detectDate = () => {
   let date: string | null = null;
   try {
     const el = document.querySelector<HTMLMetaElement>(
-      'meta[property="article:published_time"],meta[property="og:pubdate"],meta[property="og:publish_date"],meta[name="citation_online_date"],meta[name="dc.Date"]',
+      'meta[property="article:published_time"],meta[property="og:pubdate"],meta[property="og:publish_date"],meta[name="citation_online_date"],meta[name="dc.Date"]'
     );
     if (el) {
       date = new Date(el.content).toISOString();
     } else {
-      const el = document.querySelector<HTMLScriptElement>(
-        'script[type="application/ld+json"]',
-      );
+      const el = document.querySelector<HTMLScriptElement>('script[type="application/ld+json"]');
       if (el) {
         const j = JSON.parse(el.textContent || "{}");
         if (j && j.datePublished) {
@@ -110,6 +101,16 @@ const main = async () => {
   const date = detectDate();
   const { content, textContent, ...rest } = readabilityArticle;
 
+  // Lazy load the turndown lib
+  const TurndownService = (await import("turndown")).default;
+
+  const turndown = new TurndownService({
+    headingStyle: "atx",
+    codeBlockStyle: "fenced",
+    hr: "---",
+  });
+
+  console.debug("-> markdown");
   // @todo Would be nice to not have to turndown for every page. This used to be
   // in the background script but threw for dom reasons. Would need to modify
   // turndown. NOTE: It supports running in node, but the internal env check
@@ -161,11 +162,7 @@ const mainWrapper = async () => {
 (async () => {
   // listen for browser push state updates and hash changes
   window.addEventListener("popstate", () => {
-    console.log(
-      "%cpopstate",
-      "color:orange;font-size:18px;",
-      location.toString(),
-    );
+    console.log("%cpopstate", "color:orange;font-size:18px;", location.toString());
     mainWrapper();
   });
 
@@ -175,12 +172,7 @@ const mainWrapper = async () => {
   {
     const query = localStorage.getItem("@fttf/query");
     if (query) {
-      console.log(
-        `%cquery('${query}')`,
-        "color:pink;",
-        " -> ",
-        await rpc(["search", { query }]),
-      );
+      console.log(`%cquery('${query}')`, "color:pink;", " -> ", await rpc(["search", { query }]));
     }
   }
 })();
