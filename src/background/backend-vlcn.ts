@@ -2,12 +2,7 @@ import initWasm, { SQLite3, type DB } from "@vlcn.io/crsqlite-wasm";
 // @ts-expect-error TS doesn't understand this?
 import wasmUrl from "@vlcn.io/crsqlite-wasm/crsqlite.wasm?url";
 import {} from "@vlcn.io/wa-sqlite";
-import Turndown from "turndown";
-import {
-  formatDebuggablePayload,
-  getArticleFragments,
-  shasum,
-} from "../common/utils";
+import { formatDebuggablePayload, getArticleFragments, shasum } from "../common/utils";
 import {
   Article,
   ArticleRow,
@@ -111,11 +106,7 @@ const SQLFormat = {
 
     return [sql, vals, invalid] as const;
   },
-  update: (
-    table: string,
-    values: Record<string, unknown>,
-    condition: string,
-  ) => {
+  update: (table: string, values: Record<string, unknown>, condition: string) => {
     const { keys, vals, invalid } = validate(values);
     const sql = `UPDATE ${table} SET ${keys
       .map((key) => `${key} = ?`)
@@ -195,19 +186,13 @@ CREATE VIRTUAL TABLE "fts" USING fts5(
 /**
  * Run migrations against a database
  */
-const migrate = async ({
-  migrations,
-  db,
-}: {
-  migrations: string[];
-  db: DB;
-}) => {
+const migrate = async ({ migrations, db }: { migrations: string[]; db: DB }) => {
   for (let sql of [...migrations, ...ftsMigrations]) {
     sql = sql.trim(); // @note We really should also strip leading whitespace. this is to help avoid sql differing due to formatting
 
     const exists = await db.execO<{ id: number }>(
       `SELECT * FROM internal_migrations WHERE sql = ? LIMIT 1`,
-      [sql],
+      [sql]
     );
 
     if (exists.length) {
@@ -275,12 +260,7 @@ export class VLCN implements Backend {
       };
     }
 
-    console.log(
-      `%c${"getPageStatus"}`,
-      "color:lime;",
-      { shouldIndex, url: tab?.url },
-      payload,
-    );
+    console.debug(`%c${"getPageStatus"}`, "color:lime;", { shouldIndex, url: tab?.url }, payload);
 
     return {
       shouldIndex,
@@ -289,7 +269,7 @@ export class VLCN implements Backend {
 
   indexPage: Backend["indexPage"] = async (
     { /* htmlContent, */ date, textContent, mdContent, ...payload },
-    sender,
+    sender
   ) => {
     const { tab } = sender;
 
@@ -298,7 +278,7 @@ export class VLCN implements Backend {
       try {
         mdContentHash = await shasum(mdContent);
       } catch (err) {
-        console.warn("shasum failed failed", err);
+        console.warn("shasum failed", err);
       }
     }
 
@@ -314,22 +294,22 @@ export class VLCN implements Backend {
       lastVisitDate: new Date().toISOString().split("T")[0],
     };
 
-    console.log(`%c${"indexPage"}`, "color:lime;", tab?.url);
-    console.log(
+    console.debug(`%c${"indexPage"}`, "color:lime;", tab?.url);
+    console.debug(
       formatDebuggablePayload({
         title: document.title,
         textContent,
         siteName: document.siteName,
-      }),
+      })
     );
 
     const inserted = await this.upsertDocument(document);
 
     if (inserted) {
-      console.log(
+      console.debug(
         `%c  ${"new insertion"}`,
         "color:gray;",
-        `indexed doc:${inserted.id}, url:${u.href}`,
+        `indexed doc:${inserted.id}, url:${u.href}`
       );
 
       await this.upsertFragments(inserted.id, {
@@ -348,21 +328,15 @@ export class VLCN implements Backend {
 
   nothingToIndex: Backend["nothingToIndex"] = async (payload, sender) => {
     const { tab } = sender;
-    console.log(`%c${"nothingToIndex"}`, "color:beige;", tab?.url);
+    console.debug(`%c${"nothingToIndex"}`, "color:beige;", tab?.url);
     return {
       ok: true,
     };
   };
 
   search: Backend["search"] = async (payload) => {
-    let {
-      query,
-      limit = 100,
-      offset = 0,
-      orderBy = "updatedAt",
-      preprocessQuery = true,
-    } = payload;
-    console.log(`%c${"search"}`, "color:lime;", query);
+    let { query, limit = 100, offset = 0, orderBy = "updatedAt", preprocessQuery = true } = payload;
+    console.debug(`%c${"search"}`, "color:lime;", query);
 
     if (preprocessQuery) {
       query = prepareFtsQuery(query);
@@ -372,10 +346,9 @@ export class VLCN implements Backend {
     const _orderBy = orderBy === "rank" ? "fts.rank" : "d.updatedAt";
 
     const [count, results] = await Promise.all([
-      this.findOneRaw<{ count: number }>(
-        `SELECT COUNT(*) as count FROM fts WHERE fts MATCH ?;`,
-        [query],
-      ),
+      this.findOneRaw<{ count: number }>(`SELECT COUNT(*) as count FROM fts WHERE fts MATCH ?;`, [
+        query,
+      ]),
       // @note Ordering by date as a rasonable sorting mechanism. would be good
       // to support dynamically sorting by fts.rank also. Also, downranking
       // search engine results (check hostname for google, duckduckgo, kagi,
@@ -433,7 +406,7 @@ export class VLCN implements Backend {
       title: string;
       excerpt: string;
       textContent: string;
-    }>,
+    }>
   ) => {
     const fragments = getArticleFragments(document.textContent || "");
 
@@ -460,15 +433,14 @@ export class VLCN implements Backend {
 
     let triples: [e: number, a: string, v: string, o: number][] = [];
     if (document.title) triples.push([entityId, "title", document.title, 0]);
-    if (document.excerpt)
-      triples.push([entityId, "excerpt", document.excerpt, 0]);
+    if (document.excerpt) triples.push([entityId, "excerpt", document.excerpt, 0]);
     if (document.url) triples.push([entityId, "url", document.url, 0]);
     triples = triples.concat(
       fragments
         .filter((x) => x.trim())
         .map((fragment, i) => {
           return [entityId, "content", fragment, i];
-        }),
+        })
     );
 
     console.debug("upsertFragments :: triples", triples);
@@ -482,9 +454,7 @@ export class VLCN implements Backend {
     return;
   };
 
-  private touchDocument = async (
-    document: Partial<ArticleRow> & { id: number },
-  ) => {
+  private touchDocument = async (document: Partial<ArticleRow> & { id: number }) => {
     // update the document updatedAt time
     await this.sql`
         UPDATE "document" 
@@ -500,7 +470,7 @@ export class VLCN implements Backend {
       `
       SELECT id FROM "document" WHERE url = ?;
     `,
-      [document.url],
+      [document.url]
     );
 
     if (doc) {
@@ -515,7 +485,7 @@ export class VLCN implements Backend {
           lastVisit: document.lastVisit,
           lastVisitDate: document.lastVisitDate,
         },
-        `id = ${doc.id}`,
+        `id = ${doc.id}`
       );
 
       console.debug("upsertDocument ::", sql, args, invalid);
@@ -543,9 +513,6 @@ export class VLCN implements Backend {
 
     await this._db.exec(sql, args);
 
-    // Add to the staging db as well
-    await this._stagingDb.exec(sql, args);
-
     return this.findOne({ where: { url: document.url } });
   };
 
@@ -553,10 +520,13 @@ export class VLCN implements Backend {
   // rest of the code won't run until it is so I find it helpful to not
   // constantly have to null-check this
   private _db: DB;
-  // @ts-expect-error
-  private _stagingDb: DB;
 
   private _dbReady = false;
+
+  // @todo How much more/less efficient would it be to run turndown in the
+  // backend? This way it would only be loaded/parsed once. The only reason I
+  // moved this to the frontend was something to do with the turndown browser
+  // build not working in the backend context.
   // private turndown = new Turndown({
   //   headingStyle: "atx",
   //   codeBlockStyle: "fenced",
@@ -593,7 +563,7 @@ export class VLCN implements Backend {
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           sql TEXT UNIQUE NOT NULL,
           date TEXT
-        );`,
+        );`
     );
 
     // Run migrations
@@ -613,11 +583,6 @@ export class VLCN implements Backend {
         sqlite,
         migrations,
       });
-      this._stagingDb = await this.initDb({
-        dbPath: "fttf_20231102.bak.sqlite",
-        sqlite,
-        migrations,
-      });
       this._dbReady = true;
     } catch (err) {
       console.error("Error running migrations", err);
@@ -629,20 +594,16 @@ export class VLCN implements Backend {
   /**
    * A template literal to make querying easier. Will forward ot execO once args are formatted.
    */
-  sql = async <T extends {} = {}>(
-    strings: TemplateStringsArray,
-    ...values: any[]
-  ) => {
+  sql = async <T extends {} = {}>(strings: TemplateStringsArray, ...values: any[]) => {
     const [str, args] = SQLFormat.format(strings, ...values);
     console.debug("sql ::", str, args);
     return this._db.execO<T>(str, args);
   };
 
   findOne = async ({ where }): Promise<DetailRow | null> => {
-    return this.findOneRaw<DetailRow>(
-      `SELECT * FROM "document" WHERE url = ? LIMIT 1`,
-      [where.url],
-    );
+    return this.findOneRaw<DetailRow>(`SELECT * FROM "document" WHERE url = ? LIMIT 1`, [
+      where.url,
+    ]);
   };
 
   async reindex() {
@@ -655,14 +616,10 @@ export class VLCN implements Backend {
 
   async getStats() {
     const [document, document_fragment, db_size] = await Promise.all([
-      this._db.execO<{ count: number }>(
-        `SELECT COUNT(*) as count FROM document;`,
-      ),
-      this._db.execO<{ count: number }>(
-        `SELECT COUNT(*) as count FROM document_fragment;`,
-      ),
+      this._db.execO<{ count: number }>(`SELECT COUNT(*) as count FROM document;`),
+      this._db.execO<{ count: number }>(`SELECT COUNT(*) as count FROM document_fragment;`),
       this._db.execO<{ size: number }>(
-        `SELECT (page_count * page_size) as size FROM pragma_page_count(), pragma_page_size();`,
+        `SELECT (page_count * page_size) as size FROM pragma_page_count(), pragma_page_size();`
       ),
     ]);
 
@@ -682,16 +639,14 @@ export class VLCN implements Backend {
   async exportJson() {
     const data = {
       document: await this._db.execA(`SELECT * FROM document;`),
-      document_fragment: await this._db.execA(
-        `SELECT * FROM document_fragment;`,
-      ),
+      document_fragment: await this._db.execA(`SELECT * FROM document_fragment;`),
     };
     const str = JSON.stringify(data);
     const blob = new Blob([str], { type: "application/json" });
 
     // Rather than URL.createObjectURL, we use a FileReader to create a usable
     // URL. This is because the download API requires a URL, and web workers
-    // don't support the blob URL api. Not memory efficient, but it will work of
+    // don't support the blob URL api. Not memory efficient, but it will work if
     // the chrome extension is allowed to consume enough memory to encode the
     // database tables.
     const blobUrl = await new Promise<string>((resolve, reject) => {
@@ -703,9 +658,9 @@ export class VLCN implements Backend {
             `data:${blob.type};base64,${btoa(
               new Uint8Array(buffer as ArrayBufferLike).reduce(
                 (data, byte) => data + String.fromCharCode(byte),
-                "",
-              ),
-            )}`,
+                ""
+              )
+            )}`
           );
         } else {
           reject("Buffer is null");
@@ -737,7 +692,7 @@ export class VLCN implements Backend {
             `) VALUES (` +
             row.map(() => "?").join(", ") +
             `);`,
-          row,
+          row
         );
       }
       for (const row of json.document_fragment) {
@@ -747,7 +702,7 @@ export class VLCN implements Backend {
             `) VALUES (` +
             row.map(() => "?").join(", ") +
             `);`,
-          row,
+          row
         );
       }
     });
@@ -757,14 +712,12 @@ export class VLCN implements Backend {
 
   private findOneRaw = async <T extends {} = {}>(
     sql: string,
-    args?: ObjectArray,
+    args?: ObjectArray
   ): Promise<T | null> => {
     const xs = await this._db.execO<T>(sql, args);
 
     if (xs.length > 1) {
-      console.warn(
-        "findOne returned more than one result. Returning first result.",
-      );
+      console.warn("findOne returned more than one result. Returning first result.");
     }
 
     if (xs.length === 0) {

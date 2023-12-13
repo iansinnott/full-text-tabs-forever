@@ -1,5 +1,9 @@
+/**
+ * This backend is used for debugging purposes. It does not index anything.
+ */
+
 import { formatDebuggablePayload } from "../common/utils";
-import { Article, Backend, DetailRow, RemoteProcWithSender } from "./backend";
+import { Backend, DetailRow } from "./backend";
 
 export class DebugBackend implements Backend {
   getStatus: Backend["getStatus"] = async () => {
@@ -9,17 +13,18 @@ export class DebugBackend implements Backend {
   };
 
   search: Backend["search"] = async (search) => {
-    console.log(`backend#%c${"search"}`, "color:lime;", search);
+    console.debug(`backend#%c${"search"}`, "color:lime;", search);
     return {
       ok: true,
       results: [],
       count: 0,
       perfMs: 0,
+      query: search.query,
     };
   };
 
   async findOne(query: { where: { url: string } }): Promise<DetailRow | null> {
-    console.log(`backend#%c${"findOne"}`, "color:lime;", query);
+    console.debug(`backend#%c${"findOne"}`, "color:lime;", query);
     return null;
   }
 
@@ -36,12 +41,7 @@ export class DebugBackend implements Backend {
       throw err;
     }
 
-    console.log(
-      `%c${"getPageStatus"}`,
-      "color:lime;",
-      { shouldIndex, url: tab?.url },
-      payload,
-    );
+    console.debug(`%c${"getPageStatus"}`, "color:lime;", { shouldIndex, url: tab?.url }, payload);
 
     return {
       shouldIndex,
@@ -53,14 +53,10 @@ export class DebugBackend implements Backend {
 
     // remove adjacent whitespace since it serves no purpose. The html or
     // markdown content stores formatting.
-    const plainText = payload.textContent
-      .replace(/[ \t]+/g, " ")
-      .replace(/\n+/g, "\n");
+    const plainText = payload.textContent.replace(/[ \t]+/g, " ").replace(/\n+/g, "\n");
 
-    console.log(`%c${"indexPage"}`, "color:lime;", tab?.url);
-    console.log(
-      formatDebuggablePayload({ ...payload, textContent: plainText }),
-    );
+    console.debug(`%c${"indexPage"}`, "color:lime;", tab?.url);
+    console.debug(formatDebuggablePayload({ ...payload, textContent: plainText }));
     return {
       message: "debug backend does not index pages",
     };
@@ -68,7 +64,7 @@ export class DebugBackend implements Backend {
 
   nothingToIndex: Backend["nothingToIndex"] = async (payload, sender) => {
     const { tab } = sender;
-    console.log(`%c${"nothingToIndex"}`, "color:beige;", tab?.url);
+    console.debug(`%c${"nothingToIndex"}`, "color:beige;", tab?.url);
     return {
       ok: true,
     };

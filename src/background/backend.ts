@@ -5,14 +5,12 @@ export type SendResponse = (response?: any) => void;
 
 export type RemoteProcWithSender<T = any, Ret = any> = (
   payload: T,
-  sender: Runtime.MessageSender,
+  sender: Runtime.MessageSender
 ) => Promise<Ret>;
 export type RemoteProc<T = any, Ret = any> = (payload: T) => Promise<Ret>;
 
-type ReadabilityArticle = Omit<
-  NonNullable<ReturnType<Readability["parse"]>>,
-  "content"
->;
+type ReadabilityArticle = Omit<NonNullable<ReturnType<Readability["parse"]>>, "content">;
+
 export type Article = ReadabilityArticle & {
   extractor: string;
   /** Optional for now b/c i'm not sending it over the wire if turndown is used in the content script */
@@ -86,9 +84,7 @@ export type RpcMessage =
 export type DBDump = Record<string, any[][]>;
 
 export interface Backend {
-  getStatus(): Promise<
-    { ok: true } | { ok: false; error: string; detail?: any }
-  >;
+  getStatus(): Promise<{ ok: true } | { ok: false; error: string; detail?: any }>;
   getPageStatus: RemoteProcWithSender;
   indexPage: RemoteProcWithSender<Article>;
   nothingToIndex: RemoteProcWithSender;
