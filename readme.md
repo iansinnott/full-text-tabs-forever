@@ -22,6 +22,12 @@ FTTF is different:
 - **Instant indexing:** FTTF creates a search index as you browse, so pages are immediately available for searching right after you land on a page.
 - **For your eyes only:** Your browsing history is stored locally on your device, and not on any external servers. Beware that if you switch computers your FTTF history will not automatically come with you. It can be exported though.
 
+<div align="center">
+
+![](static/screenshot-1.png)
+
+</div>
+
 **Who is it for?**
 
 Data hoarders like myself that never want to delete anything, and want everything to be searchable. More generally, if you've ever felt limited by the standard history search you should try this out.
@@ -31,12 +37,6 @@ Data hoarders like myself that never want to delete anything, and want everythin
 Chrome extensions have access to the pages you visit, which lets FTTF make an index of the content on any page. When a page loads its content is extracted and indexed.
 
 Extracted? Yes, or "distilled" if you prefer. Full web pages are huge and have a lot of information that's not related to the content itself. FTTF will ignore all of that. It acts like "reader mode" to find relevant content on a page and only index that.
-
-<div align="center">
-
-![](static/screenshot-1.png)
-
-</div>
 
 # Testing
 
