@@ -1,6 +1,6 @@
 {
   "name": "full-text-tabs-forever",
-  "version": "1.1.2",
+  "version": "1.1.3",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -9,13 +9,16 @@
     "//build": "it's ultimately chrome's fault that we need a separate build for content-script. Unlike the service worker you cannot specify type:module, so... the script can't have imports.",
     "build": "npm run build:clean && vite build -c vite.config.content-script.ts && npm run manifest && node ./scripts/replace-manifest.cjs && vite build",
     "manifest": "cp ./src/manifest.json ./dist/manifest.json",
-    "release": "direnv reload && yarn version && ./scripts/release.sh",
+    "release": "yarn version && ./scripts/release.sh",
     "build:clean": "rm -rf ./dist/*",
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "test": "bun test"
   },
   "type": "module",
-  "keywords": [ "search", "browser history" ],
+  "keywords": [
+    "search",
+    "browser history"
+  ],
   "author": "",
   "license": "ISC",
   "devDependencies": {
