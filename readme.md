@@ -14,3 +14,7 @@ Or, `pnpm run test` if you prefer.
 - Run `n build`
 - Go to: https://chrome.google.com/webstore/devconsole/bc898ad5-018e-4774-b9ab-c4bef7b7f92b/gfmbnlbnapjmffgcnbopfgmflmlfghel/edit/package
 - Upload the `fttf.zip` file
+
+# Contributing
+
+PRs welcome!
