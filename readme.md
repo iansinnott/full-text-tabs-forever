@@ -38,6 +38,10 @@ Chrome extensions have access to the pages you visit, which lets FTTF make an in
 
 Extracted? Yes, or "distilled" if you prefer. Full web pages are huge and have a lot of information that's not related to the content itself. FTTF will ignore all of that. It acts like "reader mode" to find relevant content on a page and only index that.
 
+# Installation
+
+Install in your browser via the [Chrome Web Store](https://chrome.google.com/webstore/detail/full-text-tabs-forever/gfmbnlbnapjmffgcnbopfgmflmlfghel).
+
 # Testing
 
 This project uses `bun` as a unit testing framework, but not (currently) as a bundler. You will need to install `bun`, then:
