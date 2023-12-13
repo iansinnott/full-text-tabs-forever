@@ -1,3 +1,41 @@
+<!-- display a screenshot -->
+<div align="center">
+
+[<img src="src/assets/icon-1.png" alt="full text tabs forever (FTTF) logo" width=128>](https://chrome.google.com/webstore/detail/full-text-tabs-forever/gfmbnlbnapjmffgcnbopfgmflmlfghel)<br>
+
+# Full Text Tabs Forever
+
+Search everything you read online. FTTF lets you search the full text of every web page you visit.
+
+</div>
+
+<div align="center">
+
+![](static/screenshot-1.png)
+
+</div>
+
+**Doesn't Chrome do that already? How is this different?**
+
+Chrome does not let you search the text on pages you've visited, only the URLs and titles, and it deletes your history after a number of months.
+
+FTTF is different:
+
+- **Full-Text Search Capabilities:** The full content of every page you've visited becomes searchable.
+- **Permanent History:** Your digital footprints are yours to keep. Your data is yours, so it should not be removed without your approval. Nothing is deleted automatically.
+- **Instant indexing:** FTTF creates a search index as you browse, so pages are immediately available for searching right after you land on a page.
+- **For your eyes only:** Your browsing history is stored locally on your device, and not on any external servers. Beware that if you switch computers your FTTF history will not automatically come with you. It can be exported though.
+
+**Who is it for?**
+
+Data hoarders like myself that never want to delete anything, and want everything to be searchable. More generally, if you've ever felt limited by the standard history search you should try this out.
+
+**How it works:**
+
+Chrome extensions have access to the pages you visit, which lets FTTF make an index of the content on any page. When a page loads its content is extracted and indexed.
+
+Extracted? Yes, or "distilled" if you prefer. Full web pages are huge and have a lot of information that's not related to the content itself. FTTF will ignore all of that. It acts like "reader mode" to find relevant content on a page and only index that.
+
 Available in the [Chrome Web Store](https://chrome.google.com/webstore/detail/full-text-tabs-forever/gfmbnlbnapjmffgcnbopfgmflmlfghel).
 
 # Testing
@@ -8,7 +46,7 @@ This project uses `bun` as a unit testing framework, but not (currently) as a bu
 
 Or, `pnpm run test` if you prefer.
 
-# Submitting a new version manually
+# Note to self: Submitting a new version manually
 
 > How could this be automated?
 
@@ -19,6 +57,8 @@ Or, `pnpm run test` if you prefer.
 
 # TODO
 
+- [ ] Backfill history
+      Currently only new pages you visit are indexed, but we could backfill by opening every page in the browser's history that hasn't yet been indexed. An optional feature, but a useful one.
 - [ ] Firefox
       This should not be too difficult since this project was started with web extension polyfills. However, there is currently some chrome specific code.
 - [ ] Backup and sync
