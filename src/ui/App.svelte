@@ -1,68 +1,74 @@
 <script lang="ts">
-  import type { ResultRow } from '@/background/backend';
-  import { fly } from 'svelte/transition'
+  import { Cog } from "lucide-svelte";
+  import type { ResultRow } from "@/background/backend";
+  import { fly } from "svelte/transition";
   import DetailsPanel from "./DetailsPanel.svelte";
-  import { debounce } from '../common/utils';
-  import { onMount, tick } from 'svelte';
-  import classNames from 'classnames';
-  import { fttf, rpc } from './lib/rpc';
-  import ResultRowView from './ResultRowView.svelte';
-  import Menu from './Menu.svelte';
-  import { MIN_QUERY_LENGTH } from './lib/constants';
-  import { displaySettings } from './store/displaySettings';
+  import { debounce } from "../common/utils";
+  import { onMount, tick } from "svelte";
+  import classNames from "classnames";
+  import { fttf, rpc } from "./lib/rpc";
+  import ResultRowView from "./ResultRowView.svelte";
+  import Menu from "./Menu.svelte";
+  import { MIN_QUERY_LENGTH } from "./lib/constants";
+  import { displaySettings } from "./store/displaySettings";
 
   let q = "";
   let res: Awaited<ReturnType<typeof fttf.adapter.backend.search>> | null = null;
   let results: ResultRow[] | undefined;
   let currentIndex = 0;
   let showDetails = false;
-  let enableMouseEvents = false ;
-  
+  let enableMouseEvents = false;
+
   const handleMouseMove = (e: MouseEvent) => {
     if (!enableMouseEvents) enableMouseEvents = true;
   };
-  
+
   $: preprocessQuery = $displaySettings.preprocessQuery;
 
   const handleSearch = debounce(async (query: string) => {
     query = query.trim();
     if (query.length >= MIN_QUERY_LENGTH) {
-      res = await fttf.adapter.backend.search({ query, limit: 500, orderBy: 'updatedAt', preprocessQuery });
+      res = await fttf.adapter.backend.search({
+        query,
+        limit: 500,
+        orderBy: "updatedAt",
+        preprocessQuery,
+      });
       currentIndex = 0;
-      console.log('[search-results]', res);
+      console.log("[search-results]", res);
     } else {
       // Clear query
       res = null;
     }
   }, 120);
-  
+
   // Re-search if the preprocessQuery setting changes
   $: {
     preprocessQuery;
     handleSearch(q);
   }
-  
+
   const getFaviconByUrl = (url: string) => {
     const u = new URL(url);
     return `https://www.google.com/s2/favicons?domain=${u.hostname}`;
   };
-  
+
   const scrollIntoView = (i: number) => {
     const el = document.querySelector<HTMLDivElement>(`[data-groupIndex='${i}']`);
     if (el /* && ((el.offsetTop + el.offsetHeight) > window.innerHeight) */) {
-      if (i === (urls.length -1)) {
+      if (i === urls.length - 1) {
         // scroll to bottom
-        el.parentElement?.scrollTo({ top: el.offsetTop, behavior: 'smooth' });
+        el.parentElement?.scrollTo({ top: el.offsetTop, behavior: "smooth" });
       } else {
-        el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        el.scrollIntoView({ block: "nearest", behavior: "smooth" });
       }
     }
-  }
+  };
 
   let input: HTMLInputElement | null = null;
 
   const keybinds: Record<string, (e: KeyboardEvent) => void> = {
-    '/': (e) => {
+    "/": (e) => {
       if (document.activeElement !== input) {
         e.preventDefault();
         input?.select();
@@ -89,7 +95,7 @@
     ArrowDown: (e) => {
       e.preventDefault();
       const len = Object.keys(groups || {}).length;
-      if (currentIndex < (len - 1)) {
+      if (currentIndex < len - 1) {
         currentIndex++;
         scrollIntoView(currentIndex);
       }
@@ -103,7 +109,7 @@
         window.open(currentUrl, "_blank");
       }
     },
-    'cmd+k': () => {
+    "cmd+k": () => {
       menuOpen = !menuOpen;
       if (menuOpen) {
         tick().then(() => {
@@ -112,7 +118,7 @@
       }
     },
   };
-  
+
   let loading = true;
   let error: string | null = null;
   let errorDetail: any = null;
@@ -122,90 +128,103 @@
     Size: string;
   };
   let stats: Stats | null = null;
-  
+
   onMount(async () => {
-    await tick()
+    await tick();
     input?.focus();
 
-    let status = await fttf.adapter.backend.getStatus()
-    
-    if (typeof window !== 'undefined') {
+    let status = await fttf.adapter.backend.getStatus();
+
+    if (typeof window !== "undefined") {
       // @ts-expect-error
       window.fttf = fttf;
     }
-    
+
     // Wait. Sometimes the backend takes a while to start up
     if (!status.ok) {
       for (const wait of [100, 200, 300, 400, 500]) {
         await new Promise((resolve) => setTimeout(resolve, wait));
-        status = await fttf.adapter.backend.getStatus()
+        status = await fttf.adapter.backend.getStatus();
         if (status.ok) {
           break;
         }
       }
     }
-    
+
     // If still not OK assume it's an error
     if (!status.ok) {
-      error = status.error
-      errorDetail = status.detail
+      error = status.error;
+      errorDetail = status.detail;
     } else {
       loading = false;
-      const _stats = (await rpc(['getStats'])) as {
-        document: { count: number; },
-        document_fragment: { count: number; },
-        db: { size_bytes: number; }
-      }
-      
-      console.log('[stats]', _stats);
-      
+      const _stats = (await rpc(["getStats"])) as {
+        document: { count: number };
+        document_fragment: { count: number };
+        db: { size_bytes: number };
+      };
+
+      console.log("[stats]", _stats);
+
       stats = {
         Documents: _stats.document.count.toLocaleString(),
         Fragments: _stats.document_fragment.count.toLocaleString(),
-        'Size': (_stats.db.size_bytes / 1024 / 1024).toFixed(2) + 'MB',
-      }
+        Size: (_stats.db.size_bytes / 1024 / 1024).toFixed(2) + "MB",
+      };
     }
   });
-  
+
   const cleanUrl = (url: string) => {
-    return url.replace(/^(https?:\/\/(?:www\.)?)/, '').replace(/\/$/, '');
-  }
-  
+    return url.replace(/^(https?:\/\/(?:www\.)?)/, "").replace(/\/$/, "");
+  };
+
   let menuOpen = false;
 
   const groupByUrl = (results?: ResultRow[]) => {
     if (!results) {
       return;
     }
-    
+
     const hitsByUrl: Record<string, Set<string>> = {};
 
-    return results.reduce((acc, x) => {
-      const key = x.url
-      hitsByUrl[key] ??= new Set();
+    return results.reduce(
+      (acc, x) => {
+        const key = x.url;
+        hitsByUrl[key] ??= new Set();
 
-      acc[key] ??= {
-        id: x.rowid,
-        url: x.url, // @note this should be href-able
-        displayUrl: cleanUrl(x.url),
-        title: x.title,
-        hostname: x.hostname,
-        hits: [],
-      };
-      
-      if (x.attribute === 'title') {
-        acc[key].title = x.snippet;
-      } else if (x.attribute === 'url') {
-        acc[key].displayUrl = cleanUrl(x.snippet as string);
-      } else if (x.snippet && !hitsByUrl[key].has(x.snippet)) {
-        hitsByUrl[key].add(x.snippet)
-        acc[key].hits.push(x);
-      }
+        acc[key] ??= {
+          id: x.rowid,
+          url: x.url, // @note this should be href-able
+          displayUrl: cleanUrl(x.url),
+          title: x.title,
+          hostname: x.hostname,
+          hits: [],
+        };
 
-      return acc;
-    }, {} as Record<string, { id: number, url: string, displayUrl?: string, title?: string, hostname: string, hits: ResultRow[] }>)
-  }
-  
+        if (x.attribute === "title") {
+          acc[key].title = x.snippet;
+        } else if (x.attribute === "url") {
+          acc[key].displayUrl = cleanUrl(x.snippet as string);
+        } else if (x.snippet && !hitsByUrl[key].has(x.snippet)) {
+          hitsByUrl[key].add(x.snippet);
+          acc[key].hits.push(x);
+        }
+
+        return acc;
+      },
+      {} as Record<
+        string,
+        {
+          id: number;
+          url: string;
+          displayUrl?: string;
+          title?: string;
+          hostname: string;
+          hits: ResultRow[];
+        }
+      >
+    );
+  };
+
   $: handleSearch(q);
   $: results = res?.results;
   $: groups = groupByUrl(results);
@@ -331,6 +350,21 @@
     {/if}
   </div>
 {/if}
+
+<button
+  class="fixed bottom-4 left-4 z-10 p-2 rounded-full bg-zinc-900 border border-zinc-600"
+  on:click={() => {
+    menuOpen = !menuOpen;
+    if (menuOpen) {
+      tick().then(() => {
+        // @ts-expect-error Inline code like this isn't real TS, so we wan't add the type without breaking svelte
+        document.querySelector("input[data-menu-input]")?.focus();
+      });
+    }
+  }}
+>
+  <Cog />
+</button>
 
 <style>
   .App {
