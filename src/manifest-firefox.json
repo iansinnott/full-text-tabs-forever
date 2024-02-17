@@ -17,12 +17,13 @@
     },
     "background": {
         "scripts": ["background.js"],
-        "persistent": false,
         "type": "module"
     },
     "action": {
-        "default_icon": {
-            "48": "/assets/icon-cropped-1_48.png"
+        "default_icon":  {
+            "16": "assets/icon_16.png",
+            "48": "assets/icon_48.png",
+            "128": "assets/icon_128.png"
         },
         "default_title": "Open Tab History"
     },
