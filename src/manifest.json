@@ -16,11 +16,14 @@
         "128": "assets/icon_128.png"
     },
     "background": {
-        "service_worker": "background.js",
+        "scripts": ["background.js"],
+        "persistent": false,
         "type": "module"
     },
     "action": {
-        "default_icon": "/assets/icon-cropped-1_48.png",
+        "default_icon": {
+            "48": "/assets/icon-cropped-1_48.png"
+        },
         "default_title": "Open Tab History"
     },
     "host_permissions": [
