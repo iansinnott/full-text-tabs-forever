@@ -76,7 +76,8 @@ Support was added in: https://github.com/iansinnott/full-text-tabs-forever/pull/
       As with all my wasm-sqlite projects I don't want data locked in IndexedDB. VLCN has great sync support so this could be relatively low-hanging fruit.
 - [ ] Integrate with [browser-gopher](https://github.com/iansinnott/browser-gopher)
       Browser gopher and [BrowserParrot](https://www.browserparrot.com/) were the initial impetus to create a better way to ingest full text web pages, without triggering a Cloudflare captcha party on your home connection.
-- [ ] Improve discoverability. There is a cmd+k menu for import and export. The markdown of a site can also be viewed directly. None of this is obvious from the UI.
+- [x] Improve discoverability of functionality.
+      There is now a button to open the command palette. Still not much GUI, but enough to be discovered.
 
 # Contributing
 
