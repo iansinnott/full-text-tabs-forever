@@ -9,6 +9,8 @@ Search everything you read online. FTTF lets you search the full text of every w
 
 Available in the [Chrome Web Store](https://chrome.google.com/webstore/detail/full-text-tabs-forever/gfmbnlbnapjmffgcnbopfgmflmlfghel).
 
+For Firefox support, scroll down.
+
 </div>
 
 **Doesn't Chrome do that already? How is this different?**
@@ -59,12 +61,17 @@ Or, `pnpm run test` if you prefer.
 - Go to: https://chrome.google.com/webstore/devconsole/bc898ad5-018e-4774-b9ab-c4bef7b7f92b/gfmbnlbnapjmffgcnbopfgmflmlfghel/edit/package
 - Upload the `fttf.zip` file
 
+# Firefox Support
+
+Support was added in: https://github.com/iansinnott/full-text-tabs-forever/pull/4. As of this writing the extension has not yet been published on the Firefox store, so you will need to clone the repo and build from source. Sorry about that! Maybe by the time you read this it will be added to the store.
+
 # TODO
 
 - [ ] Backfill history
       Currently only new pages you visit are indexed, but we could backfill by opening every page in the browser's history that hasn't yet been indexed. An optional feature, but a useful one.
-- [ ] Firefox
-      This should not be too difficult since this project was started with web extension polyfills. However, there is currently some chrome specific code.
+- [x] Firefox
+      ~~This should not be too difficult since this project was started with web extension polyfills. However, there is currently some chrome specific code.~~
+      It appears that the APIs do not have to be rewritten to work in Firefox. See this PR for details: https://github.com/iansinnott/full-text-tabs-forever/pull/4
 - [ ] Backup and sync
       As with all my wasm-sqlite projects I don't want data locked in IndexedDB. VLCN has great sync support so this could be relatively low-hanging fruit.
 - [ ] Integrate with [browser-gopher](https://github.com/iansinnott/browser-gopher)
