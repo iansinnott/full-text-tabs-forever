@@ -59,7 +59,7 @@ Or, `pnpm run test` if you prefer.
 - Make sure to bump the version in the manifest file
 - Run `n build`
 - Go to: https://chrome.google.com/webstore/devconsole/bc898ad5-018e-4774-b9ab-c4bef7b7f92b/gfmbnlbnapjmffgcnbopfgmflmlfghel/edit/package
-- Upload the `fttf.zip` file
+- Upload the `fttf-chrome.zip` file
 
 # Firefox Support
 
@@ -67,11 +67,11 @@ Support was added in: https://github.com/iansinnott/full-text-tabs-forever/pull/
 
 # TODO
 
-- [ ] Backfill history
-      Currently only new pages you visit are indexed, but we could backfill by opening every page in the browser's history that hasn't yet been indexed. An optional feature, but a useful one.
-- [x] Firefox
+- [ ] Firefox
       ~~This should not be too difficult since this project was started with web extension polyfills. However, there is currently some chrome specific code.~~
       It appears that the APIs do not have to be rewritten to work in Firefox. See this PR for details: https://github.com/iansinnott/full-text-tabs-forever/pull/4
+- [ ] Backfill history
+      Currently only new pages you visit are indexed, but we could backfill by opening every page in the browser's history that hasn't yet been indexed. An optional feature, but a useful one.
 - [ ] Backup and sync
       As with all my wasm-sqlite projects I don't want data locked in IndexedDB. VLCN has great sync support so this could be relatively low-hanging fruit.
 - [ ] Integrate with [browser-gopher](https://github.com/iansinnott/browser-gopher)

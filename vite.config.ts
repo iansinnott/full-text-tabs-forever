@@ -1,8 +1,17 @@
 import { svelte, vitePreprocess } from "@sveltejs/vite-plugin-svelte";
 import { defineConfig } from "vite";
 import path from "node:path";
-import fs from "node:fs";
+import fs, { readFileSync, writeFileSync } from "node:fs";
 import archiver from "archiver";
+import type { Manifest } from "webextension-polyfill";
+
+const TARGET: "chrome" | "firefox" = process.env.TARGET as "chrome" | "firefox";
+
+if (!["chrome", "firefox"].includes(TARGET)) {
+  throw new Error(`Invalid TARGET: ${TARGET}. Specify TARGET=chrome or TARGET=firefox`);
+}
+
+const isFirefox = TARGET === "firefox";
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -33,6 +42,18 @@ export default defineConfig({
       preprocess: vitePreprocess(),
     }),
 
+    // Watch additional files
+    {
+      name: "watch-additional-files",
+      buildStart() {
+        for (const pathName of ["src/manifest.json", `src/manifest-${TARGET}.json`]) {
+          if (fs.existsSync(path.resolve(__dirname, pathName))) {
+            this.addWatchFile(path.resolve(__dirname, pathName));
+          }
+        }
+      },
+    },
+
     // Copy assets to dist
     {
       name: "copy-plugin",
@@ -53,6 +74,30 @@ export default defineConfig({
           fs.copyFileSync(sourcePath, destinationPath);
           console.log(`[copy-plugin] ${sourcePath} -> ${destinationPath}`);
         }
+
+        try {
+          const manifest = JSON.parse(
+            readFileSync(path.resolve(__dirname, "src/manifest.json"), "utf8")
+          );
+
+          // Mutate the manifest object
+          delete manifest["$schema"]; // Schema is just provided for autocomplete but chrome doesn't like it
+
+          // Handle FF special cases
+          if (isFirefox) {
+            // Case 1: FF doesn't support service_worker, it prefers a background.scripts array
+            manifest.background.scripts = [manifest.background.service_worker];
+            delete manifest.background.service_worker;
+          }
+
+          writeFileSync(
+            path.join(__dirname, "dist/manifest.json"),
+            JSON.stringify(manifest, null, 2)
+          );
+          console.log(`[copy-plugin] copied manifest`);
+        } catch (err) {
+          console.error("Could not build manifest", err);
+        }
       },
     },
 
@@ -62,7 +107,7 @@ export default defineConfig({
       apply: "build",
       enforce: "post",
       writeBundle() {
-        const output = fs.createWriteStream(__dirname + "/fttf.zip");
+        const output = fs.createWriteStream(__dirname + `/fttf-${TARGET}.zip`);
         const archive = archiver("zip", {
           zlib: { level: 9 },
         });
