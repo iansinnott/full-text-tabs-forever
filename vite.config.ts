@@ -6,9 +6,14 @@ import archiver from "archiver";
 import type { Manifest } from "webextension-polyfill";
 
 const TARGET: "chrome" | "firefox" = process.env.TARGET as "chrome" | "firefox";
+const FF_ADDON_ID = process.env.FF_ADDON_ID as string;
 
 if (!["chrome", "firefox"].includes(TARGET)) {
   throw new Error(`Invalid TARGET: ${TARGET}. Specify TARGET=chrome or TARGET=firefox`);
+}
+
+if (TARGET === "firefox" && !FF_ADDON_ID) {
+  throw new Error(`FF_ADDON_ID is required for firefox builds`);
 }
 
 const isFirefox = TARGET === "firefox";
@@ -88,6 +93,14 @@ export default defineConfig({
             // Case 1: FF doesn't support service_worker, it prefers a background.scripts array
             manifest.background.scripts = [manifest.background.service_worker];
             delete manifest.background.service_worker;
+
+            // Case 2: FF requires an id. See: https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/manifest.json/browser_specific_settings
+            manifest.browser_specific_settings = {
+              gecko: {
+                id: `{${FF_ADDON_ID}}`, // FF loves those braces
+                strict_min_version: "109.0", // When they added (partial) MV3 support. No lover for MV3 here, but since it's a hard req for chrome we use it for FF too
+              },
+            };
           }
 
           writeFileSync(
