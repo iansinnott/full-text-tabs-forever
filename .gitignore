@@ -1,9 +1,7 @@
 node_modules
-
 tmp
-
-
-dist
-
-
+dist*
 *.zip
+
+
+vite.config.ts.timestamp-*
