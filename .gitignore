@@ -5,3 +5,6 @@ dist*
 
 
 vite.config.ts.timestamp-*
+
+
+.env*
