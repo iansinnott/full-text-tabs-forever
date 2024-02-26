@@ -9,7 +9,9 @@ Search everything you read online. FTTF lets you search the full text of every w
 
 Available in the [Chrome Web Store](https://chrome.google.com/webstore/detail/full-text-tabs-forever/gfmbnlbnapjmffgcnbopfgmflmlfghel).
 
-For Firefox support, scroll down.
+Available in the [Firefox Add-ons Store](https://addons.mozilla.org/en-US/firefox/addon/full-text-tabs-forever/)
+
+_Firefox requires additonal permissions. See [below](#firefox)._
 
 </div>
 
@@ -61,15 +63,20 @@ Or, `pnpm run test` if you prefer.
 - Go to: https://chrome.google.com/webstore/devconsole/bc898ad5-018e-4774-b9ab-c4bef7b7f92b/gfmbnlbnapjmffgcnbopfgmflmlfghel/edit/package
 - Upload the `fttf-chrome.zip` file
 
-# Firefox Support
+# Firefox
 
-Support was added in: https://github.com/iansinnott/full-text-tabs-forever/pull/4. As of this writing the extension has not yet been published on the Firefox store, so you will need to clone the repo and build from source. Sorry about that! Maybe by the time you read this it will be added to the store.
+Install here: https://addons.mozilla.org/en-US/firefox/addon/full-text-tabs-forever/
+
+Currently you have to manually enable additional permissions in Firefox like so:
+
+![Firefox permissions](https://drive.zenture.cloud/s/d3mboA7GwPCXH8b/download).
+
+See this comment for more details: https://github.com/iansinnott/full-text-tabs-forever/issues/3#issuecomment-1963238416
+
+Support was added in: https://github.com/iansinnott/full-text-tabs-forever/pull/4.
 
 # TODO
 
-- [ ] Firefox
-      ~~This should not be too difficult since this project was started with web extension polyfills. However, there is currently some chrome specific code.~~
-      It appears that the APIs do not have to be rewritten to work in Firefox. See this PR for details: https://github.com/iansinnott/full-text-tabs-forever/pull/4
 - [ ] Backfill history
       Currently only new pages you visit are indexed, but we could backfill by opening every page in the browser's history that hasn't yet been indexed. An optional feature, but a useful one.
 - [ ] Backup and sync
@@ -78,6 +85,9 @@ Support was added in: https://github.com/iansinnott/full-text-tabs-forever/pull/
       Browser gopher and [BrowserParrot](https://www.browserparrot.com/) were the initial impetus to create a better way to ingest full text web pages, without triggering a Cloudflare captcha party on your home connection.
 - [x] Improve discoverability of functionality.
       There is now a button to open the command palette. Still not much GUI, but enough to be discovered.
+- [x] Firefox
+      ~~This should not be too difficult since this project was started with web extension polyfills. However, there is currently some chrome specific code.~~
+      It appears that the APIs do not have to be rewritten to work in Firefox. See this PR for details: https://github.com/iansinnott/full-text-tabs-forever/pull/4
 
 # Contributing
 
