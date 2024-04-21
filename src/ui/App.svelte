@@ -302,15 +302,15 @@
           showDetails = true;
         }}
       >
-        <a class="result" href={url} on:click|preventDefault>
-          <div class="favicon mr-3">
+        <a class="result mb-1" href={url} on:click|preventDefault>
+          <div class="favicon mr-3 self-center">
             <img
               class="w-4 h-4 rounded-lg"
               src={getFaviconByUrl(url)}
               alt="favicon for {u.hostname}"
             />
           </div>
-          <div class="title mr-3 text-slate-300">{@html group.title}</div>
+          <div class="title mr-3 text-slate-300 text-base">{@html group.title}</div>
           <div class="url truncate text-indigo-200">
             {@html group.displayUrl}
           </div>
@@ -376,5 +376,6 @@
     display: grid;
     grid-template-columns: auto auto minmax(0, 1fr);
     grid-template-rows: auto minmax(0, 1fr);
+    align-items: baseline;
   }
 </style>
