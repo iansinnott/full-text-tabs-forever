@@ -11,6 +11,7 @@ import {
   RemoteProcWithSender,
   ResultRow,
 } from "./backend";
+import browser from "webextension-polyfill";
 
 function prepareFtsQuery(query: string): string {
   return (
@@ -643,36 +644,9 @@ export class VLCN implements Backend {
     };
     const str = JSON.stringify(data);
     const blob = new Blob([str], { type: "application/json" });
+    const blobUrl = await this.createObjectURL(blob);
 
-    // Rather than URL.createObjectURL, we use a FileReader to create a usable
-    // URL. This is because the download API requires a URL, and web workers
-    // don't support the blob URL api. Not memory efficient, but it will work if
-    // the chrome extension is allowed to consume enough memory to encode the
-    // database tables.
-    const blobUrl = await new Promise<string>((resolve, reject) => {
-      let reader = new FileReader();
-      reader.onload = function () {
-        let buffer = reader.result;
-        if (buffer) {
-          resolve(
-            `data:${blob.type};base64,${btoa(
-              new Uint8Array(buffer as ArrayBufferLike).reduce(
-                (data, byte) => data + String.fromCharCode(byte),
-                ""
-              )
-            )}`
-          );
-        } else {
-          reject("Buffer is null");
-        }
-      };
-      reader.onerror = function () {
-        reject("Error reading blob as ArrayBuffer");
-      };
-      reader.readAsArrayBuffer(blob);
-    });
-
-    await chrome.downloads.download({
+    await browser.downloads.download({
       url: blobUrl,
       filename: `fttf-${Date.now()}.json`,
       saveAs: true,
@@ -709,6 +683,41 @@ export class VLCN implements Backend {
 
     console.log("importJson :: complete");
   }
+
+  private createObjectURL = async (blob: Blob): Promise<string> => {
+    if (URL && typeof URL.createObjectURL === "function") {
+      // We're in Firefox and can use the native function
+      return URL.createObjectURL(blob);
+    }
+
+    // Rather than URL.createObjectURL, we use a FileReader to create a usable
+    // URL. This is because the download API requires a URL, and web workers in
+    // don't support the blob URL api. Not memory efficient, but it will work if
+    // the chrome extension is allowed to consume enough memory to encode the
+    // database tables.
+    return await new Promise<string>((resolve, reject) => {
+      let reader = new FileReader();
+      reader.onload = function () {
+        let buffer = reader.result;
+        if (buffer) {
+          resolve(
+            `data:${blob.type};base64,${btoa(
+              new Uint8Array(buffer as ArrayBufferLike).reduce(
+                (data, byte) => data + String.fromCharCode(byte),
+                ""
+              )
+            )}`
+          );
+        } else {
+          reject("Buffer is null");
+        }
+      };
+      reader.onerror = function () {
+        reject("Error reading blob as ArrayBuffer");
+      };
+      reader.readAsArrayBuffer(blob);
+    });
+  };
 
   private findOneRaw = async <T extends {} = {}>(
     sql: string,
