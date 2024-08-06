@@ -69,6 +69,7 @@ Or, `pnpm run test` if you prefer.
   - Firefox
     - Go to: https://addons.mozilla.org/en-US/developers/addon/full-text-tabs-forever/edit
     - Upload the `fttf-firefox.zip` file
+    - Zip the original source code and upload that too: `zip -r src.zip src`
 
 # Firefox
 
