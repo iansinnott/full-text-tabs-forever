@@ -59,7 +59,9 @@ Or, `pnpm run test` if you prefer.
 > How could this be automated?
 
 - Make sure to bump the version in the manifest file
-- Run `n build`
+- Run the build
+  - `pnpm run build:chrome`
+  - `pnpm run build:firefox`
 - Go to: https://chrome.google.com/webstore/devconsole/bc898ad5-018e-4774-b9ab-c4bef7b7f92b/gfmbnlbnapjmffgcnbopfgmflmlfghel/edit/package
 - Upload the `fttf-chrome.zip` file
 

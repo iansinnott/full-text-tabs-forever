@@ -12,6 +12,8 @@
     "build:2": "vite build",
     "release": "yarn version && ./scripts/release.sh",
     "build:clean": "rm -rf ./dist/*",
+    "build:chrome": "TARGET=chrome pnpm run build",
+    "build:firefox": "TARGET=firefox pnpm run build",
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "test": "bun test"
   },
