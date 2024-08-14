@@ -4,6 +4,7 @@ import path from "node:path";
 import fs, { readFileSync, writeFileSync } from "node:fs";
 import archiver from "archiver";
 import type { Manifest } from "webextension-polyfill";
+import vitePluginTopLevelAwait from "vite-plugin-top-level-await";
 
 const TARGET: "chrome" | "firefox" = process.env.TARGET as "chrome" | "firefox";
 const FF_ADDON_ID = process.env.FF_ADDON_ID as string;
@@ -43,6 +44,7 @@ export default defineConfig({
     exclude: ["@sqlite.org/sqlite-wasm", "@vlcn.io/crsqlite-wasm"],
   },
   plugins: [
+    vitePluginTopLevelAwait(),
     svelte({
       preprocess: vitePreprocess(),
     }),

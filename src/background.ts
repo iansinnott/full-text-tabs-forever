@@ -3,6 +3,7 @@
 import type { Backend, SendResponse } from "./background/backend";
 import { DebugBackend } from "./background/backend-debug";
 import { VLCN } from "./background/backend-vlcn";
+import { PgLiteBackend } from "./background/backend-pglite";
 import { log } from "./common/logs";
 import { debounce } from "./common/utils";
 
@@ -54,8 +55,9 @@ class BackendAdapter {
 
 // Although there were initially multiple adapters there is no mainly one.
 const adapter = new BackendAdapter({
-  backend: new VLCN(),
   // backend: new DebugBackend(),
+  // backend: new VLCN(),
+  backend: new PgLiteBackend(),
 });
 
 /**
