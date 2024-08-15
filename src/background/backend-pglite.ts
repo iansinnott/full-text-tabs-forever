@@ -1,5 +1,3 @@
-// Add this polyfill at the top of your file, before any imports
-
 const assetCache = new Map<string, ArrayBuffer>();
 
 async function preloadAssets() {
@@ -57,12 +55,14 @@ class XMLHttpRequestPolyfill {
         this.responseText = new TextDecoder().decode(this.response);
       }
       if (this.onload) {
+        // @ts-expect-error
         this.onload.call(this, new ProgressEventPolyfill("load") as any);
       }
     } else {
-      console.error(`Asset not preloaded: ${this.url}`);
+      console.error(`asset not preloaded :: ${this.url}`);
       this.status = 404;
       if (this.onerror) {
+        // @ts-expect-error
         this.onerror.call(this, new ProgressEventPolyfill("error") as any);
       }
     }
@@ -74,11 +74,69 @@ class XMLHttpRequestPolyfill {
 (globalThis as any).ProgressEvent = ProgressEventPolyfill;
 
 // Preload assets before initializing PGlite
+//
+// NOTE: This will require vite-plugin-top-level-await. Chrome will not allow
+// top level await in service workers even if supported by the browser in other
+// context.
 await preloadAssets();
 
 import { PGlite } from "@electric-sql/pglite";
 
+// @ts-expect-error Types are wrong
+import { vector } from "@electric-sql/pglite/vector";
+
 import type { Backend, DetailRow } from "./backend";
+
+const schemaSql = `
+-- make sure pgvector is enabled
+CREATE EXTENSION IF NOT EXISTS vector;
+
+CREATE TABLE IF NOT EXISTS document (
+  id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+  title TEXT, 
+  url TEXT UNIQUE NOT NULL,
+  excerpt TEXT,
+  md_content TEXT,
+  md_content_hash TEXT,
+  publication_date BIGINT,
+  hostname TEXT,
+  last_visit BIGINT,
+  last_visit_date TEXT,
+  extractor TEXT,
+  created_at BIGINT NOT NULL,
+  updated_at BIGINT
+);
+
+CREATE INDEX IF NOT EXISTS document_hostname ON document (hostname);
+
+CREATE TABLE IF NOT EXISTS document_fragment (
+  id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+  entity_id BIGINT NOT NULL REFERENCES document (id) ON DELETE CASCADE,
+  attribute TEXT, 
+  value TEXT,
+  fragment_order INTEGER,
+  created_at BIGINT,
+  search_vector tsvector,
+  content_vector vector(384)
+);
+
+-- Function to update search vector
+CREATE OR REPLACE FUNCTION update_document_fragment_fts() RETURNS TRIGGER AS $$
+BEGIN
+  NEW.search_vector := to_tsvector('simple', COALESCE(NEW.attribute, '') || ' ' || COALESCE(NEW.value, ''));
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger to update search vector
+DROP TRIGGER IF EXISTS update_document_fragment_fts_trigger ON document_fragment;
+CREATE TRIGGER update_document_fragment_fts_trigger
+BEFORE INSERT OR UPDATE ON document_fragment
+FOR EACH ROW EXECUTE FUNCTION update_document_fragment_fts();
+
+-- Index for full-text search
+CREATE INDEX IF NOT EXISTS idx_document_fragment_search_vector ON document_fragment USING GIN(search_vector);
+`;
 
 export class PgLiteBackend implements Backend {
   private db: PGlite | null = null;
@@ -99,8 +157,11 @@ export class PgLiteBackend implements Backend {
   private async init() {
     try {
       this.db = await PGlite.create({
-        dataDir: "memory://",
+        dataDir: "idb://my-database",
+        extensions: { vector },
+        relaxedDurability: true,
       });
+      await this.db.exec(schemaSql);
       this.dbReady = true;
     } catch (err) {
       console.error("Error initializing PgLite db", err);
