@@ -2,7 +2,7 @@ const assetCache = new Map<string, ArrayBuffer>();
 
 async function preloadAssets() {
   const assetUrls = [
-    // Add your asset URLs here, e.g.:
+    // NOTE: The wasm file exists in the pglite package but does not seem to be used. preloading the data file was enough
     // '/pglite-wasm.wasm',
     chrome.runtime.getURL("/assets/postgres-O2XafnGg.data"),
   ];
@@ -14,7 +14,7 @@ async function preloadAssets() {
   }
 }
 
-// Simple ProgressEvent polyfill
+// As with XMLHttpRequest, this is not supported in the service worker context.
 class ProgressEventPolyfill {
   type: string;
   constructor(type: string) {
@@ -22,6 +22,7 @@ class ProgressEventPolyfill {
   }
 }
 
+// A partial polyfill for XMLHttpRequest to support the loading of pglite in a service worker
 class XMLHttpRequestPolyfill {
   private method: string = "";
   private url: string = "";
@@ -69,11 +70,10 @@ class XMLHttpRequestPolyfill {
   }
 }
 
-// Replace the global XMLHttpRequest and ProgressEvent with our polyfills
 (globalThis as any).XMLHttpRequest = XMLHttpRequestPolyfill;
 (globalThis as any).ProgressEvent = ProgressEventPolyfill;
 
-// Preload assets before initializing PGlite
+// Preload assets BEFORE importing PGlite
 //
 // NOTE: This will require vite-plugin-top-level-await. Chrome will not allow
 // top level await in service workers even if supported by the browser in other
@@ -120,7 +120,6 @@ CREATE TABLE IF NOT EXISTS document_fragment (
   content_vector vector(384)
 );
 
--- Function to update search vector
 CREATE OR REPLACE FUNCTION update_document_fragment_fts() RETURNS TRIGGER AS $$
 BEGIN
   NEW.search_vector := to_tsvector('simple', COALESCE(NEW.attribute, '') || ' ' || COALESCE(NEW.value, ''));
