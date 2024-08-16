@@ -330,9 +330,7 @@ export class VLCN implements Backend {
   nothingToIndex: Backend["nothingToIndex"] = async (payload, sender) => {
     const { tab } = sender;
     console.debug(`%c${"nothingToIndex"}`, "color:beige;", tab?.url);
-    return {
-      ok: true,
-    };
+    return { ok: true };
   };
 
   search: Backend["search"] = async (payload) => {

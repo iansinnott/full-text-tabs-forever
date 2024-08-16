@@ -224,8 +224,30 @@ export class PgLiteBackend implements Backend {
 
   nothingToIndex: Backend["nothingToIndex"] = async (payload, sender) => {
     console.log("nothingToIndex ::", { payload });
-    return {
-      ok: true,
-    };
+    return { ok: true };
   };
+
+  async getStats() {
+    if (!this.db) {
+      throw new Error("PgLite db not ready");
+    }
+
+    const [document, document_fragment, db_size] = await Promise.all([
+      this.db.query<{ count: number }>(`SELECT COUNT(*) as count FROM document;`),
+      this.db.query<{ count: number }>(`SELECT COUNT(*) as count FROM document_fragment;`),
+      this.db.query<{ size: number }>(`SELECT pg_database_size(current_database()) as size;`),
+    ]);
+
+    return {
+      document: {
+        count: document.rows[0]?.count,
+      },
+      document_fragment: {
+        count: document_fragment.rows[0]?.count,
+      },
+      db: {
+        size_bytes: db_size.rows[0]?.size,
+      },
+    };
+  }
 }
