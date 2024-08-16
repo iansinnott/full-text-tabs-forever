@@ -1,95 +1,18 @@
-const assetCache = new Map<string, ArrayBuffer>();
-
-async function preloadAssets() {
-  const assetUrls = [
-    // NOTE: The wasm file exists in the pglite package but does not seem to be used. preloading the data file was enough
-    // '/pglite-wasm.wasm',
-    chrome.runtime.getURL("/assets/postgres-O2XafnGg.data"),
-  ];
-
-  for (const url of assetUrls) {
-    const response = await fetch(url);
-    const arrayBuffer = await response.arrayBuffer();
-    assetCache.set(url, arrayBuffer);
-  }
-}
-
-// As with XMLHttpRequest, this is not supported in the service worker context.
-class ProgressEventPolyfill {
-  type: string;
-  constructor(type: string) {
-    this.type = type;
-  }
-}
-
-// A partial polyfill for XMLHttpRequest to support the loading of pglite in a service worker
-class XMLHttpRequestPolyfill {
-  private method: string = "";
-  private url: string = "";
-  private headers: { [key: string]: string } = {};
-  private body: any = null;
-  public onload: ((this: XMLHttpRequest, ev: ProgressEvent) => any) | null = null;
-  public onerror: ((this: XMLHttpRequest, ev: ProgressEvent) => any) | null = null;
-  public status: number = 0;
-  public responseText: string = "";
-  public response: any = null;
-  public responseType: XMLHttpRequestResponseType = "";
-
-  open(method: string, url: string) {
-    console.log("open ::", { method, url });
-    this.method = method;
-    this.url = url;
-  }
-
-  setRequestHeader(name: string, value: string) {
-    console.log("setRequestHeader ::", { name, value });
-    this.headers[name] = value;
-  }
-
-  send(body: any = null) {
-    console.log("send ::", { body });
-    this.body = body;
-    if (assetCache.has(this.url)) {
-      this.response = assetCache.get(this.url);
-      this.status = 200;
-      if (this.responseType === "text") {
-        this.responseText = new TextDecoder().decode(this.response);
-      }
-      if (this.onload) {
-        // @ts-expect-error
-        this.onload.call(this, new ProgressEventPolyfill("load") as any);
-      }
-    } else {
-      console.error(`asset not preloaded :: ${this.url}`);
-      this.status = 404;
-      if (this.onerror) {
-        // @ts-expect-error
-        this.onerror.call(this, new ProgressEventPolyfill("error") as any);
-      }
-    }
-  }
-}
-
-(globalThis as any).XMLHttpRequest = XMLHttpRequestPolyfill;
-(globalThis as any).ProgressEvent = ProgressEventPolyfill;
-
-// Preload assets BEFORE importing PGlite
-//
-// NOTE: This will require vite-plugin-top-level-await. Chrome will not allow
-// top level await in service workers even if supported by the browser in other
-// context.
-await preloadAssets();
-
-import { PGlite } from "@electric-sql/pglite";
+import { PGlite } from "./HAX_pglite";
 
 // @ts-expect-error Types are wrong
 import { vector } from "@electric-sql/pglite/vector";
+// @ts-expect-error Types are wrong
+import { pg_trgm } from "@electric-sql/pglite/contrib/pg_trgm";
 
-import type { Backend, DetailRow } from "./backend";
+import { formatDebuggablePayload, getArticleFragments, shasum } from "../common/utils";
+import { ArticleRow, Backend, DetailRow, ResultRow } from "./backend";
+import browser from "webextension-polyfill";
 
 const schemaSql = `
 -- make sure pgvector is enabled
 CREATE EXTENSION IF NOT EXISTS vector;
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 CREATE TABLE IF NOT EXISTS document (
   id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
@@ -103,7 +26,7 @@ CREATE TABLE IF NOT EXISTS document (
   last_visit BIGINT,
   last_visit_date TEXT,
   extractor TEXT,
-  created_at BIGINT NOT NULL,
+  created_at BIGINT NOT NULL DEFAULT EXTRACT(EPOCH FROM CURRENT_TIMESTAMP) * 1000,
   updated_at BIGINT
 );
 
@@ -115,7 +38,7 @@ CREATE TABLE IF NOT EXISTS document_fragment (
   attribute TEXT, 
   value TEXT,
   fragment_order INTEGER,
-  created_at BIGINT,
+  created_at BIGINT NOT NULL DEFAULT EXTRACT(EPOCH FROM CURRENT_TIMESTAMP) * 1000,
   search_vector tsvector,
   content_vector vector(384)
 );
@@ -135,7 +58,28 @@ FOR EACH ROW EXECUTE FUNCTION update_document_fragment_fts();
 
 -- Index for full-text search
 CREATE INDEX IF NOT EXISTS idx_document_fragment_search_vector ON document_fragment USING GIN(search_vector);
+
+-- Index for trigram similarity search. Disabled for now
+-- CREATE INDEX IF NOT EXISTS trgm_idx_document_fragment_value ON document_fragment USING gin (value gin_trgm_ops);
 `;
+
+function prepareFtsQuery(query: string): string {
+  return (
+    query
+      .split(" ")
+      .map((word) => word.trim())
+      .filter(Boolean)
+      .join(" & ") + ":*"
+  );
+}
+
+const normalizeUrl = (urlOrString: string | URL): URL => {
+  const url = new URL(urlOrString);
+  url.hash = "";
+  const paramsToRemove = ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content"];
+  paramsToRemove.forEach((param) => url.searchParams.delete(param));
+  return url;
+};
 
 export class PgLiteBackend implements Backend {
   private db: PGlite | null = null;
@@ -157,7 +101,7 @@ export class PgLiteBackend implements Backend {
     try {
       this.db = await PGlite.create({
         dataDir: "idb://my-database",
-        extensions: { vector },
+        extensions: { vector, pg_trgm },
         relaxedDurability: true,
       });
       await this.db.exec(schemaSql);
@@ -192,50 +136,302 @@ export class PgLiteBackend implements Backend {
     };
   };
 
-  search: Backend["search"] = async (search) => {
-    console.log("search ::", search);
+  getPageStatus: Backend["getPageStatus"] = async (payload, sender) => {
+    const { tab } = sender;
+    let shouldIndex = tab?.url?.startsWith("http");
+
+    let url: URL;
+
+    try {
+      url = normalizeUrl(tab?.url || "");
+
+      if (url.hostname === "localhost") shouldIndex = false;
+      if (url.hostname.endsWith(".local")) shouldIndex = false;
+      const existing = await this.findOne({ where: { url: url.href } });
+      shouldIndex = !existing || !existing.md_content;
+      if (existing) {
+        await this.touchDocument({
+          id: existing.id,
+          updated_at: Date.now(),
+          last_visit: Date.now(),
+          last_visit_date: new Date().toISOString().split("T")[0],
+        });
+      }
+    } catch (err) {
+      return {
+        shouldIndex: false,
+        error: err.message,
+      };
+    }
+
+    console.debug(
+      `%c${"getPageStatus"}`,
+      "color:lime;",
+      { shouldIndex, url: tab?.url, normalizedUrl: url?.href },
+      payload
+    );
+
+    return {
+      shouldIndex,
+    };
+  };
+
+  indexPage: Backend["indexPage"] = async (
+    { date, textContent, mdContent, ...payload },
+    sender
+  ) => {
+    const { tab } = sender;
+
+    let mdContentHash: string | undefined = undefined;
+    if (mdContent) {
+      try {
+        mdContentHash = await shasum(mdContent);
+      } catch (err) {
+        console.warn("shasum failed", err);
+      }
+    }
+
+    const u = new URL(tab?.url || "");
+    const document: Partial<ArticleRow> = {
+      ...payload,
+      md_content: mdContent,
+      md_content_hash: mdContentHash,
+      publication_date: date ? new Date(date).getTime() : undefined,
+      url: u.href,
+      hostname: u.hostname,
+      last_visit: Date.now(),
+      last_visit_date: new Date().toISOString().split("T")[0],
+    };
+
+    console.debug(`%c${"indexPage"}`, "color:lime;", tab?.url);
+    console.debug(
+      formatDebuggablePayload({
+        title: document.title,
+        textContent,
+        siteName: document.siteName,
+      })
+    );
+
+    const inserted = await this.upsertDocument(document);
+
+    if (inserted) {
+      console.debug(
+        `%c  ${"new insertion"}`,
+        "color:gray;",
+        `indexed doc:${inserted.id}, url:${u.href}`
+      );
+
+      await this.upsertFragments(inserted.id, {
+        title: document.title,
+        url: u.href,
+        excerpt: document.excerpt,
+        textContent,
+      });
+    }
+
     return {
       ok: true,
-      results: [],
-      count: 0,
-      perfMs: 0,
-      query: search.query,
-    };
-  };
-
-  async findOne(query: { where: { url: string } }): Promise<DetailRow | null> {
-    console.log("findOne ::", query);
-    return null;
-  }
-
-  getPageStatus: Backend["getPageStatus"] = async (payload, sender) => {
-    console.log("getPageStatus ::", { payload });
-    return {
-      shouldIndex: false,
-    };
-  };
-
-  indexPage: Backend["indexPage"] = async (payload, sender) => {
-    console.log("indexPage ::", { payload });
-    return {
-      message: "PgLite backend indexing not implemented",
+      message: `indexed doc:${mdContentHash}, url:${u.href}`,
     };
   };
 
   nothingToIndex: Backend["nothingToIndex"] = async (payload, sender) => {
-    console.log("nothingToIndex ::", { payload });
+    const { tab } = sender;
+    console.debug(`%c${"nothingToIndex"}`, "color:beige;", tab?.url);
     return { ok: true };
   };
 
-  async getStats() {
-    if (!this.db) {
-      throw new Error("PgLite db not ready");
+  search: Backend["search"] = async (payload) => {
+    let {
+      query,
+      limit = 100,
+      offset = 0,
+      orderBy = "updated_at",
+      preprocessQuery = true,
+    } = payload;
+    console.debug(`%c${"search"}`, "color:lime;", query);
+
+    if (preprocessQuery) {
+      query = prepareFtsQuery(query);
     }
 
+    const startTime = performance.now();
+    const _orderBy =
+      orderBy === "rank" ? "ts_rank(df.search_vector, to_tsquery('simple', $1))" : "d.updated_at";
+
+    const [count, results] = await Promise.all([
+      this.db!.query<{ count: number }>(
+        `SELECT COUNT(*) as count FROM document_fragment df WHERE df.search_vector @@ to_tsquery('simple', $1)`,
+        [query]
+      ),
+      this.db!.query<ResultRow>(
+        `SELECT 
+          df.id as rowid,
+          d.id as "entityId",
+          df.attribute,
+          ts_headline('simple', df.value, to_tsquery('simple', $1), 'StartSel=<mark>, StopSel=</mark>, MaxWords=10, MinWords=5') AS snippet,
+          d.url,
+          d.hostname,
+          d.title,
+          d.excerpt,
+          d.last_visit as "lastVisit",
+          d.last_visit_date as "lastVisitDate",
+          d.md_content_hash as "mdContentHash",
+          d.updated_at as "updatedAt",
+          d.created_at as "createdAt",
+          ts_rank(df.search_vector, to_tsquery('simple', $1)) as rank,
+          CASE 
+            WHEN d.hostname IN ('localhost') THEN -50
+            WHEN d.hostname IN ('google.com', 'www.google.com', 'kagi.com', 'duckduckgo.com', 'bing.com') THEN -10 
+            WHEN d.hostname IN ('amazon.com', 'www.amazon.com') THEN -5
+            ELSE 0 
+          END AS rank_modifier
+        FROM document_fragment df
+          INNER JOIN document d ON d.id = df.entity_id
+        WHERE df.search_vector @@ to_tsquery('simple', $1)
+        ORDER BY 
+          rank_modifier DESC,
+          ${_orderBy} DESC
+        LIMIT $2
+        OFFSET $3`,
+        [query, limit, offset]
+      ),
+    ]);
+    const endTime = performance.now();
+
+    return {
+      ok: true,
+      results: results.rows,
+      count: count.rows[0]?.count,
+      perfMs: endTime - startTime,
+      query,
+    };
+  };
+
+  private async upsertFragments(
+    entityId: number,
+    document: Partial<{
+      url: string;
+      title: string;
+      excerpt: string;
+      textContent: string;
+    }>
+  ) {
+    const fragments = getArticleFragments(document.textContent || "");
+
+    const sql = `
+      INSERT INTO document_fragment (
+        entity_id,
+        attribute,
+        value,
+        fragment_order
+      ) VALUES ($1, $2, $3, $4)
+      ON CONFLICT DO NOTHING;
+    `;
+
+    let triples: [e: number, a: string, v: string, o: number][] = [];
+    if (document.title) triples.push([entityId, "title", document.title, 0]);
+    if (document.excerpt) triples.push([entityId, "excerpt", document.excerpt, 0]);
+    if (document.url) triples.push([entityId, "url", document.url, 0]);
+    triples = triples.concat(
+      fragments
+        .filter((x) => x.trim())
+        .map((fragment, i) => {
+          return [entityId, "content", fragment, i];
+        })
+    );
+
+    console.debug("upsertFragments :: triples", triples);
+    await this.db!.transaction(async (tx) => {
+      for (const param of triples) {
+        await tx.query(sql, param);
+      }
+    });
+  }
+
+  private async touchDocument(document: Partial<ArticleRow> & { id: number }) {
+    await this.db!.query(
+      `UPDATE document 
+      SET updated_at = $1,
+          last_visit = $2,
+          last_visit_date = $3
+      WHERE id = $4`,
+      [document.updated_at, document.last_visit, document.last_visit_date, document.id]
+    );
+  }
+
+  private async upsertDocument(document: Partial<ArticleRow>) {
+    const existingDoc = await this.findOne({ where: { url: document.url! } });
+
+    if (existingDoc) {
+      await this.db!.query(
+        `UPDATE document 
+        SET updated_at = $1,
+            excerpt = $2,
+            md_content = $3,
+            md_content_hash = $4,
+            last_visit = $5,
+            last_visit_date = $6
+        WHERE id = $7`,
+        [
+          Date.now(),
+          document.excerpt,
+          document.md_content,
+          document.md_content_hash,
+          document.last_visit,
+          document.last_visit_date,
+          existingDoc.id,
+        ]
+      );
+      return;
+    }
+
+    const result = await this.db!.query<{ id: number }>(
+      `INSERT INTO document (
+        title, url, excerpt, md_content, md_content_hash, publication_date,
+        hostname, last_visit, last_visit_date, extractor, updated_at, created_at
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
+      ) RETURNING id`,
+      [
+        document.title,
+        document.url,
+        document.excerpt,
+        document.md_content,
+        document.md_content_hash,
+        document.publication_date,
+        document.hostname,
+        document.last_visit,
+        document.last_visit_date,
+        document.extractor,
+        document.updated_at || Date.now(),
+        document.created_at || Date.now(),
+      ]
+    );
+
+    return this.findOne({ where: { url: document.url! } });
+  }
+
+  async findOne({ where }: { where: { url: string } }): Promise<DetailRow | null> {
+    const result = await this.db!.query<DetailRow>(
+      `SELECT * FROM document WHERE url = $1 LIMIT 1`,
+      [where.url]
+    );
+    return result.rows[0] || null;
+  }
+
+  async reindex() {
+    await this.db!.query(`
+      UPDATE document_fragment
+      SET search_vector = to_tsvector('simple', COALESCE(attribute, '') || ' ' || COALESCE(value, ''))
+    `);
+  }
+
+  async getStats() {
     const [document, document_fragment, db_size] = await Promise.all([
-      this.db.query<{ count: number }>(`SELECT COUNT(*) as count FROM document;`),
-      this.db.query<{ count: number }>(`SELECT COUNT(*) as count FROM document_fragment;`),
-      this.db.query<{ size: number }>(`SELECT pg_database_size(current_database()) as size;`),
+      this.db!.query<{ count: number }>(`SELECT COUNT(*) as count FROM document;`),
+      this.db!.query<{ count: number }>(`SELECT COUNT(*) as count FROM document_fragment;`),
+      this.db!.query<{ size: number }>(`SELECT pg_database_size(current_database()) as size;`),
     ]);
 
     return {
@@ -249,5 +445,87 @@ export class PgLiteBackend implements Backend {
         size_bytes: db_size.rows[0]?.size,
       },
     };
+  }
+
+  /**
+   * Query the db via RPC, initially created for debugging
+   */
+  query({ sql, params }: { sql: string; params: any[] }) {
+    return this.db!.query(sql, params);
+  }
+
+  async exportJson() {
+    const data = {
+      document: (await this.db!.query(`SELECT * FROM document;`)).rows,
+      document_fragment: (await this.db!.query(`SELECT * FROM document_fragment;`)).rows,
+    };
+    const str = JSON.stringify(data);
+    const blob = new Blob([str], { type: "application/json" });
+    const blobUrl = await this.createObjectURL(blob);
+
+    await browser.downloads.download({
+      url: blobUrl,
+      filename: `fttf-${Date.now()}.json`,
+      saveAs: true,
+    });
+  }
+
+  async importJson(json: Record<string, any[][]>) {
+    console.log("importJson :: documents", json.document.length);
+    console.log("importJson :: fragments", json.document_fragment.length);
+
+    await this.db!.transaction(async (tx) => {
+      for (const row of json.document) {
+        await tx.query(
+          `INSERT INTO document (${Object.keys(row).join(", ")})
+           VALUES (${Object.keys(row)
+             .map((_, i) => `$${i + 1}`)
+             .join(", ")})
+           ON CONFLICT (url) DO NOTHING;`,
+          Object.values(row)
+        );
+      }
+      for (const row of json.document_fragment) {
+        await tx.query(
+          `INSERT INTO document_fragment (${Object.keys(row).join(", ")})
+           VALUES (${Object.keys(row)
+             .map((_, i) => `$${i + 1}`)
+             .join(", ")})
+           ON CONFLICT (id) DO NOTHING;`,
+          Object.values(row)
+        );
+      }
+    });
+
+    console.log("importJson :: complete");
+  }
+
+  private async createObjectURL(blob: Blob): Promise<string> {
+    if (URL && typeof URL.createObjectURL === "function") {
+      return URL.createObjectURL(blob);
+    }
+
+    return await new Promise<string>((resolve, reject) => {
+      let reader = new FileReader();
+      reader.onload = function () {
+        let buffer = reader.result;
+        if (buffer) {
+          resolve(
+            `data:${blob.type};base64,${btoa(
+              new Uint8Array(buffer as ArrayBufferLike).reduce(
+                (data, byte) => data + String.fromCharCode(byte),
+                ""
+              )
+            )}`
+          );
+        } else {
+          reject("Buffer is null");
+        }
+      };
+      reader.onerror = function () {
+        reject("Error reading blob as ArrayBuffer");
+      };
+      reader.readAsArrayBuffer(blob);
+    });
   }
 }
