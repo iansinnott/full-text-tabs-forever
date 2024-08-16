@@ -6,8 +6,8 @@ settings:
 
 dependencies:
   '@electric-sql/pglite':
-    specifier: 0.2.0
-    version: 0.2.0
+    specifier: 0.2.1
+    version: 0.2.1
   '@mozilla/readability':
     specifier: ~0.4.2
     version: 0.4.2
@@ -116,8 +116,8 @@ packages:
       '@jridgewell/gen-mapping': 0.3.3
       '@jridgewell/trace-mapping': 0.3.21
 
-  /@electric-sql/pglite@0.2.0:
-    resolution: {integrity: sha512-9ckSTnr9ChwY03lojiHM3HIOKFen72koxo44hb94Qz/L9fNejg1riwbfl2ROghA/z4ntCuyT+Zwl5pkbrSX3Aw==}
+  /@electric-sql/pglite@0.2.1:
+    resolution: {integrity: sha512-/1kewQ3m9QaCeHR+kGn6edLgPYsIsnBQNuz8iRmp9pGlTkdaf+JMw4DWhsIrN9EuIuu3yCxR7ztNQnG1WqnuHg==}
     dev: false
 
   /@esbuild-kit/cjs-loader@2.4.1:
