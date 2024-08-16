@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS document_fragment (
 
 CREATE OR REPLACE FUNCTION update_document_fragment_fts() RETURNS TRIGGER AS $$
 BEGIN
-  NEW.search_vector := to_tsvector('simple', COALESCE(NEW.attribute, '') || ' ' || COALESCE(NEW.value, ''));
+  NEW.search_vector := to_tsvector('simple', NEW.value);
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
@@ -87,20 +87,24 @@ export class PgLiteBackend implements Backend {
   private error: Error | null = null;
 
   constructor() {
+    const startTime = performance.now();
     this.init()
       .then(() => {
-        console.debug("PgLite DB ready");
+        const endTime = performance.now();
+        console.debug("init :: PgLite DB ready", `took ${endTime - startTime} ms`);
       })
       .catch((err) => {
-        console.error("Error initializing PgLite db", err);
+        console.error("init :: err", err);
         this.error = err;
       });
   }
 
   private async init() {
+    /** for debugging. renaming dbs in order to simulate starting fresh */
+    const dbNameHistory = ["idb://my-database", "idb://my-database-2"];
     try {
       this.db = await PGlite.create({
-        dataDir: "idb://my-database",
+        dataDir: dbNameHistory.at(-1),
         extensions: { vector, pg_trgm },
         relaxedDurability: true,
       });
