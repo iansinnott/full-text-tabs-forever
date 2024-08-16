@@ -136,8 +136,7 @@
     let status = await fttf.adapter.backend.getStatus();
 
     if (typeof window !== "undefined") {
-      // @ts-expect-error
-      window.fttf = fttf;
+      (window as any).fttf = fttf;
     }
 
     // Wait. Sometimes the backend takes a while to start up
@@ -264,7 +263,8 @@
   </form>
   <div class="stats px-6 md:px-12 py-6 text-sm text-slate-400">
     {#if res}
-      Showing {results?.length} of {res.count}. Took <code>{Math.round(10*res.perfMs)/10}</code>ms.
+      Showing {results?.length} of {res.count}. Took
+      <code>{Math.round(10 * res.perfMs) / 10}</code>ms.
     {:else if stats && $displaySettings.showStats}
       <div class="inline-stats flex space-x-4" in:fly|local={{ y: -20, duration: 150 }}>
         {#each Object.entries(stats) as [k, v]}

@@ -1,11 +1,16 @@
 import type { RpcMessage } from "@/background/backend";
 import type { FTTF } from "@/background";
 
+export type BrowserFTTF = FTTF & {
+  rpc: (message: RpcMessage) => Promise<any>;
+};
+
 export const rpc = async (message: RpcMessage) => {
   return chrome.runtime.sendMessage(message);
 };
 
-export const fttf: FTTF = {
+export const fttf: BrowserFTTF = {
+  rpc,
   adapter: {
     onInstalled: async () => {},
     onMessage: () => true,
