@@ -4,6 +4,7 @@
   import { rpc } from "./lib/rpc";
   import { displaySettings } from "./store/displaySettings";
   import { url } from "@roxi/routify";
+  import { routes } from "./.routify/routes";
   let _class: string = "";
   export { _class as class };
   export let open: boolean = false;
@@ -12,15 +13,24 @@
   let currentIndex = 0;
   let fileInput: HTMLInputElement;
 
+  const routeLabels = {
+    index: "Search",
+    "database-repl": "Database REPL",
+    settings: "Settings",
+  };
+
   const commands = [
-    {
-      name: "Page: Database REPL",
-      exec: async () => {
-        const newHash = $url("/index.html/database-repl");
-        window.location.hash = newHash;
-        return false;
-      },
-    },
+    ...routes
+      .filter((route) => route.filepath !== "/index.svelte")
+      .filter((route) => (console.log(route), true))
+      .map((route) => ({
+        name: `Page: ${routeLabels[route.name] || route.name}`,
+        exec: async () => {
+          const newHash = "#" + route.path;
+          window.location.hash = newHash;
+          return true;
+        },
+      })),
     {
       name: "DB: Import...",
       exec: async () => {

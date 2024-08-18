@@ -108,14 +108,6 @@
         window.open(currentUrl, "_blank");
       }
     },
-    "cmd+k": () => {
-      $menuOpen = !$menuOpen;
-      if ($menuOpen) {
-        tick().then(() => {
-          document.querySelector<HTMLInputElement>("input[data-menu-input]")?.focus();
-        });
-      }
-    },
   };
 
   let loading = true;
@@ -231,88 +223,84 @@
 <svelte:window
   on:mousemove={handleMouseMove}
   on:keydown={(e) => {
-    // NOTE the mouse has odd behavior, at least in brave. It will send a
-    // mouseover event without being moved. They keyboard can be used to scroll
-    // so new elements fall below the mouse. they get a mouseover event. Thus
-    // this logic
     const key = e.key;
-    const isModifierPressed = e.ctrlKey || e.metaKey;
-    const keybind = isModifierPressed ? `cmd+${key}` : key;
-    if (keybinds[keybind]) {
-      if (enableMouseEvents) enableMouseEvents = false; // See NOTE
-      keybinds[keybind](e);
+    if (keybinds[key]) {
+      if (enableMouseEvents) enableMouseEvents = false;
+      keybinds[key](e);
     }
   }}
 />
 
-<form on:submit|preventDefault class="px-3 md:px-6 pt-3 md:pt-6">
-  <input
-    class="w-full block px-3 md:px-6 py-3 text-lg font-mono text-white bg-slate-800 focus:ring-2 ring-indigo-300 border-none rounded-lg"
-    type="text"
-    placeholder="Search.."
-    bind:this={input}
-    bind:value={q}
-  />
-</form>
-<div class="stats px-6 md:px-12 py-6 text-sm text-slate-400">
-  {#if res}
-    Showing {results?.length} of {res.count}. Took
-    <code>{Math.round(10 * res.perfMs) / 10}</code>ms.
-  {:else if stats && $displaySettings.showStats}
-    <div class="inline-stats flex space-x-4" in:fly|local={{ y: -20, duration: 150 }}>
-      {#each Object.entries(stats) as [k, v]}
-        <span><strong>{k}:</strong> {v}</span>
-      {/each}
+<div class="App">
+  <form on:submit|preventDefault class="px-3 md:px-6 pt-3 md:pt-6">
+    <input
+      class="w-full block px-3 md:px-6 py-3 text-lg font-mono text-white bg-slate-800 focus:ring-2 ring-indigo-300 border-none rounded-lg"
+      type="text"
+      placeholder="Search.."
+      bind:this={input}
+      bind:value={q}
+    />
+  </form>
+  <div class="stats px-6 md:px-12 py-6 text-sm text-slate-400">
+    {#if res}
+      Showing {results?.length} of {res.count}. Took
+      <code>{Math.round(10 * res.perfMs) / 10}</code>ms.
+    {:else if stats && $displaySettings.showStats}
+      <div class="inline-stats flex space-x-4" in:fly|local={{ y: -20, duration: 150 }}>
+        {#each Object.entries(stats) as [k, v]}
+          <span><strong>{k}:</strong> {v}</span>
+        {/each}
+      </div>
+    {/if}
+  </div>
+  {#if error}
+    <div
+      class="error px-6 md:px-12 py-6 text-sm text-red-200 bg-red-900/70 m-6 rounded-lg border border-red-600"
+    >
+      <h3 class="text-3xl">Error: <code>{error}</code></h3>
+      <pre>{errorDetail?.stack}</pre>
     </div>
   {/if}
-</div>
-{#if error}
-  <div
-    class="error px-6 md:px-12 py-6 text-sm text-red-200 bg-red-900/70 m-6 rounded-lg border border-red-600"
-  >
-    <h3 class="text-3xl">Error: <code>{error}</code></h3>
-    <pre>{errorDetail?.stack}</pre>
-  </div>
-{/if}
-<div class="results px-6 md:p-12 md:pt-6 overflow-auto flex flex-col space-y-0">
-  {#each Object.entries(groups || []) as [url, group], i (url)}
-    {@const u = new URL(url)}
-    <!-- svelte-ignore a11y-click-events-have-key-events -->
-    <div
-      data-groupIndex={i}
-      class={classNames("result-group p-3 -mx-2 rounded-lg", {
-        "bg-slate-800": i === currentIndex,
-        "bg-transparent": i !== currentIndex,
-      })}
-      on:focus={() => (currentIndex = i)}
-      on:mouseover={() => {
-        if (enableMouseEvents) {
+  <div class="results px-6 md:p-12 md:pt-6 overflow-auto flex flex-col space-y-0">
+    {#each Object.entries(groups || []) as [url, group], i (url)}
+      {@const u = new URL(url)}
+      <!-- svelte-ignore a11y-click-events-have-key-events -->
+      <div
+        data-groupIndex={i}
+        class={classNames("result-group p-3 -mx-2 rounded-lg", {
+          "bg-slate-800": i === currentIndex,
+          "bg-transparent": i !== currentIndex,
+        })}
+        on:focus={() => (currentIndex = i)}
+        on:mouseover={() => {
+          if (enableMouseEvents) {
+            currentIndex = i;
+          }
+        }}
+        on:click={(e) => {
           currentIndex = i;
-        }
-      }}
-      on:click={(e) => {
-        currentIndex = i;
-        showDetails = true;
-      }}
-    >
-      <a class="result mb-1" href={url} on:click|preventDefault>
-        <div class="favicon mr-3 self-center">
-          <img
-            class="w-4 h-4 rounded-lg"
-            src={getFaviconByUrl(url)}
-            alt="favicon for {u.hostname}"
-          />
-        </div>
-        <div class="title mr-3 text-slate-300 text-base">{@html group.title}</div>
-        <div class="url truncate text-indigo-200">
-          {@html group.displayUrl}
-        </div>
-      </a>
-      {#each group.hits as hit (hit.rowid)}
-        <ResultRowView item={hit} />
-      {/each}
-    </div>
-  {/each}
+          showDetails = true;
+        }}
+      >
+        <a class="result mb-1" href={url} on:click|preventDefault>
+          <div class="favicon mr-3 self-center">
+            <img
+              class="w-4 h-4 rounded-lg"
+              src={getFaviconByUrl(url)}
+              alt="favicon for {u.hostname}"
+            />
+          </div>
+          <div class="title mr-3 text-slate-300 text-base">{@html group.title}</div>
+          <div class="url truncate text-indigo-200">
+            {@html group.displayUrl}
+          </div>
+        </a>
+        {#each group.hits as hit (hit.rowid)}
+          <ResultRowView item={hit} />
+        {/each}
+      </div>
+    {/each}
+  </div>
 </div>
 
 {#if showDetails}
@@ -336,6 +324,11 @@
 {/if}
 
 <style>
+  .App {
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto minmax(0, 1fr);
+  }
   .result {
     display: grid;
     grid-template-columns: auto auto minmax(0, 1fr);

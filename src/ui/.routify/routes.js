@@ -1,11 +1,11 @@
 
 /**
  * @roxi/routify 2.18.17
- * File generated Sun Aug 18 2024 14:03:02 GMT+0800 (Taipei Standard Time)
+ * File generated Sun Aug 18 2024 14:18:21 GMT+0800 (Taipei Standard Time)
  */
 
 export const __version = "2.18.17"
-export const __timestamp = "2024-08-18T06:03:02.110Z"
+export const __timestamp = "2024-08-18T06:18:21.056Z"
 
 //buildRoutes
 import { buildClientTree } from "@roxi/routify/runtime/buildRoutes.js"
@@ -50,15 +50,40 @@ export const _tree = {
       "component": () => import('../pages/index.svelte').then(m => m.default)
     },
     {
-      "isFile": false,
+      "isFile": true,
       "isDir": true,
-      "file": "index.html",
-      "filepath": "/index.html",
-      "name": "index.html",
-      "ext": "",
+      "file": "_layout.svelte",
+      "filepath": "/index.html/_layout.svelte",
+      "name": "_layout",
+      "ext": "svelte",
       "badExt": false,
-      "absolutePath": "/Users/ian/dev/full-text-tabs-forever/src/ui/pages/index.html",
+      "absolutePath": "/Users/ian/dev/full-text-tabs-forever/src/ui/pages/index.html/_layout.svelte",
       "children": [
+        {
+          "isFile": true,
+          "isDir": false,
+          "file": "database-repl.svelte",
+          "filepath": "/index.html/database-repl.svelte",
+          "name": "database-repl",
+          "ext": "svelte",
+          "badExt": false,
+          "absolutePath": "/Users/ian/dev/full-text-tabs-forever/src/ui/pages/index.html/database-repl.svelte",
+          "importPath": "../pages/index.html/database-repl.svelte",
+          "isLayout": false,
+          "isReset": false,
+          "isIndex": false,
+          "isFallback": false,
+          "isPage": true,
+          "ownMeta": {},
+          "meta": {
+            "recursive": true,
+            "preload": false,
+            "prerender": true
+          },
+          "path": "/index.html/database-repl",
+          "id": "_index_html_databaseRepl",
+          "component": () => import('../pages/index.html/database-repl.svelte').then(m => m.default)
+        },
         {
           "isFile": true,
           "isDir": false,
@@ -85,18 +110,21 @@ export const _tree = {
           "component": () => import('../pages/index.html/index.svelte').then(m => m.default)
         }
       ],
-      "isLayout": false,
+      "isLayout": true,
       "isReset": false,
       "isIndex": false,
       "isFallback": false,
       "isPage": false,
+      "importPath": "../pages/index.html/_layout.svelte",
       "ownMeta": {},
       "meta": {
         "recursive": true,
         "preload": false,
         "prerender": true
       },
-      "path": "/index.html"
+      "path": "/index.html",
+      "id": "_index_html__layout",
+      "component": () => import('../pages/index.html/_layout.svelte').then(m => m.default)
     }
   ],
   "isLayout": false,

@@ -3,7 +3,25 @@
   import { menuOpen } from "@/ui/store/menuState";
   import Menu from "@/ui/Menu.svelte";
   import { tick } from "svelte";
+
+  const handleCmdK = () => {
+    $menuOpen = !$menuOpen;
+    if ($menuOpen) {
+      tick().then(() => {
+        document.querySelector<HTMLInputElement>("input[data-menu-input]")?.focus();
+      });
+    }
+  };
 </script>
+
+<svelte:window
+  on:keydown={(e) => {
+    if (e.key === "k" && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      handleCmdK();
+    }
+  }}
+/>
 
 <div class={"App h-screen"}>
   <header>
@@ -22,23 +40,10 @@
 
 <button
   class="fixed bottom-4 left-4 z-10 p-2 rounded-full bg-zinc-900 border border-zinc-600"
-  on:click={() => {
-    $menuOpen = !$menuOpen;
-    if ($menuOpen) {
-      tick().then(() => {
-        // @ts-expect-error Inline code like this isn't real TS, so we wan't add the type without breaking svelte
-        document.querySelector("input[data-menu-input]")?.focus();
-      });
-    }
-  }}
+  on:click={handleCmdK}
 >
   <Cog />
 </button>
 
 <style>
-  .App {
-    display: grid;
-    grid-template-columns: 1fr;
-    grid-template-rows: auto auto auto minmax(0, 1fr);
-  }
 </style>
