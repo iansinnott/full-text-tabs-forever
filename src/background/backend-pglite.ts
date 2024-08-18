@@ -65,7 +65,7 @@ FOR EACH ROW EXECUTE FUNCTION update_document_fragment_fts();
 CREATE INDEX IF NOT EXISTS idx_document_fragment_search_vector ON document_fragment USING GIN(search_vector);
 
 -- Index for trigram similarity search. Disabled for now
--- CREATE INDEX IF NOT EXISTS trgm_idx_document_fragment_value ON document_fragment USING gin (value gin_trgm_ops);
+-- CREATE INDEX IF NOT EXISTS trgm_idx_document_fragment_value ON document_fragment USING GIN(value gin_trgm_ops);
 `;
 
 function prepareFtsQuery(query: string): string {
@@ -253,7 +253,7 @@ export class PgLiteBackend implements Backend {
     return { ok: true };
   };
 
-  async similaritySearch({
+  async semanticSearch({
     query,
     limit = 100,
     threshold = 0.37, // This value comes from "eyeballing" some of the output
