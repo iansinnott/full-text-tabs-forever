@@ -7,12 +7,13 @@ import { pg_trgm } from "@electric-sql/pglite/contrib/pg_trgm";
 // @ts-expect-error Types are wrong
 import { btree_gin } from "@electric-sql/pglite/contrib/btree_gin";
 
-import { formatDebuggablePayload, getArticleFragments } from "../common/utils";
+import { formatDebuggablePayload, getArticleFragments, segment } from "../common/utils";
 import { ArticleRow, Backend, DetailRow, ResultRow } from "./backend";
 import browser from "webextension-polyfill";
 import { createEmbedding } from "./embedding/pipeline";
 import { JobQueue } from "./pglite/job_queue";
 import type { QueryOptions } from "@electric-sql/pglite";
+import { defaultBlacklistRules } from "./pglite/defaultBlacklistRules";
 
 const schemaSql = `
 -- make sure pgvector is enabled
@@ -66,6 +67,15 @@ CREATE INDEX IF NOT EXISTS idx_document_fragment_search_vector ON document_fragm
 
 -- Index for trigram similarity search, i.e. postgres trigram
 CREATE INDEX IF NOT EXISTS trgm_idx_document_fragment_value ON document_fragment USING GIN(value gin_trgm_ops);
+
+CREATE TABLE IF NOT EXISTS blacklist_rule (
+  id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+  pattern TEXT UNIQUE NOT NULL,
+  level TEXT NOT NULL CHECK (level IN ('no_index', 'url_only')),
+  created_at BIGINT NOT NULL DEFAULT EXTRACT(EPOCH FROM CURRENT_TIMESTAMP) * 1000
+);
+
+CREATE INDEX IF NOT EXISTS idx_blacklist_rule_pattern ON blacklist_rule (pattern);
 `;
 
 function prepareFtsQuery(query: string): string {
@@ -99,7 +109,6 @@ export class PgLiteBackend implements Backend {
       .then(async () => {
         const endTime = performance.now();
         console.debug("init :: PgLite DB ready", `took ${endTime - startTime} ms`);
-        await this.jobQueue.initialize();
       })
       .catch((err) => {
         console.error("init :: err", err);
@@ -117,11 +126,31 @@ export class PgLiteBackend implements Backend {
         relaxedDurability: true,
       });
       await this.db.exec(schemaSql);
+      await this.initializeDefaultBlacklistRules();
+      await this.jobQueue.initialize();
       this.dbReady = true;
     } catch (err) {
       console.error("Error initializing PgLite db", err);
       this.error = err;
       throw err;
+    }
+  }
+
+  private async initializeDefaultBlacklistRules() {
+    const count = await this.db!.query<{ count: number }>(
+      "SELECT COUNT(*) as count FROM blacklist_rule"
+    );
+
+    if (count.rows[0].count === 0) {
+      console.log("blaclist :: init");
+      await this.db!.transaction(async (tx) => {
+        for (const [pattern, level] of defaultBlacklistRules) {
+          await tx.query("INSERT INTO blacklist_rule (pattern, level) VALUES ($1, $2)", [
+            pattern,
+            level,
+          ]);
+        }
+      });
     }
   }
 
@@ -151,16 +180,23 @@ export class PgLiteBackend implements Backend {
   getPageStatus: Backend["getPageStatus"] = async (payload, sender) => {
     const { tab } = sender;
     let shouldIndex = tab?.url?.startsWith("http");
+    let indexLevel: "full" | "url_only" | "no_index" = "full";
 
     let url: URL;
 
     try {
       url = normalizeUrl(tab?.url || "");
 
-      if (url.hostname === "localhost") shouldIndex = false;
-      if (url.hostname.endsWith(".local")) shouldIndex = false;
+      if (url.hostname === "localhost") indexLevel = "no_index";
+      if (url.hostname.endsWith(".local")) indexLevel = "no_index";
+
+      // Check against blacklist rules
+      const blacklistRule = await this.getMatchingBlacklistRule(url.href);
+      if (blacklistRule) {
+        indexLevel = blacklistRule.level === "no_index" ? "no_index" : "url_only";
+      }
+
       const existing = await this.findOne({ where: { url: url.href } });
-      shouldIndex = !existing || !existing.md_content;
       if (existing) {
         await this.touchDocument({
           id: existing.id,
@@ -169,6 +205,8 @@ export class PgLiteBackend implements Backend {
           last_visit_date: new Date().toISOString().split("T")[0],
         });
       }
+
+      shouldIndex = indexLevel !== "no_index" && (!existing || !existing.md_content);
     } catch (err) {
       return {
         shouldIndex: false,
@@ -179,12 +217,13 @@ export class PgLiteBackend implements Backend {
     console.debug(
       `%c${"getPageStatus"}`,
       "color:lime;",
-      { shouldIndex, url: tab?.url, normalizedUrl: url?.href },
+      { shouldIndex, indexLevel, url: tab?.url, normalizedUrl: url?.href },
       payload
     );
 
     return {
       shouldIndex,
+      indexLevel,
     };
   };
 
@@ -193,11 +232,11 @@ export class PgLiteBackend implements Backend {
     sender
   ) => {
     const { tab } = sender;
-
     const u = normalizeUrl(tab?.url || "");
+    const { indexLevel } = await this.getPageStatus(payload, sender);
     const document: Partial<ArticleRow> = {
       ...payload,
-      md_content,
+      md_content: indexLevel === "full" ? md_content : undefined,
       publication_date: date ? new Date(date).getTime() : undefined,
       url: u.href,
       hostname: u.hostname,
@@ -216,7 +255,7 @@ export class PgLiteBackend implements Backend {
 
     const inserted = await this.upsertDocument(document);
 
-    if (inserted) {
+    if (inserted && indexLevel === "full") {
       console.debug(
         `%c  ${"new insertion"}`,
         "color:gray;",
@@ -375,8 +414,8 @@ export class PgLiteBackend implements Backend {
     `;
 
     let triples: [e: number, a: string, v: string, o: number][] = [];
-    if (document.title) triples.push([entityId, "title", document.title, 0]);
-    if (document.excerpt) triples.push([entityId, "excerpt", document.excerpt, 0]);
+    if (document.title) triples.push([entityId, "title", segment(document.title), 0]);
+    if (document.excerpt) triples.push([entityId, "excerpt", segment(document.excerpt), 0]);
     if (document.url) triples.push([entityId, "url", document.url, 0]);
     triples = triples.concat(
       fragments
@@ -447,13 +486,13 @@ export class PgLiteBackend implements Backend {
       [
         document.title,
         document.url,
-        document.excerpt,
-        document.md_content,
-        document.publication_date,
+        document.excerpt || null,
+        document.md_content || null,
+        document.publication_date || null,
         document.hostname,
         document.last_visit,
         document.last_visit_date,
-        document.extractor,
+        document.extractor || null,
         document.updated_at || Date.now(),
         document.created_at || Date.now(),
       ]
@@ -627,5 +666,37 @@ export class PgLiteBackend implements Backend {
       };
       reader.readAsArrayBuffer(blob);
     });
+  }
+
+  private async getMatchingBlacklistRule(
+    url: string
+  ): Promise<{ level: "no_index" | "url_only" } | null> {
+    const result = await this.db!.query<{ level: "no_index" | "url_only" }>(
+      `SELECT level FROM blacklist_rule WHERE $1 LIKE pattern ORDER BY created_at DESC LIMIT 1`,
+      [url]
+    );
+    return result.rows[0] || null;
+  }
+
+  async addBlacklistRule(pattern: string, level: "no_index" | "url_only"): Promise<void> {
+    await this.db!.query(`INSERT INTO blacklist_rule (pattern, level) VALUES ($1, $2)`, [
+      pattern,
+      level,
+    ]);
+  }
+
+  async removeBlacklistRule(id: number): Promise<void> {
+    await this.db!.query(`DELETE FROM blacklist_rule WHERE id = $1`, [id]);
+  }
+
+  async getBlacklistRules(): Promise<
+    Array<{ id: number; pattern: string; level: "no_index" | "url_only" }>
+  > {
+    const result = await this.db!.query<{
+      id: number;
+      pattern: string;
+      level: "no_index" | "url_only";
+    }>(`SELECT id, pattern, level FROM blacklist_rule ORDER BY created_at DESC`);
+    return result.rows;
   }
 }

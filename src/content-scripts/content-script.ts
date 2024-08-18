@@ -43,9 +43,23 @@ const main = async () => {
   if (!res?.shouldIndex) {
     const debugUrls = localStorage.getItem("@fttf/debugUrls")?.split(",") || [];
     if (!debugUrls.includes(location.hostname)) {
-      log("Skipping due to server response", res);
+      log("fttf :: skip :: due to server response", res);
       return;
     }
+  }
+
+  if (res?.indexLevel === "url_only") {
+    const date = detectDate();
+    const result = await rpc([
+      "indexPage",
+      {
+        title: document.title,
+        date,
+      },
+    ]);
+
+    log("fttf :: result", result);
+    return;
   }
 
   // Wait for the dom to be ready. Yeah, crude. What's the best move here?
@@ -61,7 +75,7 @@ const main = async () => {
         clearTimeout(timeout2);
         resolve(null);
       } else {
-        console.debug("Still waiting for dom to stop changing");
+        log("fttf :: wait :: still waiting for dom to stop changing");
         len = newLen;
         timeout = setTimeout(fn, 1000);
       }
@@ -101,6 +115,8 @@ const main = async () => {
   const date = detectDate();
   const { content, textContent, ...rest } = readabilityArticle;
 
+  console.debug("fttf :: readabilityArticle", rest);
+
   // Lazy load the turndown lib
   const TurndownService = (await import("turndown")).default;
 
@@ -110,7 +126,7 @@ const main = async () => {
     hr: "---",
   });
 
-  console.debug("-> markdown");
+  log("fttf :: markdown");
   // @todo Would be nice to not have to turndown for every page. This used to be
   // in the background script but threw for dom reasons. Would need to modify
   // turndown. NOTE: It supports running in node, but the internal env check
@@ -122,7 +138,6 @@ const main = async () => {
     date,
   });
 
-  // @todo This is just a standin
   const result = await rpc([
     "indexPage",
     {
@@ -135,7 +150,7 @@ const main = async () => {
     },
   ]);
 
-  log("result", result);
+  log("fttf :: result", result);
 };
 
 const mainWrapper = async () => {
@@ -161,7 +176,7 @@ const mainWrapper = async () => {
 (async () => {
   // listen for browser push state updates and hash changes
   window.addEventListener("popstate", () => {
-    console.debug("%cpopstate", "color:orange;font-size:18px;", location.toString());
+    log("%cpopstate", "color:orange;font-size:18px;", location.toString());
     mainWrapper();
   });
 
