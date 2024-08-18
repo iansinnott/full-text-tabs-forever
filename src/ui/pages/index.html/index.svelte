@@ -126,10 +126,6 @@
 
     let status = await fttf.adapter.backend.getStatus();
 
-    if (typeof window !== "undefined") {
-      (window as any).fttf = fttf;
-    }
-
     // Wait. Sometimes the backend takes a while to start up
     if (!status.ok) {
       for (const wait of [100, 200, 300, 400, 500]) {

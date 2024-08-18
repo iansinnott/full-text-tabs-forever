@@ -2,7 +2,14 @@
   import { Cog } from "lucide-svelte";
   import { menuOpen } from "@/ui/store/menuState";
   import Menu from "@/ui/Menu.svelte";
-  import { tick } from "svelte";
+  import { onMount, tick } from "svelte";
+  import { fttf } from "@/ui/lib/rpc";
+
+  onMount(() => {
+    if (typeof window !== "undefined") {
+      (window as any).fttf = fttf;
+    }
+  });
 
   const handleCmdK = () => {
     $menuOpen = !$menuOpen;
