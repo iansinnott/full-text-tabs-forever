@@ -189,15 +189,15 @@ export class PgLiteBackend implements Backend {
   };
 
   indexPage: Backend["indexPage"] = async (
-    { date, textContent, mdContent, ...payload },
+    { date, text_content, md_content, ...payload },
     sender
   ) => {
     const { tab } = sender;
 
     let mdContentHash: string | undefined = undefined;
-    if (mdContent) {
+    if (md_content) {
       try {
-        mdContentHash = await shasum(mdContent);
+        mdContentHash = await shasum(md_content);
       } catch (err) {
         console.warn("shasum failed", err);
       }
@@ -206,7 +206,7 @@ export class PgLiteBackend implements Backend {
     const u = new URL(tab?.url || "");
     const document: Partial<ArticleRow> = {
       ...payload,
-      md_content: mdContent,
+      md_content,
       md_content_hash: mdContentHash,
       publication_date: date ? new Date(date).getTime() : undefined,
       url: u.href,
@@ -219,7 +219,7 @@ export class PgLiteBackend implements Backend {
     console.debug(
       formatDebuggablePayload({
         title: document.title,
-        textContent,
+        text_content,
         siteName: document.siteName,
       })
     );
@@ -237,7 +237,7 @@ export class PgLiteBackend implements Backend {
         title: document.title,
         url: u.href,
         excerpt: document.excerpt,
-        textContent,
+        text_content,
       });
     }
 
@@ -253,7 +253,7 @@ export class PgLiteBackend implements Backend {
     return { ok: true };
   };
 
-  async similaritySearch({ query, limit = 10 }: { query: string; limit?: number }) {
+  async similaritySearch({ query, limit = 100 }: { query: string; limit?: number }) {
     const queryEmbedding = await createEmbedding(query);
 
     const results = await this.db!.query(
@@ -344,10 +344,10 @@ export class PgLiteBackend implements Backend {
       url: string;
       title: string;
       excerpt: string;
-      textContent: string;
+      text_content: string;
     }>
   ) {
-    const fragments = getArticleFragments(document.textContent || "");
+    const fragments = getArticleFragments(document.text_content || "");
 
     const sql = `
       INSERT INTO document_fragment (

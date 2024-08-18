@@ -127,11 +127,10 @@ const main = async () => {
     "indexPage",
     {
       ...rest,
-      _extractionTime: endTime - startTime,
+      _extraction_time: endTime - startTime,
       extractor: "readability",
-      // htmlContent: content,
-      textContent,
-      mdContent,
+      text_content: textContent,
+      md_content: mdContent,
       date,
     },
   ]);

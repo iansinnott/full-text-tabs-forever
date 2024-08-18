@@ -38,7 +38,7 @@ class BackendAdapter {
           })
           .catch((err) => {
             console.error(`backend :: err :: ${method}`);
-            sendResponse({ error: err.message });
+            sendResponse({ error: err.message, stack: err.stack });
           });
       } else {
         console.warn(`%c${method}`, "color:yellow;", "is not a valid method", payload);
