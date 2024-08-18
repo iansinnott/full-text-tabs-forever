@@ -1,5 +1,6 @@
 import type { Transaction } from "@electric-sql/pglite";
 import { z } from "zod";
+import { createEmbedding } from "../embedding/pipeline";
 
 /**
  * A helper for type inference.
@@ -21,16 +22,18 @@ export type TaskDefinition = ReturnType<typeof createTask>;
 
 export const generate_vector = createTask({
   params: z.object({
-    fragmentId: z.number(),
+    fragment_id: z.number(),
   }),
   handler: async (tx, params) => {
-    // Implement vector generation logic here
-    console.log(`Generating vector for fragment ${params.fragmentId}`);
-    // Example implementation:
-    // const fragment = await client.query('SELECT value FROM document_fragment WHERE id = $1', [params.fragmentId]);
-    // const embedding = await createEmbedding(fragment.rows[0].value);
-    // await client.query('UPDATE document_fragment SET content_vector = $1, vector_status = $2 WHERE id = $3',
-    //   [embedding, 'completed', params.fragmentId]);
+    const result = await tx.query<{ value: string }>(
+      "SELECT value FROM document_fragment WHERE id = $1",
+      [params.fragment_id]
+    );
+    const embedding = await createEmbedding(result.rows[0].value);
+    await tx.query("UPDATE document_fragment SET content_vector = $1 WHERE id = $2", [
+      JSON.stringify(embedding),
+      params.fragment_id,
+    ]);
   },
 });
 
