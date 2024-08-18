@@ -11,6 +11,10 @@
  *
  * Thus this script simply loads the relevant bytes into memory and hands them
  * back if requested via the correct URL.
+ *
+ * @todo Not sure if vite grabs the relevant asset and puts in the the build,
+ * might need to create a plugin for that. works for the `dev` comamnd but might
+ * not wokr for `build`.
  */
 
 const assetCache = new Map<string, ArrayBuffer>();
