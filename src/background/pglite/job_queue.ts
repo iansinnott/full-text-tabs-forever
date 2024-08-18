@@ -5,6 +5,8 @@ import * as tasks from "./tasks";
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export class JobQueue {
+  private isProcessing: boolean = false;
+
   constructor(
     private backend: PgLiteBackend,
     private taskInterval: number = 1000
@@ -95,6 +97,12 @@ export class JobQueue {
   }
 
   async processPendingTasks() {
+    if (this.isProcessing) {
+      return;
+    }
+
+    this.isProcessing = true;
+
     const getCount = async () => {
       const pendingTasks = await this.backend.db!.query<{ count: number }>(`
         SELECT COUNT(*) as count FROM task
@@ -102,9 +110,13 @@ export class JobQueue {
       return pendingTasks.rows[0].count;
     };
 
-    while ((await getCount()) > 0) {
-      await this.processQueue();
-      await sleep(this.taskInterval);
+    try {
+      while ((await getCount()) > 0) {
+        await this.processQueue();
+        await sleep(this.taskInterval);
+      }
+    } finally {
+      this.isProcessing = false;
     }
   }
 }
