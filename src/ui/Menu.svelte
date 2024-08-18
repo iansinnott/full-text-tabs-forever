@@ -22,7 +22,6 @@
   const commands = [
     ...routes
       .filter((route) => route.filepath !== "/index.svelte")
-      .filter((route) => (console.log(route), true))
       .map((route) => ({
         name: `Page: ${routeLabels[route.name] || route.name}`,
         exec: async () => {

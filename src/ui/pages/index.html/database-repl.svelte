@@ -7,7 +7,7 @@
   let pg: PGlite;
   let replElement: HTMLElement & { pg: PGlite };
 
-  class PGliteServiceWorkerProxy implements PGlite {
+  class PGliteServiceWorkerProxy implements Pick<PGlite, "query" | "exec" | "waitReady"> {
     async query<T>(query: string, params?: any[], options?: QueryOptions): Promise<Results<T>> {
       const result = await rpc(["pg.query", { sql: query, params, options }]);
       return result as Results<T>;
@@ -17,6 +17,7 @@
       const result = await rpc(["pg.exec", { sql: query, options }]);
       return result as Array<Results>;
     }
+
     waitReady = Promise.resolve();
   }
 
@@ -43,8 +44,7 @@
   });
 </script>
 
-<div>
-  <h1>Database REPL</h1>
+<div class="flex flex-col p-4 h-[calc(100%-70px)]">
   <pglite-repl bind:this={replElement}></pglite-repl>
 </div>
 
@@ -52,6 +52,8 @@
   :global(pglite-repl) {
     display: block;
     width: 100%;
-    height: 400px;
+    max-height: 100%;
+    border: 1px solid #34333e;
+    @apply rounded-lg;
   }
 </style>
