@@ -18,7 +18,6 @@ const assetCache = new Map<string, ArrayBuffer>();
 async function preloadAssets() {
   const assetUrls = [
     // NOTE: The wasm file exists in the pglite package but does not seem to be used. preloading the data file was enough
-    // '/pglite-wasm.wasm',
     chrome.runtime.getURL("/assets/postgres-O2XafnGg.data"),
   ];
 
@@ -37,7 +36,8 @@ class ProgressEventPolyfill {
   }
 }
 
-// A partial polyfill for XMLHttpRequest to support the loading of pglite in a service worker
+// A partial polyfill for XMLHttpRequest to support the loading of pglite in a
+// service worker
 class XMLHttpRequestPolyfill {
   private method: string = "";
   private url: string = "";
