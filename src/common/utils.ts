@@ -33,6 +33,24 @@ export const shasum = async (text: string) => {
   return hashHex;
 };
 
+const NON_LATIN_CHARS = /[^\u0000-\u007F]/g;
+
+export const segment = (text: string) => {
+  if (typeof Intl.Segmenter === "undefined" || !NON_LATIN_CHARS.test(text)) {
+    return text;
+  }
+
+  const segmenter = new Intl.Segmenter(undefined, {
+    granularity: "word",
+  });
+
+  const segments = segmenter.segment(text);
+  return Array.from(segments)
+    .map((segment) => segment.segment)
+    .filter((segment) => segment.trim() !== "")
+    .join(" ");
+};
+
 /**
  * Break down a large text document into smaller fragments, considering markdown
  * structure.
@@ -73,7 +91,7 @@ export const getArticleFragments = (textContent: string): string[] => {
     fragments.push(currentFragment.trim());
   }
 
-  return fragments.filter((fragment) => fragment.length > 0);
+  return fragments.filter((fragment) => fragment.length > 0).map(segment);
 };
 
 export const debounce = <T extends (...args: any[]) => any>(fn: T, delay: number) => {

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "bun:test";
 
-import { getArticleFragments } from "./utils";
+import { getArticleFragments, segment } from "./utils";
 
 describe("getArticleFragments", () => {
   it("should handle longform, multi-paragraph text", () => {
@@ -117,6 +117,49 @@ describe("getArticleFragments with plain text", () => {
     expect(fragments).toHaveLength(1);
     expect(fragments[0]).toBe(
       "This is a text with line breaks but no paragraph breaks. It should be treated as one fragment. We need to add more text to ensure it exceeds 100 characters and becomes a valid fragment."
+    );
+  });
+});
+
+describe("segment", () => {
+  it("should not affect normal English text", () => {
+    const text = "This is a normal English sentence.";
+    expect(segment(text)).toBe(text);
+  });
+
+  it("should handle empty string", () => {
+    expect(segment("")).toBe("");
+  });
+
+  it("should handle text with numbers and punctuation", () => {
+    const text = "Hello, world! This is test #123.";
+    expect(segment(text)).toBe(text);
+  });
+
+  it("should segment text with non-Latin characters", () => {
+    const text = "こんにちは世界";
+    const segmented = segment(text);
+    expect(segmented).toBe("こんにちは 世界");
+  });
+
+  it("should handle mixed Latin and non-Latin text", () => {
+    const text = "Hello こんにちは world 世界";
+    const segmented = segment(text);
+    expect(segmented).toBe("Hello こんにちは world 世界");
+  });
+
+  it("should handle mixed Latin and Mandarin Chinese text", () => {
+    const text = "Hello 你好世界我是一个人工智能助手 world 这是一个测试";
+    const segmented = segment(text);
+    expect(segmented).toBe("Hello 你好 世界 我是 一个 人工 智能 助手 world 这 是 一个 测试");
+  });
+
+  it("should handle chinese with punctuation", () => {
+    const text =
+      "你好，世界！这是一个测试句子，用于检查中文文本的分段功能。我们希望确保即使在有标点符号的情况下，文本也能正确分段。";
+    const segmented = segment(text);
+    expect(segmented).toBe(
+      "你好 ， 世界 ！ 这 是 一个 测试 句子 ， 用于 检查 中文 文本 的 分段 功能 。 我们 希望 确保 即使 在 有 标点 符号 的 情况 下 ， 文本 也能 正确 分段 。"
     );
   });
 });
