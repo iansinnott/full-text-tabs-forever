@@ -1,4 +1,4 @@
-import { PGlite } from "./HAX_pglite";
+import { PGlite } from "./pglite/HAX_pglite";
 
 // @ts-expect-error Types are wrong
 import { vector } from "@electric-sql/pglite/vector";
@@ -8,6 +8,8 @@ import { pg_trgm } from "@electric-sql/pglite/contrib/pg_trgm";
 import { formatDebuggablePayload, getArticleFragments, shasum } from "../common/utils";
 import { ArticleRow, Backend, DetailRow, ResultRow } from "./backend";
 import browser from "webextension-polyfill";
+import { createEmbedding } from "./embedding/pipeline";
+import { JobQueue } from "./pglite/job_queue";
 
 const schemaSql = `
 -- make sure pgvector is enabled
@@ -82,16 +84,19 @@ const normalizeUrl = (urlOrString: string | URL): URL => {
 };
 
 export class PgLiteBackend implements Backend {
-  private db: PGlite | null = null;
+  db: PGlite | null = null;
   private dbReady = false;
   private error: Error | null = null;
+  private jobQueue: JobQueue;
 
   constructor() {
+    this.jobQueue = new JobQueue(this);
     const startTime = performance.now();
     this.init()
-      .then(() => {
+      .then(async () => {
         const endTime = performance.now();
         console.debug("init :: PgLite DB ready", `took ${endTime - startTime} ms`);
+        await this.jobQueue.initialize();
       })
       .catch((err) => {
         console.error("init :: err", err);
@@ -244,6 +249,24 @@ export class PgLiteBackend implements Backend {
     console.debug(`%c${"nothingToIndex"}`, "color:beige;", tab?.url);
     return { ok: true };
   };
+
+  async similaritySearch({ query, limit = 10 }: { query: string; limit?: number }) {
+    const queryEmbedding = await createEmbedding(query);
+
+    const results = await this.db!.query(
+      `
+    SELECT df.id, df.attribute, df.value, d.title, d.url,
+           1 - (df.content_vector <=> $1) AS cosine_similarity
+    FROM document_fragment df
+    JOIN document d ON df.entity_id = d.id
+    ORDER BY df.content_vector <=> $1
+    LIMIT $2
+  `,
+      [queryEmbedding, limit]
+    );
+
+    return results.rows;
+  }
 
   search: Backend["search"] = async (payload) => {
     let {
@@ -454,8 +477,17 @@ export class PgLiteBackend implements Backend {
   /**
    * Query the db via RPC, initially created for debugging
    */
-  query({ sql, params }: { sql: string; params: any[] }) {
+  async query({ sql, params }: { sql: string; params: any[] }) {
     return this.db!.query(sql, params);
+  }
+
+  // Expose to rpc
+  async createEmbedding(s: string) {
+    return createEmbedding(s);
+  }
+
+  async processJobQueue() {
+    await this.jobQueue.processPendingTasks();
   }
 
   async exportJson() {

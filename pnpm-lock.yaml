@@ -50,6 +50,9 @@ dependencies:
   webextension-polyfill:
     specifier: ~0.10.0
     version: 0.10.0
+  zod:
+    specifier: 3.23.8
+    version: 3.23.8
 
 devDependencies:
   '@tailwindcss/forms':
@@ -2855,6 +2858,10 @@ packages:
       compress-commons: 5.0.1
       readable-stream: 3.6.2
     dev: true
+
+  /zod@3.23.8:
+    resolution: {integrity: sha512-XBx9AXhXktjUqnepgTiE5flcKIYWi/rme0Eaj+5Y0lftuGBq+jyRu/md4WnuxqgP1ubdpNCsYEYPxrzVHD8d6g==}
+    dev: false
 
   github.com/iansinnott/turndown/c4d3be39184d895fc481b559594f036670f5eb1e:
     resolution: {tarball: https://codeload.github.com/iansinnott/turndown/tar.gz/c4d3be39184d895fc481b559594f036670f5eb1e}

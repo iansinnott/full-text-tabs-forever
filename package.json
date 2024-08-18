@@ -60,6 +60,7 @@
     "svelte": "^4.0.0",
     "svelte-markdown": "~0.4.1",
     "turndown": "https://github.com/iansinnott/turndown",
-    "webextension-polyfill": "~0.10.0"
+    "webextension-polyfill": "~0.10.0",
+    "zod": "3.23.8"
   }
 }

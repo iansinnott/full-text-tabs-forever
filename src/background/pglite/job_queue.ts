@@ -1,0 +1,87 @@
+import type { PgLiteBackend } from "../backend-pglite";
+import type { TaskDefinition } from "./tasks";
+import * as tasks from "./tasks";
+
+export class JobQueue {
+  constructor(private backend: PgLiteBackend) {}
+
+  async initialize() {
+    await this.backend.db!.query(`
+      CREATE TABLE IF NOT EXISTS task (
+        id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+        task_type TEXT NOT NULL,
+        params JSONB DEFAULT '{}'::jsonb NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+        CONSTRAINT task_task_type_params_unique UNIQUE(task_type, params)
+      );
+    `);
+  }
+
+  async enqueue(taskType: keyof typeof tasks, params: object = {}): Promise<number> {
+    const result = await this.backend.db!.query<{ id: number }>(
+      `
+      INSERT INTO task (task_type, params)
+      VALUES ($1, $2::jsonb)
+      ON CONFLICT (task_type, params) DO NOTHING
+      RETURNING id
+    `,
+      [taskType, params]
+    );
+
+    const taskId = result.rows[0]?.id;
+
+    // Trigger processing after enqueueing
+    this.processQueue();
+
+    return taskId;
+  }
+
+  private async processQueue() {
+    // Process a single task
+    try {
+      await this.backend.db!.transaction(async (tx) => {
+        const result = await tx.query<{
+          id: number;
+          task_type: string;
+          params: Record<string, any>;
+        }>(`
+          DELETE FROM task
+          WHERE id IN (
+            SELECT id
+            FROM task
+            ORDER BY random()
+            LIMIT 1
+          )
+          RETURNING id, task_type, params::jsonb
+        `);
+
+        if (!result.rows.length) {
+          console.log("task :: empty queue");
+          return;
+        }
+
+        const { task_type, params } = result.rows[0];
+
+        if (!(task_type in tasks)) {
+          console.warn(`task :: ${task_type} :: not implemented`);
+          throw new Error(`Task type ${task_type} not implemented`);
+        }
+
+        const task = tasks[task_type as keyof typeof tasks] as TaskDefinition;
+        await task.handler(tx, task.params?.parse(params));
+      });
+    } catch (error) {
+      console.error(`task :: error`, error);
+    }
+  }
+
+  async processPendingTasks() {
+    const pendingTasks = await this.backend.db!.query<{ count: number }>(`
+      SELECT COUNT(*) as count FROM task
+    `);
+
+    if (pendingTasks.rows[0].count > 0) {
+      await this.processQueue();
+    }
+  }
+}
