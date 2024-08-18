@@ -65,7 +65,7 @@ FOR EACH ROW EXECUTE FUNCTION update_document_fragment_fts();
 CREATE INDEX IF NOT EXISTS idx_document_fragment_search_vector ON document_fragment USING GIN(search_vector);
 
 -- Index for trigram similarity search. Disabled for now
--- CREATE INDEX IF NOT EXISTS trgm_idx_document_fragment_value ON document_fragment USING GIN(value gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS trgm_idx_document_fragment_value ON document_fragment USING GIN(value gin_trgm_ops);
 `;
 
 function prepareFtsQuery(query: string): string {
@@ -275,9 +275,7 @@ export class PgLiteBackend implements Backend {
     LIMIT $2
     `;
 
-    const params = [JSON.stringify(queryEmbedding), limit, threshold];
-
-    const results = await this.db!.query(sql, params);
+    const results = await this.db!.query(sql, [JSON.stringify(queryEmbedding), limit, threshold]);
 
     return results.rows;
   }
@@ -348,6 +346,22 @@ export class PgLiteBackend implements Backend {
       query,
     };
   };
+
+  async trigramSearch({ query, limit = 100 }: { query: string; limit?: number }) {
+    const sql = `
+    SELECT df.id, df.attribute, df.value, d.title, d.url,
+           similarity(df.value, $1) AS similarity_score
+    FROM document_fragment df
+    JOIN document d ON df.entity_id = d.id
+    WHERE df.value % $1
+    ORDER BY similarity_score DESC
+    LIMIT $2
+    `;
+
+    const results = await this.db!.query(sql, [query, limit]);
+
+    return results.rows;
+  }
 
   private async upsertFragments(
     entityId: number,
