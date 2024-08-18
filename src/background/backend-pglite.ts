@@ -253,20 +253,31 @@ export class PgLiteBackend implements Backend {
     return { ok: true };
   };
 
-  async similaritySearch({ query, limit = 100 }: { query: string; limit?: number }) {
+  async similaritySearch({
+    query,
+    limit = 100,
+    threshold = 0.37, // This value comes from "eyeballing" some of the output
+  }: {
+    query: string;
+    limit?: number;
+    /** Results are only returned if the cosine similarity is greater than this threshold. Since there will always be some results with cosine similarity it's useful to only pay attention to results above a certain threshold. Pass zero for all results. */
+    threshold?: number;
+  }) {
     const queryEmbedding = await createEmbedding(query);
 
-    const results = await this.db!.query(
-      `
+    const sql = `
     SELECT df.id, df.attribute, df.value, d.title, d.url,
            1 - (df.content_vector <=> $1) AS cosine_similarity
     FROM document_fragment df
     JOIN document d ON df.entity_id = d.id
+    WHERE 1 - (df.content_vector <=> $1) > $3
     ORDER BY df.content_vector <=> $1
     LIMIT $2
-  `,
-      [JSON.stringify(queryEmbedding), limit]
-    );
+    `;
+
+    const params = [JSON.stringify(queryEmbedding), limit, threshold];
+
+    const results = await this.db!.query(sql, params);
 
     return results.rows;
   }
@@ -371,12 +382,19 @@ export class PgLiteBackend implements Backend {
         })
     );
 
-    console.debug("upsertFragments :: triples", triples);
+    const logLimit = 5;
+    console.debug(
+      `upsertFragments :: triples :: ${triples.length} (${triples.length - logLimit} omitted)`,
+      triples.slice(0, logLimit)
+    );
     await this.db!.transaction(async (tx) => {
       for (const param of triples) {
         await tx.query(sql, param);
       }
     });
+
+    // Automatically handle embeddings
+    this.createAllEmbeddings();
   }
 
   private async touchDocument(document: Partial<ArticleRow> & { id: number }) {
