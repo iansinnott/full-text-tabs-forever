@@ -4,6 +4,8 @@ import { PGlite } from "./pglite/HAX_pglite";
 import { vector } from "@electric-sql/pglite/vector";
 // @ts-expect-error Types are wrong
 import { pg_trgm } from "@electric-sql/pglite/contrib/pg_trgm";
+// @ts-expect-error Types are wrong
+import { btree_gin } from "@electric-sql/pglite/contrib/btree_gin";
 
 import { formatDebuggablePayload, getArticleFragments, shasum } from "../common/utils";
 import { ArticleRow, Backend, DetailRow, ResultRow } from "./backend";
@@ -110,7 +112,7 @@ export class PgLiteBackend implements Backend {
     try {
       this.db = await PGlite.create({
         dataDir: dbNameHistory.at(-1),
-        extensions: { vector, pg_trgm },
+        extensions: { vector, pg_trgm, btree_gin },
         relaxedDurability: true,
       });
       await this.db.exec(schemaSql);
