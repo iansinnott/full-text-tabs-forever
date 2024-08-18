@@ -33,13 +33,47 @@ export const shasum = async (text: string) => {
   return hashHex;
 };
 
+/**
+ * Break down a large text document into smaller fragments, considering markdown
+ * structure.
+ */
 export const getArticleFragments = (textContent: string): string[] => {
-  return (
-    textContent
-      ?.trim()
-      ?.split(/\n+/)
-      ?.map((x) => x.replace(/\s+/g, " ").trim()) || []
-  );
+  const minFragmentLength = 100;
+  const lines = textContent.trim().split("\n");
+  const fragments: string[] = [];
+  let currentFragment = "";
+
+  for (const line of lines) {
+    const trimmedLine = line.trim();
+
+    if (trimmedLine === "") {
+      if (currentFragment.length >= minFragmentLength) {
+        fragments.push(currentFragment.trim());
+        currentFragment = "";
+      }
+      continue;
+    }
+
+    if (trimmedLine.startsWith("#")) {
+      if (currentFragment) {
+        fragments.push(currentFragment.trim());
+      }
+      currentFragment = trimmedLine;
+    } else {
+      currentFragment += (currentFragment ? " " : "") + trimmedLine;
+    }
+
+    if (currentFragment.length >= minFragmentLength * 2) {
+      fragments.push(currentFragment.trim());
+      currentFragment = "";
+    }
+  }
+
+  if (currentFragment) {
+    fragments.push(currentFragment.trim());
+  }
+
+  return fragments.filter((fragment) => fragment.length > 0);
 };
 
 export const debounce = <T extends (...args: any[]) => any>(fn: T, delay: number) => {

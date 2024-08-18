@@ -64,7 +64,7 @@ FOR EACH ROW EXECUTE FUNCTION update_document_fragment_fts();
 -- Index for full-text search
 CREATE INDEX IF NOT EXISTS idx_document_fragment_search_vector ON document_fragment USING GIN(search_vector);
 
--- Index for trigram similarity search. Disabled for now
+-- Index for trigram similarity search, i.e. postgres trigram
 CREATE INDEX IF NOT EXISTS trgm_idx_document_fragment_value ON document_fragment USING GIN(value gin_trgm_ops);
 `;
 
