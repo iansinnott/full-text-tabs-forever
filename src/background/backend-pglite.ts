@@ -194,7 +194,7 @@ export class PgLiteBackend implements Backend {
   ) => {
     const { tab } = sender;
 
-    const u = new URL(tab?.url || "");
+    const u = normalizeUrl(tab?.url || "");
     const document: Partial<ArticleRow> = {
       ...payload,
       md_content,
