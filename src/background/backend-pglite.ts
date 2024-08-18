@@ -93,7 +93,7 @@ export class PgLiteBackend implements Backend {
   private jobQueue: JobQueue;
 
   constructor() {
-    this.jobQueue = new JobQueue(this);
+    this.jobQueue = new JobQueue(this, 100);
     const startTime = performance.now();
     this.init()
       .then(async () => {
@@ -265,7 +265,7 @@ export class PgLiteBackend implements Backend {
     ORDER BY df.content_vector <=> $1
     LIMIT $2
   `,
-      [queryEmbedding, limit]
+      [JSON.stringify(queryEmbedding), limit]
     );
 
     return results.rows;
@@ -518,6 +518,20 @@ export class PgLiteBackend implements Backend {
 
   async processJobQueue() {
     await this.jobQueue.processPendingTasks();
+  }
+
+  async createAllEmbeddings() {
+    const fragments = (
+      await this.db!.query<{ id: number }>(
+        `SELECT id FROM document_fragment where content_vector is null;`
+      )
+    ).rows;
+
+    for (const fragment of fragments) {
+      await this.jobQueue.enqueue("generate_vector", { fragment_id: fragment.id });
+    }
+
+    this.processJobQueue();
   }
 
   async exportJson() {
