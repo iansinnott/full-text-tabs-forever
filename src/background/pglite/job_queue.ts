@@ -2,8 +2,13 @@ import type { PgLiteBackend } from "../backend-pglite";
 import type { TaskDefinition } from "./tasks";
 import * as tasks from "./tasks";
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export class JobQueue {
-  constructor(private backend: PgLiteBackend) {}
+  constructor(
+    private backend: PgLiteBackend,
+    private taskInterval: number = 1000
+  ) {}
 
   async initialize() {
     await this.backend.db!.query(`
@@ -18,6 +23,14 @@ export class JobQueue {
   }
 
   async enqueue(taskType: keyof typeof tasks, params: object = {}): Promise<number> {
+    const task = tasks[taskType as keyof typeof tasks];
+    if (!task) {
+      throw new Error(`Task type ${taskType} not implemented`);
+    }
+
+    // Make sure params are valid before adding to queue
+    task.params?.parse(params);
+
     const result = await this.backend.db!.query<{ id: number }>(
       `
       INSERT INTO task (task_type, params)
@@ -29,9 +42,6 @@ export class JobQueue {
     );
 
     const taskId = result.rows[0]?.id;
-
-    // Trigger processing after enqueueing
-    this.processQueue();
 
     return taskId;
   }
@@ -68,7 +78,16 @@ export class JobQueue {
         }
 
         const task = tasks[task_type as keyof typeof tasks] as TaskDefinition;
-        await task.handler(tx, task.params?.parse(params));
+        const start = performance.now();
+        try {
+          await task.handler(tx, task.params?.parse(params));
+        } catch (error) {
+          throw error;
+        } finally {
+          console.log(
+            `task :: ${performance.now() - start}ms :: ${task_type} :: ${JSON.stringify(params)}`
+          );
+        }
       });
     } catch (error) {
       console.error(`task :: error`, error);
@@ -76,12 +95,16 @@ export class JobQueue {
   }
 
   async processPendingTasks() {
-    const pendingTasks = await this.backend.db!.query<{ count: number }>(`
-      SELECT COUNT(*) as count FROM task
+    const getCount = async () => {
+      const pendingTasks = await this.backend.db!.query<{ count: number }>(`
+        SELECT COUNT(*) as count FROM task
     `);
+      return pendingTasks.rows[0].count;
+    };
 
-    if (pendingTasks.rows[0].count > 0) {
+    while ((await getCount()) > 0) {
       await this.processQueue();
+      await sleep(this.taskInterval);
     }
   }
 }
