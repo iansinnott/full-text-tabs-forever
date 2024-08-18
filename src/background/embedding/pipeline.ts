@@ -48,15 +48,20 @@ class PipelineSingleton {
   }
 }
 
-// Create generic classify function, which will be reused for the different types of events.
-export const createEmbedding = async (text: string) => {
+export const createTensor = async (text: string) => {
   // Get the pipeline instance. This will load and build the model when run for the first time.
   let model = await PipelineSingleton.getInstance((data) => {
     console.log("progress ::", data);
   });
 
   // Actually run the model on the input text
-  let result = await model(text, { pooling: "mean", normalize: true });
+  let tensor = await model(text, { pooling: "mean", normalize: true });
 
-  return result;
+  return tensor;
+};
+
+// Create generic classify function, which will be reused for the different types of events.
+export const createEmbedding = async (text: string) => {
+  const tensor = await createTensor(text);
+  return tensor.tolist()?.[0] as number[];
 };
