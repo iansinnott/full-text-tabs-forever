@@ -53,7 +53,8 @@
     display: block;
     width: 100%;
     max-height: 100%;
+    min-height: 200px;
     border: 1px solid #34333e;
-    @apply rounded-lg;
+    @apply rounded-lg overflow-hidden;
   }
 </style>
