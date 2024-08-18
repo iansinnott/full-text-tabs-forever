@@ -7,7 +7,7 @@ import { pg_trgm } from "@electric-sql/pglite/contrib/pg_trgm";
 // @ts-expect-error Types are wrong
 import { btree_gin } from "@electric-sql/pglite/contrib/btree_gin";
 
-import { formatDebuggablePayload, getArticleFragments, shasum } from "../common/utils";
+import { formatDebuggablePayload, getArticleFragments } from "../common/utils";
 import { ArticleRow, Backend, DetailRow, ResultRow } from "./backend";
 import browser from "webextension-polyfill";
 import { createEmbedding } from "./embedding/pipeline";
@@ -194,20 +194,10 @@ export class PgLiteBackend implements Backend {
   ) => {
     const { tab } = sender;
 
-    let mdContentHash: string | undefined = undefined;
-    if (md_content) {
-      try {
-        mdContentHash = await shasum(md_content);
-      } catch (err) {
-        console.warn("shasum failed", err);
-      }
-    }
-
     const u = new URL(tab?.url || "");
     const document: Partial<ArticleRow> = {
       ...payload,
       md_content,
-      md_content_hash: mdContentHash,
       publication_date: date ? new Date(date).getTime() : undefined,
       url: u.href,
       hostname: u.hostname,
@@ -243,7 +233,7 @@ export class PgLiteBackend implements Backend {
 
     return {
       ok: true,
-      message: `indexed doc:${mdContentHash}, url:${u.href}`,
+      message: `indexed url:${u.href}`,
     };
   };
 
@@ -431,15 +421,14 @@ export class PgLiteBackend implements Backend {
         SET updated_at = $1,
             excerpt = $2,
             md_content = $3,
-            md_content_hash = $4,
-            last_visit = $5,
-            last_visit_date = $6
-        WHERE id = $7`,
+            md_content_hash = MD5($3),
+            last_visit = $4,
+            last_visit_date = $5
+        WHERE id = $6`,
         [
           Date.now(),
           document.excerpt,
           document.md_content,
-          document.md_content_hash,
           document.last_visit,
           document.last_visit_date,
           existingDoc.id,
@@ -448,19 +437,18 @@ export class PgLiteBackend implements Backend {
       return;
     }
 
-    const result = await this.db!.query<{ id: number }>(
+    await this.db!.query<{ id: number }>(
       `INSERT INTO document (
         title, url, excerpt, md_content, md_content_hash, publication_date,
         hostname, last_visit, last_visit_date, extractor, updated_at, created_at
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
+        $1, $2, $3, $4, MD5($4), $5, $6, $7, $8, $9, $10, $11
       ) RETURNING id`,
       [
         document.title,
         document.url,
         document.excerpt,
         document.md_content,
-        document.md_content_hash,
         document.publication_date,
         document.hostname,
         document.last_visit,
