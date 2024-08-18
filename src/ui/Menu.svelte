@@ -1,9 +1,9 @@
 <script lang="ts">
   import classNames from "classnames";
   import { fly } from "svelte/transition";
-  import { each } from "svelte/internal";
   import { rpc } from "./lib/rpc";
   import { displaySettings } from "./store/displaySettings";
+  import { url } from "@roxi/routify";
   let _class: string = "";
   export { _class as class };
   export let open: boolean = false;
@@ -13,6 +13,14 @@
   let fileInput: HTMLInputElement;
 
   const commands = [
+    {
+      name: "Page: Database REPL",
+      exec: async () => {
+        const newHash = $url("/index.html/database-repl");
+        window.location.hash = newHash;
+        return false;
+      },
+    },
     {
       name: "DB: Import...",
       exec: async () => {
