@@ -5,7 +5,9 @@
   "main": "index.js",
   "scripts": {
     "//dev": "vite build -w was failing. something about the chrome extension vite plugin and the manifest. re-saving the manifest makes -w work, but that defeats the purpose of automated watch",
-    "dev": "TARGET=chrome concurrently 'pnpm run build:1 --watch' 'pnpm run build:2 --watch'",
+    "dev:routify": "routify run --routify-dir src/ui/.routify --pages src/ui/pages",
+    "dev:chrome": "TARGET=chrome concurrently 'pnpm run build:1 --watch' 'pnpm run build:2 --watch'",
+    "dev": "pnpm run /^dev:/",
     "//build": "it's ultimately chrome's fault that we need a separate build for content-script. Unlike the service worker you cannot specify type:module, so... the script can't have imports.",
     "build": "pnpm run /^build:[1-9]/",
     "build:1": "vite build -c vite.config.content-script.ts",
@@ -25,6 +27,7 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@roxi/routify": "2.18.17",
     "@tailwindcss/forms": "^0.5.3",
     "@tailwindcss/line-clamp": "^0.4.2",
     "@tailwindcss/typography": "^0.5.9",

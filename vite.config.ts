@@ -43,6 +43,11 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ["@sqlite.org/sqlite-wasm", "@vlcn.io/crsqlite-wasm"],
   },
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+    },
+  },
   plugins: [
     vitePluginTopLevelAwait(),
     svelte({
