@@ -50,6 +50,7 @@
   },
   "dependencies": {
     "@electric-sql/pglite": "0.2.2",
+    "@electric-sql/pglite-repl": "0.2.2",
     "@mozilla/readability": "~0.4.2",
     "@sveltejs/vite-plugin-svelte": "~3.0.1",
     "@types/turndown": "~5.0.1",

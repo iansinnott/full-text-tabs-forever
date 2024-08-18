@@ -12,6 +12,7 @@ import { ArticleRow, Backend, DetailRow, ResultRow } from "./backend";
 import browser from "webextension-polyfill";
 import { createEmbedding } from "./embedding/pipeline";
 import { JobQueue } from "./pglite/job_queue";
+import type { QueryOptions } from "@electric-sql/pglite";
 
 const schemaSql = `
 -- make sure pgvector is enabled
@@ -477,10 +478,37 @@ export class PgLiteBackend implements Backend {
   }
 
   /**
-   * Query the db via RPC, initially created for debugging
+   * Query the db via RPC, initially created for debugging, but now also used by
+   * the database REPL.
    */
-  async query({ sql, params }: { sql: string; params: any[] }) {
-    return this.db!.query(sql, params);
+  async [`pg.query`]({
+    sql,
+    params,
+    options,
+  }: {
+    sql: string;
+    params: any[];
+    options?: QueryOptions;
+  }) {
+    try {
+      return await this.db!.query(sql, params, options);
+    } catch (error) {
+      console.error("Error executing query:", error);
+      return { error: error instanceof Error ? error.message : String(error) };
+    }
+  }
+
+  /**
+   * Execute a SQL statement via RPC, initially created for debugging, but now
+   * also used by the database REPL.
+   */
+  async [`pg.exec`]({ sql, options }: { sql: string; options?: QueryOptions }) {
+    try {
+      return await this.db!.exec(sql, options);
+    } catch (error) {
+      console.error("Error executing SQL statement:", error);
+      return { error: error instanceof Error ? error.message : String(error) };
+    }
   }
 
   // Expose to rpc

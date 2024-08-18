@@ -37,7 +37,7 @@ class BackendAdapter {
             sendResponse(ret);
           })
           .catch((err) => {
-            console.error("Could not send response", err);
+            console.error(`backend :: err :: ${method}`);
             sendResponse({ error: err.message });
           });
       } else {
