@@ -4,7 +4,6 @@
   import { PGlite } from "@electric-sql/pglite";
   import { rpc } from "@/ui/lib/rpc";
 
-  let pg: PGlite;
   let replElement: HTMLElement & { pg: PGlite };
 
   class PGliteServiceWorkerProxy implements Pick<PGlite, "query" | "exec" | "waitReady"> {
