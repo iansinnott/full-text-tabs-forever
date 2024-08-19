@@ -8,3 +8,5 @@ vite.config.ts.timestamp-*
 
 
 .env*
+src/ui/.routify/config.js
+src/ui/.routify/routes.js
