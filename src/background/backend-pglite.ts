@@ -14,6 +14,7 @@ import { createEmbedding } from "./embedding/pipeline";
 import { JobQueue } from "./pglite/job_queue";
 import type { QueryOptions } from "@electric-sql/pglite";
 import { defaultBlacklistRules } from "./pglite/defaultBlacklistRules";
+import { z } from "zod";
 
 const schemaSql = `
 -- make sure pgvector is enabled
@@ -678,11 +679,25 @@ export class PgLiteBackend implements Backend {
     return result.rows[0] || null;
   }
 
-  async addBlacklistRule(pattern: string, level: "no_index" | "url_only"): Promise<void> {
-    await this.db!.query(`INSERT INTO blacklist_rule (pattern, level) VALUES ($1, $2)`, [
-      pattern,
-      level,
-    ]);
+  async addBlacklistRule(payload: {
+    pattern: string;
+    level: "no_index" | "url_only";
+  }): Promise<number> {
+    const { pattern, level } = z
+      .object({
+        pattern: z.string(),
+        level: z.enum(["no_index", "url_only"]),
+      })
+      .parse(payload);
+
+    console.debug("addBlacklistRule :: pattern", pattern, level);
+
+    const result = await this.db!.query<{ id: number }>(
+      `INSERT INTO blacklist_rule (pattern, level) VALUES ($1, $2) RETURNING id`,
+      [pattern, level]
+    );
+
+    return result.rows[0].id;
   }
 
   async removeBlacklistRule(id: number): Promise<void> {
