@@ -12,7 +12,7 @@ import { ArticleRow, Backend, DetailRow, ResultRow } from "./backend";
 import browser from "webextension-polyfill";
 import { createEmbedding } from "./embedding/pipeline";
 import { JobQueue } from "./pglite/job_queue";
-import type { QueryOptions } from "@electric-sql/pglite";
+import { type QueryOptions, Transaction } from "@electric-sql/pglite";
 import { defaultBlacklistRules } from "./pglite/defaultBlacklistRules";
 import { z } from "zod";
 
@@ -263,12 +263,13 @@ export class PgLiteBackend implements Backend {
         `indexed doc:${inserted.id}, url:${u.href}`
       );
 
-      await this.upsertFragments(inserted.id, {
-        title: document.title,
-        url: u.href,
-        excerpt: document.excerpt,
-        text_content,
-      });
+      // Enqueue downstream tasks
+      await this.jobQueue.enqueue("generate_fragments", { document_id: inserted.id });
+      await this.createAllEmbeddings();
+
+      // Fire up the queue processor. Generally this will be pretty quick, but
+      // if you just imported a database it will take a while
+      this.processJobQueue();
     }
 
     return {
@@ -393,14 +394,16 @@ export class PgLiteBackend implements Backend {
     return results.rows;
   }
 
-  private async upsertFragments(
+  // @todo move this logic fully into the queue so we don't need to pass a reference to this service
+  async upsertFragments(
     entityId: number,
     document: Partial<{
       url: string;
       title: string;
       excerpt: string;
       text_content: string;
-    }>
+    }>,
+    dbInterface: PGlite | Transaction = this.db!
   ) {
     const fragments = getArticleFragments(document.text_content || "");
 
@@ -431,14 +434,18 @@ export class PgLiteBackend implements Backend {
       `upsertFragments :: triples :: ${triples.length} (${triples.length - logLimit} omitted)`,
       triples.slice(0, logLimit)
     );
-    await this.db!.transaction(async (tx) => {
-      for (const param of triples) {
-        await tx.query(sql, param);
-      }
-    });
 
-    // Automatically handle embeddings
-    this.createAllEmbeddings();
+    if ("transaction" in dbInterface) {
+      await dbInterface.transaction(async (tx) => {
+        for (const param of triples) {
+          await tx.query(sql, param);
+        }
+      });
+    } else {
+      for (const param of triples) {
+        await dbInterface.query(sql, param);
+      }
+    }
   }
 
   private async touchDocument(document: Partial<ArticleRow> & { id: number }) {
@@ -590,8 +597,6 @@ export class PgLiteBackend implements Backend {
     for (const fragment of fragments) {
       await this.jobQueue.enqueue("generate_vector", { fragment_id: fragment.id });
     }
-
-    this.processJobQueue();
   }
 
   async exportJson() {
@@ -713,5 +718,64 @@ export class PgLiteBackend implements Backend {
       level: "no_index" | "url_only";
     }>(`SELECT id, pattern, level FROM blacklist_rule ORDER BY created_at DESC`);
     return result.rows;
+  }
+
+  async importDocuments(payload: { document: any[][] }) {
+    console.log("importDocuments :: documents", payload.document.length);
+
+    const documentColumns = [
+      "id",
+      "title",
+      "url",
+      "excerpt",
+      "md_content",
+      "md_content_hash",
+      "publication_date",
+      "hostname",
+      "last_visit",
+      "last_visit_date",
+      "extractor",
+      "created_at",
+      "updated_at",
+    ];
+
+    await this.db!.transaction(async (tx) => {
+      for (const row of payload.document) {
+        const document = Object.fromEntries(documentColumns.map((col, i) => [col, row[i]]));
+
+        const result = await tx.query<{ id: number }>(
+          `INSERT INTO document (
+            title, url, excerpt, md_content, md_content_hash, publication_date,
+            hostname, last_visit, last_visit_date, extractor, created_at, updated_at
+          ) VALUES (
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
+          ) ON CONFLICT (url) DO NOTHING
+          RETURNING id;`,
+          [
+            document.title,
+            document.url,
+            document.excerpt,
+            document.md_content,
+            document.md_content_hash,
+            document.publication_date,
+            document.hostname,
+            document.last_visit,
+            document.last_visit_date,
+            document.extractor,
+            document.created_at,
+            document.updated_at,
+          ]
+        );
+
+        if (result.rows.length > 0) {
+          await this.jobQueue.enqueue("generate_fragments", { document_id: result.rows[0].id });
+        }
+      }
+    });
+
+    console.log("importDocuments :: complete");
+
+    // Create the embeddings tasks but do not yet run the queue
+    await this.createAllEmbeddings();
   }
 }

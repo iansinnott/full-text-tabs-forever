@@ -86,8 +86,8 @@ export type DBDump = Record<string, any[][]>;
 
 export interface Backend {
   getStatus(): Promise<{ ok: true } | { ok: false; error: string; detail?: any }>;
-  getPageStatus: RemoteProcWithSender;
-  indexPage: RemoteProcWithSender<Article>;
+  getPageStatus: (_: any, sender: { tab: { url: string } }) => Promise<any>;
+  indexPage: (payload: Article, sender: { tab: { url: string } }) => Promise<any>;
   nothingToIndex: RemoteProcWithSender;
   search: RemoteProc<
     {

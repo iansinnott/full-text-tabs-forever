@@ -48,8 +48,10 @@ export class JobQueue {
     return taskId;
   }
 
+  /**
+   * Process a single task from the queue
+   */
   private async processQueue() {
-    // Process a single task
     try {
       await this.backend.db!.transaction(async (tx) => {
         const result = await tx.query<{
@@ -61,7 +63,12 @@ export class JobQueue {
           WHERE id IN (
             SELECT id
             FROM task
-            ORDER BY random()
+            ORDER BY
+              CASE
+                WHEN task_type = 'generate_fragments' THEN 0
+                ELSE random()
+              END,
+              created_at
             LIMIT 1
           )
           RETURNING id, task_type, params::jsonb
@@ -82,7 +89,7 @@ export class JobQueue {
         const task = tasks[task_type as keyof typeof tasks] as TaskDefinition;
         const start = performance.now();
         try {
-          await task.handler(tx, task.params?.parse(params));
+          await task.handler(tx, task.params?.parse(params), this.backend);
         } catch (error) {
           throw error;
         } finally {
