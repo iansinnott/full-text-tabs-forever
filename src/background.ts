@@ -38,6 +38,7 @@ class BackendAdapter {
           })
           .catch((err) => {
             console.error(`backend :: err :: ${method}`);
+            console.error(err);
             sendResponse({ error: err.message, stack: err.stack });
           });
       } else {
