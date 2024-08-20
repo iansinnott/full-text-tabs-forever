@@ -1,3 +1,4 @@
+import type { PGlite, Transaction } from "@electric-sql/pglite";
 import type { PgLiteBackend } from "../backend-pglite";
 import type { TaskDefinition } from "./tasks";
 import * as tasks from "./tasks";
@@ -6,6 +7,9 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export class JobQueue {
   private isProcessing: boolean = false;
+
+  /** for manually stopping the queue */
+  private shouldStop: boolean = false;
 
   constructor(
     private backend: PgLiteBackend,
@@ -24,8 +28,13 @@ export class JobQueue {
     `);
   }
 
-  async enqueue(taskType: keyof typeof tasks, params: object = {}): Promise<number> {
+  async enqueue(
+    taskType: keyof typeof tasks,
+    params: object = {},
+    tx: Transaction | PGlite = this.backend.db!
+  ): Promise<number> {
     const task = tasks[taskType as keyof typeof tasks];
+
     if (!task) {
       throw new Error(`Task type ${taskType} not implemented`);
     }
@@ -33,7 +42,7 @@ export class JobQueue {
     // Make sure params are valid before adding to queue
     task.params?.parse(params);
 
-    const result = await this.backend.db!.query<{ id: number }>(
+    const result = await tx.query<{ id: number }>(
       `
       INSERT INTO task (task_type, params)
       VALUES ($1, $2::jsonb)
@@ -50,6 +59,16 @@ export class JobQueue {
 
   /**
    * Process a single task from the queue
+   *
+   * NOTE: a few things about this queue strategy:
+   * - no select for update since there's only one writer, however maybe we should add it anyway
+   * - priority queue based on logic in the ORDER BY clause. add cases as needed
+   * - random order if no priority is set
+   *
+   * @todo Error handling. Currently a failure does not remove the task from the
+   * queue or modify it, so it will be run again next time. The order is
+   * randomized so it probably won't block, but it's not exactly handled. It just
+   * sits there, indefiniedly, potentially blocking queue runs.
    */
   private async processQueue() {
     try {
@@ -89,7 +108,7 @@ export class JobQueue {
         const task = tasks[task_type as keyof typeof tasks] as TaskDefinition;
         const start = performance.now();
         try {
-          await task.handler(tx, task.params?.parse(params), this.backend);
+          await task.handler(tx, task.params?.parse(params));
         } catch (error) {
           throw error;
         } finally {
@@ -109,6 +128,7 @@ export class JobQueue {
     }
 
     this.isProcessing = true;
+    this.shouldStop = false;
 
     const getCount = async () => {
       const pendingTasks = await this.backend.db!.query<{ count: number }>(`
@@ -118,12 +138,16 @@ export class JobQueue {
     };
 
     try {
-      while ((await getCount()) > 0) {
+      while ((await getCount()) > 0 && !this.shouldStop) {
         await this.processQueue();
         await sleep(this.taskInterval);
       }
     } finally {
       this.isProcessing = false;
     }
+  }
+
+  stop() {
+    this.shouldStop = true;
   }
 }
