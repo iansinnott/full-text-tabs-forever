@@ -52,6 +52,23 @@ class BackendAdapter {
 
     return waitForResponse; // Keep channel open for async response. Yikes
   }
+
+  // Created for debugging workflow
+  async openIndexPage() {
+    const [existingTab] = await chrome.tabs.query({
+      url: chrome.runtime.getURL("index.html"),
+    });
+
+    if (existingTab) {
+      await chrome.tabs.update(existingTab.id!, {
+        active: true,
+      });
+    } else {
+      await chrome.tabs.create({
+        url: chrome.runtime.getURL("index.html"),
+      });
+    }
+  }
 }
 
 // Although there were initially multiple adapters there is no mainly one.
@@ -95,17 +112,5 @@ chrome.tabs.onUpdated.addListener((...args) => updateHandler(...args));
 
 // When the extension button is clicked, log a message
 chrome.action.onClicked.addListener(async () => {
-  const [existingTab] = await chrome.tabs.query({
-    url: chrome.runtime.getURL("index.html"),
-  });
-
-  if (existingTab) {
-    await chrome.tabs.update(existingTab.id!, {
-      active: true,
-    });
-  } else {
-    await chrome.tabs.create({
-      url: chrome.runtime.getURL("index.html"),
-    });
-  }
+  await adapter.openIndexPage();
 });
