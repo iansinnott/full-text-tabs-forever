@@ -67,7 +67,8 @@ FOR EACH ROW EXECUTE FUNCTION update_document_fragment_fts();
 CREATE INDEX IF NOT EXISTS idx_document_fragment_search_vector ON document_fragment USING GIN(search_vector);
 
 -- Index for trigram similarity search, i.e. postgres trigram
-CREATE INDEX IF NOT EXISTS trgm_idx_document_fragment_value ON document_fragment USING GIN(value gin_trgm_ops);
+-- NOTE: Disabled for now. Takes up a significant amount of space and not yet proven useful for this project
+--CREATE INDEX IF NOT EXISTS trgm_idx_document_fragment_value ON document_fragment USING GIN(value gin_trgm_ops);
 
 CREATE TABLE IF NOT EXISTS blacklist_rule (
   id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
@@ -92,7 +93,14 @@ function prepareFtsQuery(query: string): string {
 const normalizeUrl = (urlOrString: string | URL): URL => {
   const url = new URL(urlOrString);
   url.hash = "";
-  const paramsToRemove = ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content"];
+  const paramsToRemove = [
+    // UTM stuff
+    "utm_source",
+    "utm_medium",
+    "utm_campaign",
+    "utm_term",
+    "utm_content",
+  ];
   paramsToRemove.forEach((param) => url.searchParams.delete(param));
   return url;
 };
@@ -265,7 +273,9 @@ export class PgLiteBackend implements Backend {
 
       // Enqueue downstream tasks
       await this.jobQueue.enqueue("generate_fragments", { document_id: inserted.id });
-      await this.createAllEmbeddings();
+
+      // For now we can handle embeddings manually if desired. Let's get the standard FTS working well first.
+      //await this.enqueueAllEmbeddings();
 
       // Fire up the queue processor. Generally this will be pretty quick, but
       // if you just imported a database it will take a while
@@ -392,60 +402,6 @@ export class PgLiteBackend implements Backend {
     const results = await this.db!.query(sql, [query, limit]);
 
     return results.rows;
-  }
-
-  // @todo move this logic fully into the queue so we don't need to pass a reference to this service
-  async upsertFragments(
-    entityId: number,
-    document: Partial<{
-      url: string;
-      title: string;
-      excerpt: string;
-      text_content: string;
-    }>,
-    dbInterface: PGlite | Transaction = this.db!
-  ) {
-    const fragments = getArticleFragments(document.text_content || "");
-
-    const sql = `
-      INSERT INTO document_fragment (
-        entity_id,
-        attribute,
-        value,
-        fragment_order
-      ) VALUES ($1, $2, $3, $4)
-      ON CONFLICT DO NOTHING;
-    `;
-
-    let triples: [e: number, a: string, v: string, o: number][] = [];
-    if (document.title) triples.push([entityId, "title", segment(document.title), 0]);
-    if (document.excerpt) triples.push([entityId, "excerpt", segment(document.excerpt), 0]);
-    if (document.url) triples.push([entityId, "url", document.url, 0]);
-    triples = triples.concat(
-      fragments
-        .filter((x) => x.trim())
-        .map((fragment, i) => {
-          return [entityId, "content", fragment, i];
-        })
-    );
-
-    const logLimit = 5;
-    console.debug(
-      `upsertFragments :: triples :: ${triples.length} (${triples.length - logLimit} omitted)`,
-      triples.slice(0, logLimit)
-    );
-
-    if ("transaction" in dbInterface) {
-      await dbInterface.transaction(async (tx) => {
-        for (const param of triples) {
-          await tx.query(sql, param);
-        }
-      });
-    } else {
-      for (const param of triples) {
-        await dbInterface.query(sql, param);
-      }
-    }
   }
 
   private async touchDocument(document: Partial<ArticleRow> & { id: number }) {
@@ -587,16 +543,38 @@ export class PgLiteBackend implements Backend {
     await this.jobQueue.processPendingTasks();
   }
 
-  async createAllEmbeddings() {
-    const fragments = (
-      await this.db!.query<{ id: number }>(
-        `SELECT id FROM document_fragment where content_vector is null;`
-      )
-    ).rows;
+  /**
+   * Enqueue all document fragments for embedding generation. Does NOT run the queue.
+   */
+  async enqueueAllEmbeddings() {
+    await this.db!.transaction(async (tx) => {
+      const fragments = (
+        await tx.query<{ id: number }>(
+          `SELECT id FROM document_fragment where content_vector is null;`
+        )
+      ).rows;
 
-    for (const fragment of fragments) {
-      await this.jobQueue.enqueue("generate_vector", { fragment_id: fragment.id });
-    }
+      for (const fragment of fragments) {
+        await this.jobQueue.enqueue("generate_vector", { fragment_id: fragment.id }, tx);
+      }
+    });
+  }
+
+  async enqueueAllFragments() {
+    await this.db!.transaction(async (tx) => {
+      const documents = (
+        await tx.query<{ id: number }>(
+          `SELECT d.id
+           FROM document d
+           LEFT JOIN document_fragment df ON d.id = df.entity_id
+           WHERE df.id IS NULL;`
+        )
+      ).rows;
+
+      for (const document of documents) {
+        await this.jobQueue.enqueue("generate_fragments", { document_id: document.id }, tx);
+      }
+    });
   }
 
   async exportJson() {
@@ -739,24 +717,27 @@ export class PgLiteBackend implements Backend {
       "updated_at",
     ];
 
+    let importedCount = 0;
+
     await this.db!.transaction(async (tx) => {
       for (const row of payload.document) {
         const document = Object.fromEntries(documentColumns.map((col, i) => [col, row[i]]));
+
+        const url = normalizeUrl(document.url);
 
         const result = await tx.query<{ id: number }>(
           `INSERT INTO document (
             title, url, excerpt, md_content, md_content_hash, publication_date,
             hostname, last_visit, last_visit_date, extractor, created_at, updated_at
           ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
+            $1, $2, $3, $4, MD5($4), $5, $6, $7, $8, $9, $10, $11
           ) ON CONFLICT (url) DO NOTHING
           RETURNING id;`,
           [
             document.title,
-            document.url,
+            url,
             document.excerpt,
             document.md_content,
-            document.md_content_hash,
             document.publication_date,
             document.hostname,
             document.last_visit,
@@ -768,14 +749,24 @@ export class PgLiteBackend implements Backend {
         );
 
         if (result.rows.length > 0) {
-          await this.jobQueue.enqueue("generate_fragments", { document_id: result.rows[0].id });
+          const documentId = result.rows[0].id;
+          console.log("importDocuments :: inserted", documentId);
+          importedCount++;
+          await this.jobQueue.enqueue("generate_fragments", { document_id: documentId }, tx);
+        } else {
+          console.log("importDocuments :: duplicate", url);
         }
       }
     });
 
-    console.log("importDocuments :: complete");
+    console.log("importDocuments :: complete", importedCount);
 
     // Create the embeddings tasks but do not yet run the queue
-    await this.createAllEmbeddings();
+    //await this.enqueueAllEmbeddings();
+
+    return {
+      imported: importedCount,
+      duplicates: payload.document.length - importedCount,
+    };
   }
 }
