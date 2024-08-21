@@ -723,7 +723,8 @@ export class PgLiteBackend implements Backend {
       for (const row of payload.document) {
         const document = Object.fromEntries(documentColumns.map((col, i) => [col, row[i]]));
 
-        const url = normalizeUrl(document.url);
+        // NOTE: We want a string here, not a URL object
+        const url = normalizeUrl(document.url).href;
 
         const result = await tx.query<{ id: number }>(
           `INSERT INTO document (
@@ -761,6 +762,9 @@ export class PgLiteBackend implements Backend {
     });
 
     console.log("importDocuments :: complete", importedCount);
+
+    // Trigger generating the fragments
+    this.processJobQueue();
 
     // Create the embeddings tasks but do not yet run the queue
     //await this.enqueueAllEmbeddings();
