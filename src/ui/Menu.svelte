@@ -3,6 +3,7 @@
   import { fly } from "svelte/transition";
   import { rpc } from "./lib/rpc";
   import { displaySettings } from "./store/displaySettings";
+  import { updateStats } from "./store/statsStore";
   import { url } from "@roxi/routify";
   import { routes } from "./.routify/routes";
   import { readFileAsText, pickFile } from "./lib/dom";
@@ -25,6 +26,7 @@
       const text = await readFileAsText(file);
       const { document } = JSON.parse(text);
       await rpc(["importDocumentsJSONv1", { document }]);
+      await updateStats();
       onClose();
     } catch (error) {
       console.error("Error importing file:", error);

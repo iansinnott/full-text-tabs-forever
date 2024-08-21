@@ -10,6 +10,7 @@
   import { MIN_QUERY_LENGTH } from "@/ui/lib/constants";
   import { displaySettings } from "@/ui/store/displaySettings";
   import { menuOpen } from "@/ui/store/menuState";
+  import { stats, updateStats } from "@/ui/store/statsStore";
 
   let q = "";
   let res: Awaited<ReturnType<typeof fttf.adapter.backend.search>> | null = null;
@@ -113,12 +114,6 @@
   let loading = true;
   let error: string | null = null;
   let errorDetail: any = null;
-  type Stats = {
-    Documents: string;
-    Fragments: string;
-    Size: string;
-  };
-  let stats: Stats | null = null;
 
   onMount(async () => {
     await tick();
@@ -143,19 +138,7 @@
       errorDetail = status.detail;
     } else {
       loading = false;
-      const _stats = (await rpc(["getStats"])) as {
-        document: { count: number };
-        document_fragment: { count: number };
-        db: { size_bytes: number };
-      };
-
-      console.log("[stats]", _stats);
-
-      stats = {
-        Documents: _stats.document.count.toLocaleString(),
-        Fragments: _stats.document_fragment.count.toLocaleString(),
-        Size: (_stats.db.size_bytes / 1024 / 1024).toFixed(2) + "MB",
-      };
+      await updateStats();
     }
   });
 
@@ -174,6 +157,12 @@
       (acc, x) => {
         const key = x.url;
         hitsByUrl[key] ??= new Set();
+
+        // This SHOULD NOT happen, but it was a bug at one point thus the guard
+        if (!URL.canParse(key)) {
+          console.warn("groupByUrl :: invalid URL ::", key);
+          return acc;
+        }
 
         acc[key] ??= {
           id: x.rowid,
@@ -241,9 +230,9 @@
     {#if res}
       Showing {results?.length} of {res.count}. Took
       <code>{Math.round(10 * res.perfMs) / 10}</code>ms.
-    {:else if stats && $displaySettings.showStats}
+    {:else if $stats && $displaySettings.showStats}
       <div class="inline-stats flex space-x-4" in:fly|local={{ y: -20, duration: 150 }}>
-        {#each Object.entries(stats) as [k, v]}
+        {#each Object.entries($stats) as [k, v]}
           <span><strong>{k}:</strong> {v}</span>
         {/each}
       </div>

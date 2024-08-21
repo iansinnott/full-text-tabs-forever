@@ -2,6 +2,7 @@
   import { readFileAsText, pickFile } from "@/ui/lib/dom";
   import { rpc } from "@/ui/lib/rpc";
   import { z } from "zod";
+  import { updateStats } from "@/ui/store/statsStore";
 
   let errorMessage = "";
 
@@ -30,6 +31,9 @@
       const documents = result.data.document;
       await rpc(["importDocumentsJSONv1", { document: documents }]);
       console.log("Imported:", documents.length, "documents");
+
+      // Update stats after successful import
+      await updateStats();
     } catch (error) {
       if (error instanceof Error && error.message === "No file selected") {
         // User cancelled file selection, do nothing
