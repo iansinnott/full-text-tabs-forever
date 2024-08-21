@@ -6,7 +6,7 @@
   import { updateStats } from "./store/statsStore";
   import { url } from "@roxi/routify";
   import { routes } from "./.routify/routes";
-  import { readFileAsText, pickFile } from "./lib/dom";
+  import { handleImport } from "./lib/commands";
   let _class: string = "";
   export { _class as class };
   export let open: boolean = false;
@@ -18,19 +18,6 @@
     index: "Search",
     "database-repl": "Database REPL",
     settings: "Settings",
-  };
-
-  const handleImport = async () => {
-    try {
-      const file = await pickFile(".json");
-      const text = await readFileAsText(file);
-      const { document } = JSON.parse(text);
-      await rpc(["importDocumentsJSONv1", { document }]);
-      await updateStats();
-      onClose();
-    } catch (error) {
-      console.error("Error importing file:", error);
-    }
   };
 
   const commands = [
@@ -46,7 +33,14 @@
       })),
     {
       name: "DB: Import...",
-      exec: handleImport,
+      exec: async () => {
+        const result = await handleImport();
+        if (result.success) {
+          onClose();
+          return true;
+        }
+        return false;
+      },
     },
     {
       name: "DB: Export...",
