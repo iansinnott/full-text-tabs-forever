@@ -1,6 +1,6 @@
 {
   "name": "full-text-tabs-forever",
-  "version": "1.2.2",
+  "version": "2.0.0",
   "description": "A web extension for searching the web using vector databases.",
   "main": "index.js",
   "scripts": {
