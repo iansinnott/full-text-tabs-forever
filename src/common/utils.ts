@@ -95,7 +95,7 @@ export const getArticleFragments = (textContent: string): string[] => {
 };
 
 export const debounce = <T extends (...args: any[]) => any>(fn: T, delay: number) => {
-  let timeout: NodeJS.Timeout;
+  let timeout: Timer;
   return (...args: Parameters<T>) => {
     clearTimeout(timeout);
     timeout = setTimeout(() => {

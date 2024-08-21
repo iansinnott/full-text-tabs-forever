@@ -66,8 +66,8 @@ const main = async () => {
   await new Promise((resolve) => {
     // Wait for dom to stop changing for at least 1 second
     let len = document.body?.innerText?.length || 0;
-    let timeout: NodeJS.Timeout;
-    let timeout2: NodeJS.Timeout;
+    let timeout: Timer;
+    let timeout2: Timer;
 
     const fn = () => {
       const newLen = document.body?.innerText?.length || 0;

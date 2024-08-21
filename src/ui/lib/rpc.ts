@@ -22,6 +22,9 @@ export const fttf: BrowserFTTF = {
   adapter: {
     onInstalled: async () => {},
     onMessage: () => true,
+    openIndexPage() {
+      return chrome.runtime.sendMessage(["openIndexPage"]);
+    },
     backend: {
       getStatus() {
         return chrome.runtime.sendMessage(["getStatus"]);
