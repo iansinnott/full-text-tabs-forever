@@ -1,4 +1,8 @@
 export const defaultBlacklistRules: Array<[string, "url_only" | "no_index"]> = [
+  ["https://%1password.com%", "no_index"],
+  ["https://%lastpass.com%", "no_index"],
+  ["https://%dashlane.com%", "no_index"],
+  ["https://%bitwarden.com%", "no_index"],
   ["https://www.google.com/search%", "url_only"],
   ["https://kagi.com/search%", "url_only"],
   ["https://www.bing.com/search%", "url_only"],
@@ -30,6 +34,7 @@ export const defaultBlacklistRules: Array<[string, "url_only" | "no_index"]> = [
   ["https://www.usbank.com%", "url_only"],
   ["https://www.pnc.com%", "url_only"],
   ["https://www.tdbank.com%", "url_only"],
+  ["https://app.mercury.com%", "url_only"],
   ["https://www.schwab.com%", "url_only"],
   ["https://www.fidelity.com%", "url_only"],
   ["https://www.vanguard.com%", "url_only"],
@@ -60,5 +65,6 @@ export const defaultBlacklistRules: Array<[string, "url_only" | "no_index"]> = [
   ["https://drive.google.com%", "url_only"],
   ["https://www.coinbase.com%", "url_only"],
   ["https://www.webmd.com", "url_only"],
-  ["https://app.mercury.com%", "url_only"],
+  ["https://%.local", "no_index"],
+  ["https://%.internal", "no_index"],
 ];
