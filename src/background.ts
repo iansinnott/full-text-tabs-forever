@@ -1,8 +1,6 @@
 // import browser, { omnibox, Runtime } from "webextension-polyfill";
 
 import type { Backend, SendResponse } from "./background/backend";
-import { DebugBackend } from "./background/backend-debug";
-import { VLCN } from "./background/backend-vlcn";
 import { PgLiteBackend } from "./background/backend-pglite";
 import { log } from "./common/logs";
 import { debounce } from "./common/utils";
@@ -73,8 +71,6 @@ class BackendAdapter {
 
 // Although there were initially multiple adapters there is no mainly one.
 const adapter = new BackendAdapter({
-  // backend: new DebugBackend(),
-  // backend: new VLCN(),
   backend: new PgLiteBackend(),
 });
 
@@ -98,7 +94,8 @@ if (adapter.onMessage) {
   chrome.runtime.onMessage.addListener((...args) => adapter.onMessage(...args));
 }
 
-// @note We do not support spas currently
+// @note We do not support spas currently. URL changes trigger here, but we do
+// not then instruct the frontend to send the full text.
 const updateHandler = debounce(
   async (tabId: number, changeInfo: chrome.tabs.TabChangeInfo, tab: chrome.tabs.Tab) => {
     console.debug("%ctab update", "color:gray;", "no action performed", tab.url);
