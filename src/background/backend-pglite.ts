@@ -151,15 +151,7 @@ export class PgLiteBackend implements Backend {
     );
 
     if (count.rows[0].count === 0) {
-      console.log("blaclist :: init");
-      await this.db!.transaction(async (tx) => {
-        for (const [pattern, level] of defaultBlacklistRules) {
-          await tx.query("INSERT INTO blacklist_rule (pattern, level) VALUES ($1, $2)", [
-            pattern,
-            level,
-          ]);
-        }
-      });
+      await this.addDefaultBlacklistRules();
     }
   }
 
@@ -662,6 +654,24 @@ export class PgLiteBackend implements Backend {
     return result.rows[0] || null;
   }
 
+  /**
+   * Will add (or re-add) the default blacklist rules.
+   */
+  async addDefaultBlacklistRules() {
+    console.log("blaclist :: init");
+    await this.db!.transaction(async (tx) => {
+      for (const [pattern, level] of defaultBlacklistRules) {
+        await tx.query(
+          "INSERT INTO blacklist_rule (pattern, level) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+          [pattern, level]
+        );
+      }
+    });
+  }
+
+  /**
+   * Add a blacklist rule. If the rule already exists, the level will be updated.
+   */
   async addBlacklistRule(payload: {
     pattern: string;
     level: "no_index" | "url_only";
@@ -676,15 +686,23 @@ export class PgLiteBackend implements Backend {
     console.debug("addBlacklistRule :: pattern", pattern, level);
 
     const result = await this.db!.query<{ id: number }>(
-      `INSERT INTO blacklist_rule (pattern, level) VALUES ($1, $2) RETURNING id`,
+      `INSERT INTO blacklist_rule (pattern, level) VALUES ($1, $2) 
+      ON CONFLICT (pattern) 
+      DO UPDATE 
+        SET level = $2 
+      RETURNING id`,
       [pattern, level]
     );
 
     return result.rows[0].id;
   }
 
-  async removeBlacklistRule(id: number): Promise<void> {
-    await this.db!.query(`DELETE FROM blacklist_rule WHERE id = $1`, [id]);
+  async removeBlacklistRule(id: number) {
+    const result = await this.db!.query<{ id: number }>(
+      `DELETE FROM blacklist_rule WHERE id = $1 RETURNING id`,
+      [id]
+    );
+    return result.rows[0]?.id;
   }
 
   async getBlacklistRules(): Promise<
@@ -698,8 +716,8 @@ export class PgLiteBackend implements Backend {
     return result.rows;
   }
 
-  async importDocuments(payload: { document: any[][] }) {
-    console.log("importDocuments :: documents", payload.document.length);
+  async importDocumentsJSONv1(payload: { document: any[][] }) {
+    console.log("importDocumentsJSONv1 :: documents", payload.document.length);
 
     const documentColumns = [
       "id",
