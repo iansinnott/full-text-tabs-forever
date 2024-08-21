@@ -3,10 +3,8 @@
   import { fly } from "svelte/transition";
   import { rpc } from "./lib/rpc";
   import { displaySettings } from "./store/displaySettings";
-  import { updateStats } from "./store/statsStore";
-  import { url } from "@roxi/routify";
   import { routes } from "./.routify/routes";
-  import { handleImport } from "./lib/commands";
+  import { handleImport, vacuumFull } from "./lib/commands";
   let _class: string = "";
   export { _class as class };
   export let open: boolean = false;
@@ -47,6 +45,14 @@
       exec: async () => {
         console.log("export");
         await rpc(["exportJson"]);
+        return true;
+      },
+    },
+    {
+      name: "DB: Vacuum",
+      exec: async () => {
+        const res = await vacuumFull();
+        console.log("vacuum", res);
         return true;
       },
     },

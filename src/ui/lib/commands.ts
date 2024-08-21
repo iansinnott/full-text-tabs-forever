@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { readFileAsText, pickFile } from "./dom";
 import { rpc } from "./rpc";
-import { updateStats } from "../store/statsStore";
+import { updateStats, stats } from "../store/statsStore";
+import { get } from "svelte/store";
 
 const dbImportSchema = z.object({
   document: z.array(z.any()),
@@ -35,4 +36,15 @@ export const handleImport = async (): Promise<{ success: boolean; message?: stri
     console.error("Error importing JSON:", error);
     return { success: false, message: "Error importing file. Please try again." };
   }
+};
+
+export const vacuumFull = async () => {
+  await updateStats();
+  let x = get(stats);
+  const before = x?.Size;
+  await rpc(["pg.exec", { sql: "VACUUM FULL" }]);
+  await updateStats();
+  x = get(stats);
+  const after = x?.Size;
+  return { before, after };
 };
