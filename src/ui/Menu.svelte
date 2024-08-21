@@ -5,18 +5,29 @@
   import { displaySettings } from "./store/displaySettings";
   import { url } from "@roxi/routify";
   import { routes } from "./.routify/routes";
+  import { readFileAsText, pickFile } from "./lib/dom";
   let _class: string = "";
   export { _class as class };
   export let open: boolean = false;
   export let onClose: () => void;
   let filterText = "";
   let currentIndex = 0;
-  let fileInput: HTMLInputElement;
 
   const routeLabels = {
     index: "Search",
     "database-repl": "Database REPL",
     settings: "Settings",
+  };
+
+  const handleImport = async () => {
+    try {
+      const file = await pickFile(".json");
+      const text = await readFileAsText(file);
+      await rpc(["importJson", JSON.parse(text)]);
+      onClose();
+    } catch (error) {
+      console.error("Error importing file:", error);
+    }
   };
 
   const commands = [
@@ -32,11 +43,7 @@
       })),
     {
       name: "DB: Import...",
-      exec: async () => {
-        console.log("import");
-        fileInput?.click();
-        return false;
-      },
+      exec: handleImport,
     },
     {
       name: "DB: Export...",
@@ -132,28 +139,6 @@
       on:input={() => (currentIndex = 0)}
       data-menu-input
       class="appearance-none w-full outline-none focus:ring-0 text-white text-lg bg-[#1d1d1d] rounded-t-lg px-3 py-3 border-none border-b border-zinc-600"
-    />
-    <input
-      class="hidden"
-      type="file"
-      bind:this={fileInput}
-      on:change={(e) => {
-        const file = e.currentTarget.files?.[0];
-        console.log("file", file);
-        if (file) {
-          const reader = new FileReader();
-          reader.onload = async () => {
-            const text = reader.result;
-            if (typeof text === "string") {
-              await rpc(["importJson", JSON.parse(text)]);
-              onClose();
-            } else {
-              console.error("invalid file", text);
-            }
-          };
-          reader.readAsText(file);
-        }
-      }}
     />
   </form>
   <div class="commands p-2 text-lg">
