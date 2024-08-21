@@ -23,7 +23,8 @@
     try {
       const file = await pickFile(".json");
       const text = await readFileAsText(file);
-      await rpc(["importJson", JSON.parse(text)]);
+      const { document } = JSON.parse(text);
+      await rpc(["importDocumentsJSONv1", { document }]);
       onClose();
     } catch (error) {
       console.error("Error importing file:", error);

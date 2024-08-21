@@ -107,5 +107,4 @@ export interface Backend {
   >;
   findOne(query: { where: { url: string } }): Promise<DetailRow | null>;
   exportJson?(): Promise<any>;
-  importJson?(data: DBDump): Promise<any>;
 }

@@ -585,36 +585,6 @@ export class PgLiteBackend implements Backend {
     });
   }
 
-  async importJson(json: Record<string, any[][]>) {
-    console.log("importJson :: documents", json.document.length);
-    console.log("importJson :: fragments", json.document_fragment.length);
-
-    await this.db!.transaction(async (tx) => {
-      for (const row of json.document) {
-        await tx.query(
-          `INSERT INTO document (${Object.keys(row).join(", ")})
-           VALUES (${Object.keys(row)
-             .map((_, i) => `$${i + 1}`)
-             .join(", ")})
-           ON CONFLICT (url) DO NOTHING;`,
-          Object.values(row)
-        );
-      }
-      for (const row of json.document_fragment) {
-        await tx.query(
-          `INSERT INTO document_fragment (${Object.keys(row).join(", ")})
-           VALUES (${Object.keys(row)
-             .map((_, i) => `$${i + 1}`)
-             .join(", ")})
-           ON CONFLICT (id) DO NOTHING;`,
-          Object.values(row)
-        );
-      }
-    });
-
-    console.log("importJson :: complete");
-  }
-
   private async createObjectURL(blob: Blob): Promise<string> {
     if (URL && typeof URL.createObjectURL === "function") {
       return URL.createObjectURL(blob);
@@ -772,7 +742,8 @@ export class PgLiteBackend implements Backend {
           importedCount++;
           await this.jobQueue.enqueue("generate_fragments", { document_id: documentId }, tx);
         } else {
-          console.log("importDocuments :: duplicate", url);
+          const u = url.toString();
+          console.log("importDocuments :: duplicate", u.length > 100 ? u.slice(0, 100) + "..." : u);
         }
       }
     });
