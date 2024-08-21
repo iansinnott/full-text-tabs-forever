@@ -80,7 +80,7 @@ export type RpcMessage =
   | [method: "importJson"]
   | [method: "reindex"]
   | [method: "search", payload: FirstArg<Backend["search"]>]
-  | [method: string, payload: any];
+  | [method: string, payload?: any];
 
 export type DBDump = Record<string, any[][]>;
 

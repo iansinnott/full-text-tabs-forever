@@ -597,6 +597,46 @@ export class PgLiteBackend implements Backend {
     });
   }
 
+  async [`pg.dumpDataDir`]() {
+    const blob = await this.db!.dumpDataDir("gzip");
+    const blobUrl = await this.createObjectURL(blob);
+
+    await browser.downloads.download({
+      url: blobUrl,
+      filename: `fttf-${Date.now()}-pglite.dump`,
+      saveAs: true,
+    });
+  }
+
+  async [`pg.loadDataDir`](base64: string) {
+    // Convert base64 to Blob
+    const blobData = atob(base64.split(",")[1]);
+    const arrayBuffer = new ArrayBuffer(blobData.length);
+    const uintArray = new Uint8Array(arrayBuffer);
+    for (let i = 0; i < blobData.length; i++) {
+      uintArray[i] = blobData.charCodeAt(i);
+    }
+    const blob = new Blob([arrayBuffer], { type: "application/x-gzip" });
+
+    console.log("pg.loadDataDir :: blob size", blob.size, "bytes");
+
+    const pg2 = await PGlite.create({
+      extensions: { vector, pg_trgm, btree_gin },
+      relaxedDurability: true,
+      loadDataDir: blob,
+    });
+
+    const documents = await pg2.query(`SELECT * FROM document;`, [], {
+      rowMode: "array",
+    });
+
+    console.log("pg.loadDataDir :: documents", documents.rows.length);
+
+    // This is a bit roundabout, but we only want the documents, not all the
+    // fragments as they are. at least not for now.
+    return await this.importDocumentsJSONv1({ document: documents.rows as any[][] });
+  }
+
   private async createObjectURL(blob: Blob): Promise<string> {
     if (URL && typeof URL.createObjectURL === "function") {
       return URL.createObjectURL(blob);

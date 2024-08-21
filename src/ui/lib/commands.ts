@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { readFileAsText, pickFile } from "./dom";
-import { rpc } from "./rpc";
+import { rpc, fttf } from "./rpc";
 import { updateStats, stats } from "../store/statsStore";
 import { get } from "svelte/store";
 
@@ -47,4 +47,16 @@ export const vacuumFull = async () => {
   x = get(stats);
   const after = x?.Size;
   return { before, after };
+};
+
+export const dumpDataDir = async () => {
+  return await rpc(["pg.dumpDataDir"]);
+};
+
+export const loadDataDir = async () => {
+  const file = await pickFile(".dump,.gz");
+  console.log("loadDataDir :: file.type", file.type);
+  await fttf.adapter.backend["pg.loadDataDir"](file);
+  await updateStats();
+  return { success: true };
 };
