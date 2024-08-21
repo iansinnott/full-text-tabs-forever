@@ -191,13 +191,13 @@ export class PgLiteBackend implements Backend {
       if (url.hostname === "localhost") indexLevel = "no_index";
       if (url.hostname.endsWith(".local")) indexLevel = "no_index";
 
-      // Check against blacklist rules
       const blacklistRule = await this.getMatchingBlacklistRule(url.href);
       if (blacklistRule) {
         indexLevel = blacklistRule.level === "no_index" ? "no_index" : "url_only";
       }
 
       const existing = await this.findOne({ where: { url: url.href } });
+
       if (existing) {
         await this.touchDocument({
           id: existing.id,
@@ -207,7 +207,20 @@ export class PgLiteBackend implements Backend {
         });
       }
 
-      shouldIndex = indexLevel !== "no_index" && (!existing || !existing.md_content);
+      /**
+       * - if indexLevel is no_index then don't index it
+       * - if indexLevel is url_only then do not index the full text, just the url, title, etc
+       * - if the page doesn't already exist, then index it
+       * - if the page exists but has no md_content, then index it
+       *   This is important, because it allows us to add URLs through some
+       *   means, say from existing browser history, and incrementally add the
+       *   full text as visits happen or through some bulk visiting of those URLs
+       *
+       * Future work: allow reindex logic, so that a URL will be reindexed on every visit (comment threads for example)
+       */
+      shouldIndex =
+        indexLevel !== "no_index" &&
+        (!existing || !existing.md_content || (indexLevel === "full" && !existing.md_content));
     } catch (err) {
       return {
         shouldIndex: false,
