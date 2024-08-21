@@ -570,11 +570,10 @@ export class PgLiteBackend implements Backend {
   }
 
   async exportJson() {
-    const data = {
-      document: (await this.db!.query(`SELECT * FROM document;`)).rows,
-      document_fragment: (await this.db!.query(`SELECT * FROM document_fragment;`)).rows,
-    };
-    const str = JSON.stringify(data);
+    const result = await this.db!.query(`SELECT * FROM document;`, [], {
+      rowMode: "array",
+    });
+    const str = JSON.stringify({ document: result.rows });
     const blob = new Blob([str], { type: "application/json" });
     const blobUrl = await this.createObjectURL(blob);
 
