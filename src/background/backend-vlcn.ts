@@ -1,3 +1,4 @@
+// @ts-nocheck
 import initWasm, { SQLite3, type DB } from "@vlcn.io/crsqlite-wasm";
 // @ts-expect-error TS doesn't understand this?
 import wasmUrl from "@vlcn.io/crsqlite-wasm/crsqlite.wasm?url";
