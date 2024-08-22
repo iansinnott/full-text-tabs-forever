@@ -520,6 +520,12 @@ export class VLCN implements Backend {
   // constantly have to null-check this
   private _db: DB;
 
+  // Create for use when migrating from vlcn to pglite
+  get db() {
+    return this._db;
+  }
+  readyPromise: Promise<void>;
+
   private _dbReady = false;
 
   // @todo How much more/less efficient would it be to run turndown in the
@@ -533,7 +539,7 @@ export class VLCN implements Backend {
   // });
 
   constructor() {
-    this.init()
+    this.readyPromise = this.init()
       .then(() => {
         console.debug("DB ready");
       })
