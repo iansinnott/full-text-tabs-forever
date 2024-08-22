@@ -1,7 +1,7 @@
 export const formatDebuggablePayload = (payload: { [key: string]: any }) => {
   const maxTrim = 600;
   const { title, text_content, siteName } = payload;
-  let trimmedBody = text_content
+  let trimmedBody = (text_content || "")
     .trim()
     .slice(0, maxTrim / 2)
     .trim();
