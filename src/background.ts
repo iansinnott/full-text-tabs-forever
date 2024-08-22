@@ -49,7 +49,7 @@ class BackendAdapter {
             sendResponse(ret);
           })
           .catch((err) => {
-            console.error(`backend :: err :: ${method}`);
+            console.error(`backend :: err :: ${method} ::`, payload);
             console.error(err);
             sendResponse({ error: err.message, stack: err.stack });
           });
