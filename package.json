@@ -54,8 +54,8 @@
     "vite-plugin-top-level-await": "1.4.4"
   },
   "dependencies": {
-    "@electric-sql/pglite": "0.2.2",
-    "@electric-sql/pglite-repl": "0.2.2",
+    "@electric-sql/pglite": "0.2.3",
+    "@electric-sql/pglite-repl": "0.2.3",
     "@mozilla/readability": "~0.4.2",
     "@sveltejs/vite-plugin-svelte": "~3.0.1",
     "@types/turndown": "~5.0.1",
