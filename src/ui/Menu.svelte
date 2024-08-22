@@ -12,6 +12,13 @@
   let filterText = "";
   let currentIndex = 0;
 
+  const toLabel = (name: string) => {
+    return name
+      .replace(/-/g, " ")
+      .replace(/([A-Z])/g, " $1")
+      .replace(/^./, (str) => str.toUpperCase());
+  };
+
   const routeLabels = {
     index: "Search",
     "database-repl": "Database REPL",
@@ -22,7 +29,7 @@
     ...routes
       .filter((route) => route.filepath !== "/index.svelte")
       .map((route) => ({
-        name: `Page: ${routeLabels[route.name] || route.name}`,
+        name: `Page: ${routeLabels[route.name] || toLabel(route.name)}`,
         exec: async () => {
           const newHash = "#" + route.path;
           window.location.hash = newHash;
