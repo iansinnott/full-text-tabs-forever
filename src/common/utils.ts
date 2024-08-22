@@ -6,8 +6,8 @@ export const formatDebuggablePayload = (payload: { [key: string]: any }) => {
     .slice(0, maxTrim / 2)
     .trim();
 
-  if (text_content.length > maxTrim / 2) {
-    trimmedBody += `\n\n... ${((text_content.length - maxTrim) / 1000).toFixed(
+  if (text_content?.length > maxTrim / 2) {
+    trimmedBody += `\n\n... ${(((text_content?.length || 0) - maxTrim) / 1000).toFixed(
       2
     )}kb trimmed ...\n\n`;
     trimmedBody += text_content
