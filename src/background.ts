@@ -1,12 +1,14 @@
 // import browser, { omnibox, Runtime } from "webextension-polyfill";
 
 import type { Backend, SendResponse } from "./background/backend";
+import { VLCN } from "./background/backend-vlcn";
 import { PgLiteBackend } from "./background/backend-pglite";
 import { log } from "./common/logs";
 import { debounce } from "./common/utils";
 
 class BackendAdapter {
   backend: Backend;
+  _vlcn: VLCN | null = null;
 
   constructor({ backend }: { backend: Backend }) {
     this.backend = backend;
@@ -17,6 +19,18 @@ class BackendAdapter {
   }
 
   onMessage(message: any, sender: chrome.runtime.MessageSender, sendResponse: SendResponse) {
+    // Special case for migrating from VLCN to PgLite
+    if (message[0] === "importVLCNDocuments") {
+      this.importVLCNDocuments()
+        .then(() => {
+          sendResponse({ ok: true });
+        })
+        .catch((err) => {
+          sendResponse({ error: err.message });
+        });
+      return true;
+    }
+
     let waitForResponse = false;
     try {
       const { tab } = sender;
@@ -65,6 +79,56 @@ class BackendAdapter {
       await chrome.tabs.create({
         url: chrome.runtime.getURL("index.html"),
       });
+    }
+  }
+
+  async importVLCNDocuments() {
+    if (!this._vlcn) {
+      this._vlcn = new VLCN();
+      await this._vlcn.readyPromise;
+    }
+
+    const count = await this._vlcn.sql<{
+      count: number;
+    }>`select count(*) as count from "document";`;
+
+    console.log("vlcnAdapter :: count", count);
+    if (count[0].count > 0) {
+      const docs = await this._vlcn?.db.execA<
+        {
+          id: number;
+          title: string | null;
+          url: string;
+          excerpt: string | null;
+          md_content: string | null;
+          md_content_hash: string | null;
+          publication_date: number | null;
+          hostname: string | null;
+          last_visit: number | null;
+          last_visit_date: string | null;
+          extractor: string | null;
+          created_at: number;
+          updated_at: number | null;
+        }[]
+      >(`SELECT 
+        id,
+        title,
+        url,
+        excerpt,
+        mdContent AS md_content,
+        mdContentHash AS md_content_hash,
+        publicationDate AS publication_date,
+        hostname,
+        lastVisit AS last_visit,
+        lastVisitDate AS last_visit_date,
+        extractor,
+        createdAt AS created_at,
+        updatedAt AS updated_at
+      FROM "document";`);
+      console.log("vlcnAdapter :: docs", docs.slice(0, 10));
+
+      // @ts-expect-error have not added this to the interface yet. not sure if i'll keep the API
+      return await this.backend.importDocumentsJSONv1({ document: docs });
     }
   }
 }
