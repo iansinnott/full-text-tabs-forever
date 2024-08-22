@@ -9,7 +9,7 @@ export type BrowserFTTF = FTTF & {
  * NOTE: when the backend wants to send an error the frontend will know about it
  * passes the error prop. We re-throw it to match async/await error expectations.
  */
-export const rpc = async (message: RpcMessage) => {
+export const rpc = async <T = any>(message: RpcMessage): Promise<T> => {
   const response = await chrome.runtime.sendMessage(message);
   if (response && response.error) {
     throw new Error(response.error);
