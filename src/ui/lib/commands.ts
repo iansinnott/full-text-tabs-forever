@@ -50,6 +50,19 @@ export const vacuumFull = async () => {
 };
 
 export const dumpDataDir = async () => {
+  const _stats = (await rpc(["getStats"])) as {
+    document: { count: number };
+    document_fragment: { count: number };
+    db: { size_bytes: number };
+  };
+
+  // For db > 100 MB, confirm first.
+  if (_stats.db.size_bytes > 100 * 1024 * 1024) {
+    if (!confirm("This may take a while, or even fail if you have a large database. Continue?")) {
+      return;
+    }
+  }
+
   return await rpc(["pg.dumpDataDir"]);
 };
 
@@ -59,4 +72,26 @@ export const loadDataDir = async () => {
   await fttf.adapter.backend["pg.loadDataDir"](file);
   await updateStats();
   return { success: true };
+};
+
+export const exportJson = async (): Promise<{ success: boolean; message?: string }> => {
+  try {
+    const _stats = (await rpc(["getStats"])) as {
+      document: { count: number };
+      document_fragment: { count: number };
+      db: { size_bytes: number };
+    };
+
+    if (_stats.db.size_bytes > 100 * 1024 * 1024) {
+      if (!confirm("This may take a while, or even fail if you have a large database. Continue?")) {
+        return { success: false, message: "Export cancelled by user." };
+      }
+    }
+
+    await rpc(["exportJson"]);
+    return { success: true };
+  } catch (error) {
+    console.error("Error exporting JSON:", error);
+    return { success: false, message: "Error exporting file. Please try again." };
+  }
 };

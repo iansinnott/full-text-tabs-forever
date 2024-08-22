@@ -4,7 +4,7 @@
   import { rpc } from "./lib/rpc";
   import { displaySettings } from "./store/displaySettings";
   import { routes } from "./.routify/routes";
-  import { dumpDataDir, handleImport, loadDataDir, vacuumFull } from "./lib/commands";
+  import { dumpDataDir, handleImport, loadDataDir, vacuumFull, exportJson } from "./lib/commands";
   let _class: string = "";
   export { _class as class };
   export let open: boolean = false;
@@ -50,9 +50,12 @@
     {
       name: "DB: Export...",
       exec: async () => {
-        console.log("export");
-        await rpc(["exportJson"]);
-        return true;
+        const result = await exportJson();
+        if (result.success) {
+          onClose();
+          return true;
+        }
+        return false;
       },
     },
     {
