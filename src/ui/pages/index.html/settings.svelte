@@ -3,6 +3,7 @@
 
   let errorMessage = "";
   let vlcnImportMessage = "";
+  let isImporting = false;
 
   const handleFileUpload = async () => {
     errorMessage = "";
@@ -13,7 +14,8 @@
   };
 
   const importVLCNDatabase = async () => {
-    vlcnImportMessage = "Importing VLCN database...";
+    isImporting = true;
+    vlcnImportMessage = "Importing VLCN database... This may take a while.";
     try {
       const response = await chrome.runtime.sendMessage(["importVLCNDocuments"]);
       if (response.ok) {
@@ -23,6 +25,8 @@
       }
     } catch (error) {
       vlcnImportMessage = `Error importing VLCN database: ${error.message}`;
+    } finally {
+      isImporting = false;
     }
   };
 </script>
@@ -48,14 +52,20 @@
   <h4 class="mt-8">Import VLCN Database (v1)</h4>
   <p>
     Import your old database from v1 of the extension. This will migrate your VLCN documents to the
-    new format.
+    new format. The import process may take several minutes depending on the size of your database.
   </p>
   <div class="mt-4">
     <button
       on:click={importVLCNDatabase}
-      class="bg-pink-800 text-white py-2 px-4 rounded hover:bg-pink-900"
-      >Import VLCN Database</button
+      class="bg-pink-800 text-white py-2 px-4 rounded hover:bg-pink-900 disabled:opacity-50 disabled:cursor-not-allowed"
+      disabled={isImporting}
     >
+      {#if isImporting}
+        Importing...
+      {:else}
+        Import VLCN Database
+      {/if}
+    </button>
   </div>
   {#if vlcnImportMessage}
     <p
