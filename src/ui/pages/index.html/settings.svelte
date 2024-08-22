@@ -13,6 +13,9 @@
   let vlcnImportMessage = "";
   let isImporting = false;
   let blacklistRules: BlacklistRule[] = [];
+  let newPattern = "";
+  let newLevel: "no_index" | "url_only" = "no_index";
+  let addRuleError = "";
 
   onMount(async () => {
     await fetchBlacklistRules();
@@ -63,6 +66,39 @@
       },
     ]);
     await fetchBlacklistRules();
+  };
+
+  const addBlacklistRule = async () => {
+    addRuleError = "";
+    if (!newPattern.trim()) {
+      addRuleError = "Pattern is required";
+      return;
+    }
+
+    if (newPattern.replace(/%/g, "").trim().length === 0) {
+      addRuleError =
+        "Pattern must be more specific. A wildcard-only pattern will match everything, which defeats the purpose of this extension.";
+      return;
+    }
+
+    if (newPattern.trim().includes("*")) {
+      addRuleError = "The '*' character is not allowed. Use '%' instead.";
+      return;
+    }
+
+    if (!newPattern.trim().startsWith("http") && !newPattern.trim().startsWith("%")) {
+      addRuleError = "Pattern must start with 'http' or be a `%` wildcard.";
+      return;
+    }
+
+    try {
+      await rpc(["addBlacklistRule", { pattern: newPattern.trim(), level: newLevel }]);
+      newPattern = "";
+      newLevel = "no_index";
+      await fetchBlacklistRules();
+    } catch (error) {
+      addRuleError = `Error adding rule: ${error.message}`;
+    }
   };
 </script>
 
@@ -119,10 +155,34 @@
   </p>
   <p class="mt-4">
     Note: The <code class="wildcard font-sans">%</code> character is used as a wildcard in these
-    rules. It matches any sequence of characters. For example, <code>example.com/%</code> would match
-    any URL on example.com.
+    rules. It matches any sequence of characters. For example, <code>https://example.com/%</code> would
+    match any URL on example.com.
   </p>
-  <table class="table-auto w-full mt-0">
+
+  <!-- Add new blacklist rule form -->
+  <div class="mt-4 mb-4">
+    <h5 class="mb-2">Add New Blacklist Rule</h5>
+    <form on:submit|preventDefault={addBlacklistRule} class="flex flex-col space-y-2">
+      <input
+        type="text"
+        bind:value={newPattern}
+        placeholder="Pattern (e.g., example.com/%)"
+        class="p-2 border rounded text-black"
+      />
+      <select bind:value={newLevel} class="p-2 border rounded text-black">
+        <option value="no_index">No Index</option>
+        <option value="url_only">URL Only</option>
+      </select>
+      <button type="submit" class="bg-pink-800 text-white py-2 px-4 rounded hover:bg-pink-900">
+        Add Rule
+      </button>
+    </form>
+    {#if addRuleError}
+      <p class="text-red-500 mt-2">{addRuleError}</p>
+    {/if}
+  </div>
+
+  <table class="table-auto w-full mt-0 mb-8">
     <thead>
       <tr>
         <th class="px-4 py-2 text-left">Pattern</th>
@@ -132,7 +192,7 @@
     </thead>
     <tbody>
       {#each blacklistRules as rule}
-        <tr>
+        <tr class="hover:bg-gray-800">
           <td class="px-2 py-0 font-mono text-xs border-b border-gray-200/20">
             {#if rule.pattern.includes("%")}
               {@html rule.pattern.replace(/%/g, '<span class="wildcard">%</span>')}
