@@ -17,6 +17,18 @@
   let newLevel: "no_index" | "url_only" = "no_index";
   let addRuleError = "";
 
+  // Add this new variable
+  let activeSection = "import-json";
+
+  // Add this new function
+  const scrollToSection = (sectionId: string) => {
+    activeSection = sectionId;
+    const element = document.getElementById(sectionId);
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+
   onMount(async () => {
     await fetchBlacklistRules();
   });
@@ -102,119 +114,162 @@
   };
 </script>
 
-<div class="flex flex-col p-12 h-[calc(100%-70px)] overflow-auto">
-  <div class="prose dark:prose-invert">
+<div class="flex flex-col md:flex-row p-4 md:p-12 h-[calc(100%-70px)] overflow-auto">
+  <nav class="md:w-1/4 mb-4 md:mb-0 md:mr-8">
+    <ul
+      class="flex flex-row md:flex-col space-x-2 md:space-x-0 md:space-y-2 overflow-x-auto md:overflow-x-visible whitespace-nowrap"
+    >
+      <li>
+        <button
+          class="px-3 py-2 rounded-md text-sm font-medium {activeSection === 'import-json'
+            ? 'bg-pink-800 text-white'
+            : 'text-gray-300 hover:bg-gray-700'}"
+          on:click={() => scrollToSection("import-json")}
+        >
+          Import JSON
+        </button>
+      </li>
+      <li>
+        <button
+          class="px-3 py-2 rounded-md text-sm font-medium {activeSection === 'import-vlcn'
+            ? 'bg-pink-800 text-white'
+            : 'text-gray-300 hover:bg-gray-700'}"
+          on:click={() => scrollToSection("import-vlcn")}
+        >
+          Import VLCN
+        </button>
+      </li>
+      <li>
+        <button
+          class="px-3 py-2 rounded-md text-sm font-medium {activeSection === 'blacklist-rules'
+            ? 'bg-pink-800 text-white'
+            : 'text-gray-300 hover:bg-gray-700'}"
+          on:click={() => scrollToSection("blacklist-rules")}
+        >
+          Blacklist Rules
+        </button>
+      </li>
+    </ul>
+  </nav>
+
+  <div class="md:w-3/4 prose dark:prose-invert">
     <h3>Settings</h3>
 
-    <h4>Import JSON Database</h4>
-    <p>
-      Upload a JSON file to import your database. The file should contain document and
-      document_fragment data, which will be processed and added to your local database.
-    </p>
-    <div class="mt-4">
-      <button
-        on:click={handleFileUpload}
-        class="bg-pink-800 text-white py-2 px-4 rounded hover:bg-pink-900">Import JSON</button
-      >
-    </div>
-    {#if errorMessage}
-      <p class="text-red-500 mt-2">{errorMessage}</p>
-    {/if}
-
-    <h4 class="mt-8">Import VLCN Database (v1)</h4>
-    <p>
-      Import your old database from v1 of the extension. This will migrate your VLCN documents to
-      the new format. The import process may take several minutes depending on the size of your
-      database.
-    </p>
-    <div class="mt-4">
-      <button
-        on:click={importVLCNDatabase}
-        class="bg-pink-800 text-white py-2 px-4 rounded hover:bg-pink-900 disabled:opacity-50 disabled:cursor-not-allowed"
-        disabled={isImporting}
-      >
-        {#if isImporting}
-          Importing...
-        {:else}
-          Import VLCN Database
-        {/if}
-      </button>
-    </div>
-    {#if vlcnImportMessage}
-      <p
-        class="mt-2"
-        class:text-green-500={vlcnImportMessage.includes("successfully")}
-        class:text-red-500={vlcnImportMessage.includes("Error")}
-      >
-        {vlcnImportMessage}
+    <section id="import-json">
+      <h4>Import JSON Database</h4>
+      <p>
+        Upload a JSON file to import your database. The file should contain document and
+        document_fragment data, which will be processed and added to your local database.
       </p>
-    {/if}
-
-    <h4 class="mt-8">Blacklist Rules</h4>
-    <p class="mb-0">
-      Manage your blacklist rules. These rules determine which URLs should not be indexed or only
-      have their URLs indexed.
-    </p>
-    <p class="mt-4">
-      Note: The <code class="wildcard font-sans">%</code> character is used as a wildcard in these
-      rules. It matches any sequence of characters. For example, <code>https://example.com/%</code> would
-      match any URL on example.com.
-    </p>
-
-    <!-- Add new blacklist rule form -->
-    <div class="mt-4 mb-4">
-      <h5 class="mb-2">Add New Blacklist Rule</h5>
-      <form on:submit|preventDefault={addBlacklistRule} class="flex flex-col space-y-2">
-        <input
-          type="text"
-          bind:value={newPattern}
-          placeholder="Pattern (e.g., example.com/%)"
-          class="p-2 border rounded text-black"
-        />
-        <select bind:value={newLevel} class="p-2 border rounded text-black">
-          <option value="no_index">No Index</option>
-          <option value="url_only">URL Only</option>
-        </select>
-        <button type="submit" class="bg-pink-800 text-white py-2 px-4 rounded hover:bg-pink-900">
-          Add Rule
-        </button>
-      </form>
-      {#if addRuleError}
-        <p class="text-red-500 mt-2">{addRuleError}</p>
+      <div class="mt-4">
+        <button
+          on:click={handleFileUpload}
+          class="bg-pink-800 text-white py-2 px-4 rounded hover:bg-pink-900">Import JSON</button
+        >
+      </div>
+      {#if errorMessage}
+        <p class="text-red-500 mt-2">{errorMessage}</p>
       {/if}
-    </div>
+    </section>
 
-    <table class="table-auto w-full mt-0">
-      <thead>
-        <tr>
-          <th class="px-4 py-2 text-left">Pattern</th>
-          <th class="px-4 py-2 text-left">Level</th>
-          <th class="px-4 py-2 text-left">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {#each blacklistRules as rule}
-          <tr class="hover:bg-gray-800">
-            <td class="px-2 py-0 font-mono text-xs border-b border-gray-200/20">
-              {#if rule.pattern.includes("%")}
-                {@html rule.pattern.replace(/%/g, '<span class="wildcard">%</span>')}
-              {:else}
-                {rule.pattern}
-              {/if}
-            </td>
-            <td class="px-2 py-0 border-b border-gray-200/20">{rule.level}</td>
-            <td class="px-2 py-0 border-b border-gray-200/20">
-              <button
-                on:click={() => deleteBlacklistRule(rule.id)}
-                class="text-red-500 py-1 px-2 rounded"
-              >
-                Delete
-              </button>
-            </td>
+    <section id="import-vlcn">
+      <h4 class="mt-8">Import VLCN Database (v1)</h4>
+      <p>
+        Import your old database from v1 of the extension. This will migrate your VLCN documents to
+        the new format. The import process may take several minutes depending on the size of your
+        database.
+      </p>
+      <div class="mt-4">
+        <button
+          on:click={importVLCNDatabase}
+          class="bg-pink-800 text-white py-2 px-4 rounded hover:bg-pink-900 disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={isImporting}
+        >
+          {#if isImporting}
+            Importing...
+          {:else}
+            Import VLCN Database
+          {/if}
+        </button>
+      </div>
+      {#if vlcnImportMessage}
+        <p
+          class="mt-2"
+          class:text-green-500={vlcnImportMessage.includes("successfully")}
+          class:text-red-500={vlcnImportMessage.includes("Error")}
+        >
+          {vlcnImportMessage}
+        </p>
+      {/if}
+    </section>
+
+    <section id="blacklist-rules">
+      <h4 class="mt-8">Blacklist Rules</h4>
+      <p class="mb-0">
+        Manage your blacklist rules. These rules determine which URLs should not be indexed or only
+        have their URLs indexed.
+      </p>
+      <p class="mt-4">
+        Note: The <code class="wildcard font-sans">%</code> character is used as a wildcard in these
+        rules. It matches any sequence of characters. For example,
+        <code>https://example.com/%</code> would match any URL on example.com.
+      </p>
+
+      <!-- Add new blacklist rule form -->
+      <div class="mt-4 mb-4">
+        <h5 class="mb-2">Add New Blacklist Rule</h5>
+        <form on:submit|preventDefault={addBlacklistRule} class="flex flex-col space-y-2">
+          <input
+            type="text"
+            bind:value={newPattern}
+            placeholder="Pattern (e.g., example.com/%)"
+            class="p-2 border rounded text-black"
+          />
+          <select bind:value={newLevel} class="p-2 border rounded text-black">
+            <option value="no_index">No Index</option>
+            <option value="url_only">URL Only</option>
+          </select>
+          <button type="submit" class="bg-pink-800 text-white py-2 px-4 rounded hover:bg-pink-900">
+            Add Rule
+          </button>
+        </form>
+        {#if addRuleError}
+          <p class="text-red-500 mt-2">{addRuleError}</p>
+        {/if}
+      </div>
+
+      <table class="table-auto w-full mt-0">
+        <thead>
+          <tr>
+            <th class="px-4 py-2 text-left">Pattern</th>
+            <th class="px-4 py-2 text-left">Level</th>
+            <th class="px-4 py-2 text-left">Actions</th>
           </tr>
-        {/each}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {#each blacklistRules as rule}
+            <tr class="hover:bg-gray-800">
+              <td class="px-2 py-0 font-mono text-xs border-b border-gray-200/20">
+                {#if rule.pattern.includes("%")}
+                  {@html rule.pattern.replace(/%/g, '<span class="wildcard">%</span>')}
+                {:else}
+                  {rule.pattern}
+                {/if}
+              </td>
+              <td class="px-2 py-0 border-b border-gray-200/20">{rule.level}</td>
+              <td class="px-2 py-0 border-b border-gray-200/20">
+                <button
+                  on:click={() => deleteBlacklistRule(rule.id)}
+                  class="text-red-500 py-1 px-2 rounded"
+                >
+                  Delete
+                </button>
+              </td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+    </section>
   </div>
 </div>
 

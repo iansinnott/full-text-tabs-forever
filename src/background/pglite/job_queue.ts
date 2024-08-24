@@ -5,6 +5,8 @@ import * as tasks from "./tasks";
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+type DBWriter = Pick<Transaction, "query" | "exec" | "sql">;
+
 export class JobQueue {
   private isProcessing: boolean = false;
 
@@ -23,6 +25,8 @@ export class JobQueue {
         task_type TEXT NOT NULL,
         params JSONB DEFAULT '{}'::jsonb NOT NULL,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+        failed_at TIMESTAMP WITH TIME ZONE,
+        error TEXT,
         CONSTRAINT task_task_type_params_unique UNIQUE(task_type, params)
       );
     `);
@@ -31,7 +35,7 @@ export class JobQueue {
   async enqueue(
     taskType: keyof typeof tasks,
     params: object = {},
-    tx: Transaction | PGlite = this.backend.db!
+    tx: DBWriter = this.backend.db!
   ): Promise<number> {
     const task = tasks[taskType as keyof typeof tasks];
 
@@ -61,16 +65,12 @@ export class JobQueue {
    * Process a single task from the queue
    *
    * NOTE: a few things about this queue strategy:
-   * - no select for update since there's only one writer, however maybe we should add it anyway
    * - priority queue based on logic in the ORDER BY clause. add cases as needed
    * - random order if no priority is set
-   *
-   * @todo Error handling. Currently a failure does not remove the task from the
-   * queue or modify it, so it will be run again next time. The order is
-   * randomized so it probably won't block, but it's not exactly handled. It just
-   * sits there, indefiniedly, potentially blocking queue runs.
    */
   private async processQueue() {
+    let processedId: number | null = null;
+
     try {
       await this.backend.db!.transaction(async (tx) => {
         const result = await tx.query<{
@@ -78,19 +78,17 @@ export class JobQueue {
           task_type: string;
           params: Record<string, any>;
         }>(`
-          DELETE FROM task
-          WHERE id IN (
-            SELECT id
-            FROM task
-            ORDER BY
-              CASE
-                WHEN task_type = 'generate_fragments' THEN 0
-                ELSE random()
-              END,
-              created_at
-            LIMIT 1
-          )
-          RETURNING id, task_type, params::jsonb
+          SELECT id, task_type, params::jsonb
+          FROM task
+          WHERE failed_at IS NULL
+          ORDER BY
+            CASE
+              WHEN task_type = 'generate_fragments' THEN 0
+              ELSE random()
+            END,
+            created_at
+          LIMIT 1
+          FOR UPDATE SKIP LOCKED
         `);
 
         if (!result.rows.length) {
@@ -98,18 +96,23 @@ export class JobQueue {
           return;
         }
 
-        const { task_type, params } = result.rows[0];
+        const { id, task_type, params } = result.rows[0];
+
+        processedId = id;
 
         if (!(task_type in tasks)) {
           console.warn(`task :: ${task_type} :: not implemented`);
-          throw new Error(`Task type ${task_type} not implemented`);
+          await this.markTaskAsFailed(tx, id, "Task type not implemented");
+          return;
         }
 
         const task = tasks[task_type as keyof typeof tasks] as TaskDefinition;
         const start = performance.now();
         try {
           await task.handler(tx, task.params?.parse(params));
+          await tx.query("DELETE FROM task WHERE id = $1", [id]);
         } catch (error) {
+          console.error(`task :: error`, error.message);
           throw error;
         } finally {
           console.log(
@@ -118,8 +121,25 @@ export class JobQueue {
         }
       });
     } catch (error) {
-      console.error(`task :: error`, error);
+      console.error(`task :: processQueue :: error`, error);
+
+      // NOTE this cannot be done within the transaction. using the tx after a
+      // failure will result in an error saying the transaction is aborted.
+      if (processedId) {
+        await this.markTaskAsFailed(this.backend.db!, processedId, error.message);
+      }
     }
+  }
+
+  private async markTaskAsFailed(tx: DBWriter, id: number, errorMessage: string) {
+    await tx.query(
+      `
+      UPDATE task
+      SET failed_at = CURRENT_TIMESTAMP, error = $1
+      WHERE id = $2
+    `,
+      [errorMessage, id]
+    );
   }
 
   async processPendingTasks() {
