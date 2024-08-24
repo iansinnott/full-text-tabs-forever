@@ -25,6 +25,8 @@
     settings: "Settings",
   };
 
+  console.debug("fttf :: routes", routes);
+
   const commands = [
     ...routes
       .filter((route) => route.filepath !== "/index.svelte")
@@ -159,7 +161,7 @@
   out:fly={{ y: 20, duration: 200 }}
   on:keydown={handleKeydown}
   class={classNames(
-    "fixed top-1/4 left-1/2 transform -translate-x-1/2 w-full max-w-[600px] rounded-lg shadow shadow-black",
+    "fixed top-[20%] left-1/2 transform -translate-x-1/2 w-full max-w-[600px] rounded-lg shadow shadow-black",
     "bg-zinc-900 text-white",
     _class
   )}
@@ -173,7 +175,7 @@
       class="appearance-none w-full outline-none focus:ring-0 text-white text-lg bg-[#1d1d1d] rounded-t-lg px-3 py-3 border-none border-b border-zinc-600"
     />
   </form>
-  <div class="commands p-2 text-lg">
+  <div class="commands p-2 text-lg overflow-auto max-h-[60vh]">
     {#each filteredCommands as command, i (command.name)}
       <div
         on:mouseenter={() => {
