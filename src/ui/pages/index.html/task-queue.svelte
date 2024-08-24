@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
   import { rpc } from "@/ui/lib/rpc";
+  import { RotateCcw, Trash } from "lucide-svelte";
 
   type Task = {
     id: number;
@@ -55,6 +56,29 @@
     } catch (e) {
       error = e.message;
     }
+  }
+
+  async function retryTask(taskId: number) {
+    await rpc([
+      "pg.query",
+      {
+        sql: "UPDATE task SET failed_at = NULL, error = NULL WHERE id = $1",
+        params: [taskId],
+      },
+    ]);
+    await rpc(["processJobQueue"]);
+    await fetchTasks();
+  }
+
+  async function removeTask(taskId: number) {
+    await rpc([
+      "pg.query",
+      {
+        sql: "DELETE FROM task WHERE id = $1",
+        params: [taskId],
+      },
+    ]);
+    await fetchTasks();
   }
 
   onMount(() => {
@@ -132,6 +156,7 @@
             <th class="text-left">Created At</th>
             <th class="text-left">Failed At</th>
             <th class="text-left">Error</th>
+            <th class="text-left"></th>
           </tr>
         </thead>
         <tbody>
@@ -142,7 +167,23 @@
               <td class="font-mono">{JSON.stringify(task.params)}</td>
               <td>{formatDate(task.created_at)}</td>
               <td>{formatDate(task.failed_at)}</td>
-              <td class="bg-red-100 text-red-900">{task.error}</td>
+              <td class="bg-red-500/30 text-red-200">{task.error}</td>
+              <td>
+                <div class="flex gap-2">
+                  <button
+                    on:click={() => retryTask(task.id)}
+                    class="text-white p-1 rounded hover:text-blue-400"
+                  >
+                    <RotateCcw size={16} />
+                  </button>
+                  <button
+                    on:click={() => removeTask(task.id)}
+                    class="text-red-500 p-1 rounded hover:text-red-400"
+                  >
+                    <Trash size={16} />
+                  </button>
+                </div>
+              </td>
             </tr>
           {/each}
         </tbody>
