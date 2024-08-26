@@ -1,6 +1,6 @@
 import type { PGlite, Transaction } from "@electric-sql/pglite";
 import type { TaskDefinition } from "./tasks";
-import * as tasks from "./tasks";
+import * as defaultTasks from "./tasks";
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -24,6 +24,7 @@ export class JobQueue {
 
   constructor(
     private db: PGlite,
+    private tasks: typeof defaultTasks = defaultTasks,
     private taskInterval: number = 1000
   ) {}
 
@@ -32,11 +33,11 @@ export class JobQueue {
   }
 
   async enqueue(
-    taskType: keyof typeof tasks,
+    taskType: keyof typeof this.tasks,
     params: object = {},
     tx: DBWriter = this.db
   ): Promise<number> {
-    const task = tasks[taskType as keyof typeof tasks];
+    const task = this.tasks[taskType];
 
     if (!task) {
       throw new Error(`Task type ${taskType} not implemented`);
@@ -99,13 +100,13 @@ export class JobQueue {
 
         processedId = id;
 
-        if (!(task_type in tasks)) {
+        if (!(task_type in this.tasks)) {
           console.warn(`task :: ${task_type} :: not implemented`);
           await this.markTaskAsFailed(tx, id, "Task type not implemented");
           return;
         }
 
-        const task = tasks[task_type as keyof typeof tasks] as TaskDefinition;
+        const task = this.tasks[task_type as keyof typeof this.tasks] as TaskDefinition;
         const start = performance.now();
         try {
           await task.handler(tx, task.params?.parse(params));

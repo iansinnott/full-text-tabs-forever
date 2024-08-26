@@ -135,7 +135,7 @@ export class PgLiteBackend implements Backend {
       });
       await this.db.exec(schemaSql);
       await this.initializeDefaultBlacklistRules();
-      this.jobQueue = new JobQueue(this.db, 100);
+      this.jobQueue = new JobQueue(this.db, undefined, 100);
       await this.jobQueue.initialize();
       this.dbReady = true;
     } catch (err) {
