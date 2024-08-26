@@ -150,15 +150,16 @@ export class JobQueue {
     this.isProcessing = true;
     this.shouldStop = false;
 
-    const getCount = async () => {
+    const getPendingCount = async () => {
       const pendingTasks = await this.backend.db!.query<{ count: number }>(`
         SELECT COUNT(*) as count FROM task
+        WHERE failed_at IS NULL
     `);
       return pendingTasks.rows[0].count;
     };
 
     try {
-      while ((await getCount()) > 0 && !this.shouldStop) {
+      while ((await getPendingCount()) > 0 && !this.shouldStop) {
         await this.processQueue();
         await sleep(this.taskInterval);
       }
