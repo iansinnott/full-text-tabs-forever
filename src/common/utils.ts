@@ -103,3 +103,10 @@ export const debounce = <T extends (...args: any[]) => any>(fn: T, delay: number
     }, delay);
   };
 };
+
+export const toLabel = (name: string) => {
+  return name
+    .replace(/-/g, " ")
+    .replace(/([A-Z])/g, " $1")
+    .replace(/^./, (str) => str.toUpperCase());
+};

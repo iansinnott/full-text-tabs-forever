@@ -5,19 +5,13 @@
   import { displaySettings } from "./store/displaySettings";
   import { routes } from "./.routify/routes";
   import { dumpDataDir, handleImport, loadDataDir, vacuumFull, exportJson } from "./lib/commands";
+  import { toLabel } from "@/common/utils";
   let _class: string = "";
   export { _class as class };
   export let open: boolean = false;
   export let onClose: () => void;
   let filterText = "";
   let currentIndex = 0;
-
-  const toLabel = (name: string) => {
-    return name
-      .replace(/-/g, " ")
-      .replace(/([A-Z])/g, " $1")
-      .replace(/^./, (str) => str.toUpperCase());
-  };
 
   const routeLabels = {
     index: "Search",
