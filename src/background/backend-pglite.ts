@@ -109,10 +109,9 @@ export class PgLiteBackend implements Backend {
   db: PGlite | null = null;
   private dbReady = false;
   private error: Error | null = null;
-  private jobQueue: JobQueue;
+  private jobQueue: JobQueue | null = null;
 
   constructor() {
-    this.jobQueue = new JobQueue(this, 100);
     const startTime = performance.now();
     this.init()
       .then(async () => {
@@ -136,6 +135,7 @@ export class PgLiteBackend implements Backend {
       });
       await this.db.exec(schemaSql);
       await this.initializeDefaultBlacklistRules();
+      this.jobQueue = new JobQueue(this.db, 100);
       await this.jobQueue.initialize();
       this.dbReady = true;
     } catch (err) {
@@ -277,7 +277,7 @@ export class PgLiteBackend implements Backend {
       );
 
       // Enqueue downstream tasks
-      await this.jobQueue.enqueue("generate_fragments", { document_id: inserted.id });
+      await this.jobQueue?.enqueue("generate_fragments", { document_id: inserted.id });
 
       // For now we can handle embeddings manually if desired. Let's get the standard FTS working well first.
       //await this.enqueueAllEmbeddings();
@@ -545,7 +545,7 @@ export class PgLiteBackend implements Backend {
   }
 
   async processJobQueue() {
-    await this.jobQueue.processPendingTasks();
+    await this.jobQueue?.processPendingTasks();
   }
 
   /**
@@ -560,7 +560,7 @@ export class PgLiteBackend implements Backend {
       ).rows;
 
       for (const fragment of fragments) {
-        await this.jobQueue.enqueue("generate_vector", { fragment_id: fragment.id }, tx);
+        await this.jobQueue?.enqueue("generate_vector", { fragment_id: fragment.id }, tx);
       }
     });
   }
@@ -577,7 +577,7 @@ export class PgLiteBackend implements Backend {
       ).rows;
 
       for (const document of documents) {
-        await this.jobQueue.enqueue("generate_fragments", { document_id: document.id }, tx);
+        await this.jobQueue?.enqueue("generate_fragments", { document_id: document.id }, tx);
       }
     });
   }
@@ -793,7 +793,7 @@ export class PgLiteBackend implements Backend {
           const documentId = result.rows[0].id;
           console.log("importDocuments :: inserted", documentId);
           importedCount++;
-          await this.jobQueue.enqueue("generate_fragments", { document_id: documentId }, tx);
+          await this.jobQueue?.enqueue("generate_fragments", { document_id: documentId }, tx);
         } else {
           const u = url.toString();
           console.log("importDocuments :: duplicate", u.length > 100 ? u.slice(0, 100) + "..." : u);

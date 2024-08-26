@@ -1,5 +1,4 @@
 import type { PGlite, Transaction } from "@electric-sql/pglite";
-import type { PgLiteBackend } from "../backend-pglite";
 import type { TaskDefinition } from "./tasks";
 import * as tasks from "./tasks";
 
@@ -7,35 +6,35 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 type DBWriter = Pick<Transaction, "query" | "exec" | "sql">;
 
+export const JOB_QUEUE_SCHEMA = `
+  CREATE TABLE IF NOT EXISTS task (
+    id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    task_type TEXT NOT NULL,
+    params JSONB DEFAULT '{}'::jsonb NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    failed_at TIMESTAMP WITH TIME ZONE,
+    error TEXT,
+    CONSTRAINT task_task_type_params_unique UNIQUE(task_type, params)
+  );
+`;
+
 export class JobQueue {
   private isProcessing: boolean = false;
-
-  /** for manually stopping the queue */
   private shouldStop: boolean = false;
 
   constructor(
-    private backend: PgLiteBackend,
+    private db: PGlite,
     private taskInterval: number = 1000
   ) {}
 
   async initialize() {
-    await this.backend.db!.query(`
-      CREATE TABLE IF NOT EXISTS task (
-        id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-        task_type TEXT NOT NULL,
-        params JSONB DEFAULT '{}'::jsonb NOT NULL,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
-        failed_at TIMESTAMP WITH TIME ZONE,
-        error TEXT,
-        CONSTRAINT task_task_type_params_unique UNIQUE(task_type, params)
-      );
-    `);
+    await this.db.query(JOB_QUEUE_SCHEMA);
   }
 
   async enqueue(
     taskType: keyof typeof tasks,
     params: object = {},
-    tx: DBWriter = this.backend.db!
+    tx: DBWriter = this.db
   ): Promise<number> {
     const task = tasks[taskType as keyof typeof tasks];
 
@@ -72,7 +71,7 @@ export class JobQueue {
     let processedId: number | null = null;
 
     try {
-      await this.backend.db!.transaction(async (tx) => {
+      await this.db.transaction(async (tx) => {
         const result = await tx.query<{
           id: number;
           task_type: string;
@@ -126,7 +125,7 @@ export class JobQueue {
       // NOTE this cannot be done within the transaction. using the tx after a
       // failure will result in an error saying the transaction is aborted.
       if (processedId) {
-        await this.markTaskAsFailed(this.backend.db!, processedId, error.message);
+        await this.markTaskAsFailed(this.db, processedId, error.message);
       }
     }
   }
@@ -151,7 +150,7 @@ export class JobQueue {
     this.shouldStop = false;
 
     const getPendingCount = async () => {
-      const pendingTasks = await this.backend.db!.query<{ count: number }>(`
+      const pendingTasks = await this.db.query<{ count: number }>(`
         SELECT COUNT(*) as count FROM task
         WHERE failed_at IS NULL
     `);
