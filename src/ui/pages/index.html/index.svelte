@@ -1,7 +1,6 @@
 <script lang="ts">
   import type { ResultRow } from "@/background/backend";
   import { fly } from "svelte/transition";
-  import DetailsPanel from "@/ui/DetailsPanel.svelte";
   import { debounce } from "@/common/utils";
   import { onMount, tick } from "svelte";
   import classNames from "classnames";
@@ -11,12 +10,12 @@
   import { displaySettings } from "@/ui/store/displaySettings";
   import { menuOpen } from "@/ui/store/menuState";
   import { stats, updateStats } from "@/ui/store/statsStore";
+  import { goto } from "@roxi/routify";
 
   let q = "";
   let res: Awaited<ReturnType<typeof fttf.adapter.backend.search>> | null = null;
   let results: ResultRow[] | undefined;
   let currentIndex = 0;
-  let showDetails = false;
   let enableMouseEvents = false;
 
   const handleMouseMove = (e: MouseEvent) => {
@@ -76,14 +75,10 @@
     },
     Escape: (e) => {
       e.preventDefault();
-      if (showDetails) {
-        showDetails = false;
-      } else {
-        q = "";
-        tick().then(() => {
-          input?.focus();
-        });
-      }
+      q = "";
+      tick().then(() => {
+        input?.focus();
+      });
     },
     ArrowUp: (e) => {
       e.preventDefault();
@@ -103,7 +98,8 @@
     Enter: (e) => {
       e.preventDefault();
       if (currentUrl && e.metaKey) {
-        showDetails = true;
+        const encodedUrl = encodeURIComponent(currentUrl);
+        $goto(`/index.html/doc/${encodedUrl}`);
       } else {
         // open a new tab
         window.open(currentUrl, "_blank");
@@ -262,9 +258,9 @@
             currentIndex = i;
           }
         }}
-        on:click={(e) => {
-          currentIndex = i;
-          showDetails = true;
+        on:click={() => {
+          const encodedUrl = encodeURIComponent(url);
+          $goto(`/index.html/doc/${encodedUrl}`);
         }}
       >
         <a class="result mb-1" href={url} on:click|preventDefault>
@@ -287,26 +283,6 @@
     {/each}
   </div>
 </div>
-
-{#if showDetails}
-  <!-- svelte-ignore a11y-click-events-have-key-events -->
-  <div
-    on:click={(e) => {
-      showDetails = false;
-    }}
-    in:fly={{ x: 200, duration: 200 }}
-    out:fly={{ x: 200, duration: 200 }}
-    class={classNames(
-      "DetailPanel h-screen absolute left-auto right-0 top-0 bottom-0 w-full max-w-[768px] bg-zinc-900 shadow-lg shadow-black border-l border-[#33383f] overflow-auto p-6 md:p-12"
-    )}
-  >
-    {#if currentUrl}
-      <DetailsPanel docUrl={currentUrl} />
-    {:else}
-      <p>Not current</p>
-    {/if}
-  </div>
-{/if}
 
 <style>
   .App {

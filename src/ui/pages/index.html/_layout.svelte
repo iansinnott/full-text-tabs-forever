@@ -30,7 +30,9 @@
 
   const navigationRoutes = [
     routes.find((route) => route.name === "index"), // Search page first
-    ...routes.filter((route) => route.name !== "index"),
+    ...routes
+      .filter((route) => route.name !== "index")
+      .filter((route) => !route.name.startsWith("[")),
   ].filter(Boolean);
 </script>
 

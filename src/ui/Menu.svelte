@@ -24,6 +24,7 @@
   const commands = [
     ...routes
       .filter((route) => route.filepath !== "/index.svelte")
+      .filter((route) => !route.name.startsWith("["))
       .map((route) => ({
         name: `Page: ${routeLabels[route.name] || toLabel(route.name)}`,
         exec: async () => {
