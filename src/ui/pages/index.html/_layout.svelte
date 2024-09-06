@@ -91,9 +91,10 @@
     scrollbar-width: none; /* Firefox */
   }
   .LowerMenu {
-    @apply fixed bottom-4 left-4 z-10 max-w-[calc(100%-2rem)] w-full;
+    @apply fixed bottom-0 pb-4 left-4 z-10 max-w-[calc(100%-2rem)] w-full;
     display: grid;
     grid-template-columns: 1fr auto;
     gap: 0.5rem;
+    background-color: #0f172a;
   }
 </style>
