@@ -10,7 +10,7 @@
   import { displaySettings } from "@/ui/store/displaySettings";
   import { menuOpen } from "@/ui/store/menuState";
   import { stats, updateStats } from "@/ui/store/statsStore";
-  import { goto } from "@roxi/routify";
+  import { goto, url, params } from "@roxi/routify";
 
   let q = "";
   let res: Awaited<ReturnType<typeof fttf.adapter.backend.search>> | null = null;
@@ -24,6 +24,14 @@
 
   $: preprocessQuery = $displaySettings.preprocessQuery;
 
+  const updateUrlWithQuery = (query: string) => {
+    if (query && $params.q !== query) {
+      $goto(undefined, { q: query });
+    } else {
+      $goto(undefined, { q: "" });
+    }
+  };
+
   const handleSearch = debounce(async (query: string) => {
     query = query.trim();
     if (query.length >= MIN_QUERY_LENGTH) {
@@ -35,9 +43,10 @@
       });
       currentIndex = 0;
       console.log("[search-results]", res);
+      updateUrlWithQuery(query);
     } else {
-      // Clear query
       res = null;
+      updateUrlWithQuery("");
     }
   }, 120);
 
@@ -114,6 +123,13 @@
   onMount(async () => {
     await tick();
     input?.focus();
+
+    const initialQuery = $params.q;
+
+    if (initialQuery) {
+      q = initialQuery;
+      handleSearch(initialQuery);
+    }
 
     let status = await fttf.adapter.backend.getStatus();
 

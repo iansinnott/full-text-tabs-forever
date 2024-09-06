@@ -27,7 +27,7 @@
   };
 </script>
 
-<div class="!max-w-[920px] prose prose-invert p-4">
+<div class="!max-w-[920px] prose prose-invert p-4 pb-20">
   {#if row}
     <section class="bg-zinc-900 rounded-lg border border-zinc-700 p-4 mb-6">
       <div class="Controls flex flex-wrap gap-4 mb-4">
