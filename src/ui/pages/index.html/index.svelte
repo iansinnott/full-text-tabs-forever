@@ -27,8 +27,6 @@
   const updateUrlWithQuery = (query: string) => {
     if (query && $params.q !== query) {
       $goto(undefined, { q: query });
-    } else {
-      $goto(undefined, { q: "" });
     }
   };
 
