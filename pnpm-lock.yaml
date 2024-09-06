@@ -6,11 +6,11 @@ settings:
 
 dependencies:
   '@electric-sql/pglite':
-    specifier: 0.2.3
-    version: 0.2.3
+    specifier: 0.2.5
+    version: 0.2.5
   '@electric-sql/pglite-repl':
-    specifier: 0.2.3
-    version: 0.2.3(@babel/runtime@7.25.0)(@codemirror/lint@6.8.1)(@codemirror/search@6.5.6)(@codemirror/state@6.4.1)(@codemirror/theme-one-dark@6.1.2)(@electric-sql/pglite@0.2.3)(@lezer/common@1.2.1)(codemirror@6.0.1)
+    specifier: 0.2.5
+    version: 0.2.5(@babel/runtime@7.25.0)(@codemirror/lint@6.8.1)(@codemirror/search@6.5.6)(@codemirror/state@6.4.1)(@codemirror/theme-one-dark@6.1.2)(@electric-sql/pglite@0.2.5)(@lezer/common@1.2.1)(codemirror@6.0.1)
   '@mozilla/readability':
     specifier: ~0.5.0
     version: 0.5.0
@@ -213,20 +213,20 @@ packages:
       w3c-keyname: 2.2.8
     dev: false
 
-  /@electric-sql/pglite-react@0.2.3(@electric-sql/pglite@0.2.3)(react@18.3.1):
-    resolution: {integrity: sha512-5/Oez43PnlfPYGdHThkiXc8T1V81SVFXlrezXcnmsPB58OT268H9osY12ZcOz62qQgfZSAaeBiwXYkWD5/Kp0A==}
+  /@electric-sql/pglite-react@0.2.5(@electric-sql/pglite@0.2.5)(react@18.3.1):
+    resolution: {integrity: sha512-+6VMJsSLhUyxbtsN/HPRuXxaxDBDDUSix91jiOmyxbY5DbUwLqqGRf6n6wi1DQAQEoMSPi2FUNIhhRUW6MnCFQ==}
     peerDependencies:
-      '@electric-sql/pglite': ^0.2.3
+      '@electric-sql/pglite': ^0.2.5
       react: ^18.0.0
     dependencies:
-      '@electric-sql/pglite': 0.2.3
+      '@electric-sql/pglite': 0.2.5
       react: 18.3.1
     dev: false
 
-  /@electric-sql/pglite-repl@0.2.3(@babel/runtime@7.25.0)(@codemirror/lint@6.8.1)(@codemirror/search@6.5.6)(@codemirror/state@6.4.1)(@codemirror/theme-one-dark@6.1.2)(@electric-sql/pglite@0.2.3)(@lezer/common@1.2.1)(codemirror@6.0.1):
-    resolution: {integrity: sha512-yZnSSuBjvR+Dv8MIkffq13/goi5NFDWRkHjCRA0f6dksWEPa8pOMPYPO2h2JAsjr7IfiUTvE9EveOjZ1gN2Xtg==}
+  /@electric-sql/pglite-repl@0.2.5(@babel/runtime@7.25.0)(@codemirror/lint@6.8.1)(@codemirror/search@6.5.6)(@codemirror/state@6.4.1)(@codemirror/theme-one-dark@6.1.2)(@electric-sql/pglite@0.2.5)(@lezer/common@1.2.1)(codemirror@6.0.1):
+    resolution: {integrity: sha512-muJ9pZ6LH+5O8osGa64C1QANDS2+AMk29Um/U2Og/qQcIKuXjhU+ZdLAM5ZxqCAC14XCtgxFTuHnmGwn1HnnHA==}
     peerDependencies:
-      '@electric-sql/pglite': ^0.2.3
+      '@electric-sql/pglite': ^0.2.5
     peerDependenciesMeta:
       '@electric-sql/pglite':
         optional: true
@@ -236,8 +236,8 @@ packages:
       '@codemirror/lang-sql': 6.7.0(@codemirror/view@6.32.0)
       '@codemirror/language': 6.10.2
       '@codemirror/view': 6.32.0
-      '@electric-sql/pglite': 0.2.3
-      '@electric-sql/pglite-react': 0.2.3(@electric-sql/pglite@0.2.3)(react@18.3.1)
+      '@electric-sql/pglite': 0.2.5
+      '@electric-sql/pglite-react': 0.2.5(@electric-sql/pglite@0.2.5)(react@18.3.1)
       '@uiw/codemirror-theme-github': 4.23.0(@codemirror/language@6.10.2)(@codemirror/state@6.4.1)(@codemirror/view@6.32.0)
       '@uiw/codemirror-theme-xcode': 4.23.0(@codemirror/language@6.10.2)(@codemirror/state@6.4.1)(@codemirror/view@6.32.0)
       '@uiw/codemirror-themes': 4.23.0(@codemirror/language@6.10.2)(@codemirror/state@6.4.1)(@codemirror/view@6.32.0)
@@ -255,8 +255,8 @@ packages:
       - codemirror
     dev: false
 
-  /@electric-sql/pglite@0.2.3:
-    resolution: {integrity: sha512-XqjCfv6Rd6L8sWv2EIyf9PT6H25lxPMPUr7mHQoCI9SvbwYjcaAGc1/cz+4iOszafuec8ms0xi0TnZbQfavChA==}
+  /@electric-sql/pglite@0.2.5:
+    resolution: {integrity: sha512-LrMX2kX0mCVN4xkhIDv1KBVukWtoOI/+P9MDQgHX5QEeZCi5S60LZOa0VWXjufPEz7mJtbuXWJRujD++t0gsHA==}
     dev: false
 
   /@esbuild-kit/cjs-loader@2.4.1:

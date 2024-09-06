@@ -24,6 +24,7 @@ async function preloadAssets() {
   const assetUrls = [
     chrome.runtime.getURL("/assets/postgres-O2XafnGg.data"), // 0.2.2
     chrome.runtime.getURL("/assets/postgres-nvNx1PWw.data"), // 0.2.3
+    chrome.runtime.getURL("/assets/postgres-cdfDT-mh.data"), // 0.2.5
   ];
 
   for (const url of assetUrls) {
