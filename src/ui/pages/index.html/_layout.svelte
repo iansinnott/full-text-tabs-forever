@@ -6,6 +6,7 @@
   import { fttf } from "@/ui/lib/rpc";
   import { routes } from "@/ui/.routify/routes";
   import { toLabel } from "@/common/utils";
+  import { routeLabels } from "@/ui/lib/constants";
 
   onMount(() => {
     if (typeof window !== "undefined") {
@@ -20,12 +21,6 @@
         document.querySelector<HTMLInputElement>("input[data-menu-input]")?.focus();
       });
     }
-  };
-
-  const routeLabels = {
-    index: "Search",
-    "database-repl": "Database REPL",
-    settings: "Settings",
   };
 
   const navigationRoutes = [

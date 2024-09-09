@@ -36,7 +36,7 @@
       res = await fttf.adapter.backend.search({
         query,
         limit: 500,
-        orderBy: "updatedAt",
+        orderBy: "last_visit",
         preprocessQuery,
       });
       currentIndex = 0;

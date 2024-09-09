@@ -6,18 +6,13 @@
   import { routes } from "./.routify/routes";
   import { dumpDataDir, handleImport, loadDataDir, vacuumFull, exportJson } from "./lib/commands";
   import { toLabel } from "@/common/utils";
+  import { routeLabels } from "./lib/constants";
   let _class: string = "";
   export { _class as class };
   export let open: boolean = false;
   export let onClose: () => void;
   let filterText = "";
   let currentIndex = 0;
-
-  const routeLabels = {
-    index: "Search",
-    "database-repl": "Database REPL",
-    settings: "Settings",
-  };
 
   console.debug("fttf :: routes", routes);
 
