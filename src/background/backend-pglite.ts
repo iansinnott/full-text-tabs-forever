@@ -16,69 +16,11 @@ import { type QueryOptions, Transaction } from "@electric-sql/pglite";
 import { defaultBlacklistRules } from "./pglite/defaultBlacklistRules";
 import { z } from "zod";
 
-const schemaSql = `
--- make sure pgvector is enabled
-CREATE EXTENSION IF NOT EXISTS vector;
-CREATE EXTENSION IF NOT EXISTS pg_trgm;
+import { sql as init_schema } from "./pglite/migrations/001_init";
 
-CREATE TABLE IF NOT EXISTS document (
-  id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-  title TEXT, 
-  url TEXT UNIQUE NOT NULL,
-  excerpt TEXT,
-  md_content TEXT,
-  md_content_hash TEXT,
-  publication_date BIGINT,
-  hostname TEXT,
-  last_visit BIGINT,
-  last_visit_date TEXT,
-  extractor TEXT,
-  created_at BIGINT NOT NULL DEFAULT EXTRACT(EPOCH FROM CURRENT_TIMESTAMP) * 1000,
-  updated_at BIGINT
-);
-
-CREATE INDEX IF NOT EXISTS document_hostname ON document (hostname);
-
-CREATE TABLE IF NOT EXISTS document_fragment (
-  id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-  entity_id BIGINT NOT NULL REFERENCES document (id) ON DELETE CASCADE,
-  attribute TEXT, 
-  value TEXT,
-  fragment_order INTEGER,
-  created_at BIGINT NOT NULL DEFAULT EXTRACT(EPOCH FROM CURRENT_TIMESTAMP) * 1000,
-  search_vector tsvector,
-  content_vector vector(384)
-);
-
-CREATE OR REPLACE FUNCTION update_document_fragment_fts() RETURNS TRIGGER AS $$
-BEGIN
-  NEW.search_vector := to_tsvector('simple', NEW.value);
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
--- Trigger to update search vector
-DROP TRIGGER IF EXISTS update_document_fragment_fts_trigger ON document_fragment;
-CREATE TRIGGER update_document_fragment_fts_trigger
-BEFORE INSERT OR UPDATE ON document_fragment
-FOR EACH ROW EXECUTE FUNCTION update_document_fragment_fts();
-
--- Index for full-text search
-CREATE INDEX IF NOT EXISTS idx_document_fragment_search_vector ON document_fragment USING GIN(search_vector);
-
--- Index for trigram similarity search, i.e. postgres trigram
--- NOTE: Disabled for now. Takes up a significant amount of space and not yet proven useful for this project
---CREATE INDEX IF NOT EXISTS trgm_idx_document_fragment_value ON document_fragment USING GIN(value gin_trgm_ops);
-
-CREATE TABLE IF NOT EXISTS blacklist_rule (
-  id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-  pattern TEXT UNIQUE NOT NULL,
-  level TEXT NOT NULL CHECK (level IN ('no_index', 'url_only')),
-  created_at BIGINT NOT NULL DEFAULT EXTRACT(EPOCH FROM CURRENT_TIMESTAMP) * 1000
-);
-
-CREATE INDEX IF NOT EXISTS idx_blacklist_rule_pattern ON blacklist_rule (pattern);
-`;
+// NOTE: There are currently no migrations, but migrations are set up to allow
+// iterating on the schema
+const migrations = ([] as string[]).map((sql, index) => ({ sql, version: index + 1 }));
 
 function prepareFtsQuery(query: string): string {
   return (
@@ -133,7 +75,8 @@ export class PgLiteBackend implements Backend {
         extensions: { vector, pg_trgm, btree_gin },
         relaxedDurability: true,
       });
-      await this.db.exec(schemaSql);
+      await this.db.exec(init_schema);
+      await this.applyMigrations();
       await this.initializeDefaultBlacklistRules();
       this.jobQueue = new JobQueue(this.db, undefined, 100);
       await this.jobQueue.initialize();
@@ -143,6 +86,28 @@ export class PgLiteBackend implements Backend {
       this.error = err;
       throw err;
     }
+  }
+
+  private async applyMigrations() {
+    for (const migration of migrations) {
+      const applied = await this.isMigrationApplied(migration.version);
+
+      if (!applied) {
+        await this.db!.transaction(async (tx) => {
+          await tx.exec(migration.sql);
+          await tx.query("INSERT INTO migrations (version) VALUES ($1)", [migration.version]);
+        });
+        console.log(`Applied migration: ${migration.version}`);
+      }
+    }
+  }
+
+  private async isMigrationApplied(version: number): Promise<boolean> {
+    const result = await this.db!.query<{ count: number }>(
+      "SELECT COUNT(*) as count FROM migrations WHERE version = $1",
+      [version]
+    );
+    return result.rows[0].count > 0;
   }
 
   private async initializeDefaultBlacklistRules() {
@@ -341,8 +306,14 @@ export class PgLiteBackend implements Backend {
     }
 
     const startTime = performance.now();
-    const _orderBy =
-      orderBy === "rank" ? "ts_rank(df.search_vector, to_tsquery('simple', $1))" : "d.updated_at";
+
+    const orderByMap = {
+      updated_at: "d.updated_at",
+      rank: "ts_rank(df.search_vector, to_tsquery('simple', $1))",
+      last_visit: "d.last_visit",
+    };
+
+    const orderByColumn = orderByMap[orderBy];
 
     const [count, results] = await Promise.all([
       this.db!.query<{ count: number }>(
@@ -376,7 +347,7 @@ export class PgLiteBackend implements Backend {
         WHERE df.search_vector @@ to_tsquery('simple', $1)
         ORDER BY 
           rank_modifier DESC,
-          ${_orderBy} DESC
+          ${orderByColumn} DESC
         LIMIT $2
         OFFSET $3`,
         [query, limit, offset]
