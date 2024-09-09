@@ -94,7 +94,7 @@ export interface Backend {
       query: string;
       limit?: number;
       offset?: number;
-      orderBy: "updatedAt" | "rank";
+      orderBy: "updated_at" | "rank" | "last_visit";
       preprocessQuery?: boolean;
     },
     {
