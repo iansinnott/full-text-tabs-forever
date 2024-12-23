@@ -4,7 +4,7 @@
   import Menu from "@/ui/Menu.svelte";
   import { onMount, tick } from "svelte";
   import { fttf } from "@/ui/lib/rpc";
-  import { routes } from "@/ui/.routify/routes";
+  import { routes } from "@/ui/.routify/routes.js";
   import { toLabel } from "@/common/utils";
   import { routeLabels } from "@/ui/lib/constants";
 
