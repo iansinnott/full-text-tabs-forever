@@ -11,6 +11,7 @@
     "lib": ["esnext", "dom"],
     "typeRoots": ["node_modules/@types"],
     "skipLibCheck": true,
+    "allowJs": true,
     "importHelpers": true,
     "removeComments": true,
     "forceConsistentCasingInFileNames": true,

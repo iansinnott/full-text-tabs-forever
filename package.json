@@ -6,19 +6,19 @@
   "scripts": {
     "//dev": "vite build -w was failing. something about the chrome extension vite plugin and the manifest. re-saving the manifest makes -w work, but that defeats the purpose of automated watch",
     "dev:routify": "routify run --routify-dir src/ui/.routify --pages src/ui/pages",
-    "dev:chrome": "TARGET=chrome concurrently 'pnpm run build:2 --watch' 'pnpm run build:3 --watch'",
-    "dev": "pnpm run /^dev:/",
+    "dev:chrome": "TARGET=chrome concurrently 'bun run build:2 --watch' 'bun run build:3 --watch'",
+    "dev": "concurrently 'bun run dev:routify' 'bun run build:2 --watch' 'bun run build:3 --watch'",
     "//build": "it's ultimately chrome's fault that we need a separate build for content-script. Unlike the service worker you cannot specify type:module, so... the script can't have imports.",
-    "build": "pnpm run /^build:[1-9]/",
+    "build": "bun run build:1 && bun run build:2 && bun run build:3",
     "build:1": "routify run -b --routify-dir src/ui/.routify --pages src/ui/pages",
     "build:2": "vite build -c vite.config.content-script.ts",
     "build:3": "vite build",
     "release": "yarn version && ./scripts/release.sh",
     "build:clean": "rm -rf ./dist/*",
-    "build:chrome": "TARGET=chrome pnpm run build",
-    "build:firefox": "TARGET=firefox pnpm run build",
+    "build:chrome": "TARGET=chrome bun run build",
+    "build:firefox": "TARGET=firefox bun run build",
     "check": "svelte-check --tsconfig ./tsconfig.json",
-    "type-check": "pnpm tsc --noEmit",
+    "type-check": "bun tsc --noEmit",
     "test": "bun test"
   },
   "type": "module",
@@ -33,7 +33,7 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
-    "@roxi/routify": "2.18.17",
+    "@roxi/routify": "^2.18.18",
     "@tailwindcss/forms": "~0.5.3",
     "@tailwindcss/line-clamp": "~0.4.2",
     "@tailwindcss/typography": "~0.5.9",
@@ -67,8 +67,16 @@
     "lucide-svelte": "0.435.0",
     "svelte": "~4.0.0",
     "svelte-markdown": "~0.4.1",
-    "turndown": "https://github.com/iansinnott/turndown",
+    "turndown": "^5",
     "webextension-polyfill": "~0.10.0",
     "zod": "3.23.8"
-  }
+  },
+  "volta": {
+    "node": "20.18.1"
+  },
+  "trustedDependencies": [
+    "@swc/core",
+    "protobufjs",
+    "svelte-preprocess"
+  ]
 }
