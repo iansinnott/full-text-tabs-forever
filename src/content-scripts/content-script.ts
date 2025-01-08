@@ -34,6 +34,82 @@ const detectDate = () => {
   return date;
 };
 
+// Function to extract YouTube transcript if available
+const extractYouTubeTranscript = async (): Promise<string | null> => {
+  // Only run on YouTube watch pages
+  if (!location.hostname.includes("youtube.com") || !location.pathname.startsWith("/watch")) {
+    return null;
+  }
+
+  try {
+    // Access YouTube's global variable for captions
+    const playerResponse = (window as any).ytInitialPlayerResponse;
+
+    if (!playerResponse?.captions?.playerCaptionsTracklistRenderer?.captionTracks?.length) {
+      log("fttf :: no captions available");
+      return null;
+    }
+
+    const captionTracks = playerResponse.captions.playerCaptionsTracklistRenderer.captionTracks;
+
+    // Try to find English captions first
+    const chosenTrack =
+      captionTracks.find((track: any) => track.languageCode === "en") || captionTracks[0];
+
+    if (!chosenTrack?.baseUrl) {
+      return null;
+    }
+
+    // Fetch the caption data
+    const response = await fetch(chosenTrack.baseUrl);
+    const captionData = await response.text();
+
+    // Parse the TTML data
+    const textLines: string[] = [];
+
+    // Try DOMParser first
+    try {
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(captionData, "application/xml");
+
+      // Check for parser errors
+      const parserErrors = xmlDoc.getElementsByTagName("parsererror");
+      if (parserErrors.length > 0) {
+        throw new Error("DOMParser parsererror encountered");
+      }
+
+      // Extract text content
+      const textNodes = xmlDoc.getElementsByTagName("text");
+      for (let i = 0; i < textNodes.length; i++) {
+        const textContent = textNodes[i].textContent?.trim();
+        if (textContent) {
+          textLines.push(textContent);
+        }
+      }
+    } catch (err) {
+      // Fallback to regex parsing if DOMParser fails
+      log("fttf :: falling back to regex parsing for transcript");
+      const textTagRegex = /<text[^>]*>([\s\S]*?)<\/text>/g;
+      let match;
+      while ((match = textTagRegex.exec(captionData)) !== null) {
+        const raw = match[1].trim();
+        if (raw) {
+          textLines.push(raw);
+        }
+      }
+    }
+
+    if (textLines.length === 0) {
+      return null;
+    }
+
+    return textLines.join("\n");
+  } catch (err) {
+    log("fttf :: error extracting transcript", err);
+    return null;
+  }
+};
+
 const main = async () => {
   const res = await rpc(["getPageStatus"]);
 
@@ -94,6 +170,9 @@ const main = async () => {
   // Wait for an idle moment so that we don't cause any dropped frames (hopefully)
   await new Promise((resolve) => requestIdleCallback(resolve));
 
+  // Extract YouTube transcript if available
+  const transcript = await extractYouTubeTranscript();
+
   // parse() will mutate the dom, so we need to clone in order not to spoil the normal reading of the site
   const domClone = document.cloneNode(true) as Document;
   let startTime: number;
@@ -133,6 +212,9 @@ const main = async () => {
   // thinks its in a browser
   const mdContent = turndown.turndown(content);
 
+  // If we have a transcript, append it to the markdown content
+  const finalMdContent = transcript ? `${mdContent}\n\n## Transcript\n\n${transcript}` : mdContent;
+
   log("article:", textContent, {
     ...rest,
     date,
@@ -145,7 +227,7 @@ const main = async () => {
       _extraction_time: endTime - startTime,
       extractor: "readability",
       text_content: textContent,
-      md_content: mdContent,
+      md_content: finalMdContent,
       date,
     },
   ]);
