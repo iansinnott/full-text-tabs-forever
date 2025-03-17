@@ -10,6 +10,10 @@ describe("JobQueue", () => {
   let mockTasks: typeof defaultTasks;
 
   beforeEach(async () => {
+    if (db) {
+      await db.close();
+    }
+
     // Create an in-memory PGLite instance
     db = new PGlite("memory://");
     await db.query(JOB_QUEUE_SCHEMA);
