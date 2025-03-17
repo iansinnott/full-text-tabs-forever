@@ -274,15 +274,67 @@ export type FTTF = {
   adapter: BackendAdapter;
 };
 
-chrome.runtime.onInstalled.addListener((...args) => {
+chrome.runtime.onInstalled.addListener(async (details) => {
   if (adapter.onInstalled) {
-    adapter.onInstalled(...args);
+    adapter.onInstalled(details);
+  }
+  
+  // Only try migration on update (not on new install)
+  if (details.reason === "update") {
+    console.log("Extension updated, checking for VLCN data to migrate...");
+    // Check if VLCN database exists and has data to migrate
+    try {
+      const migrationStatus = await adapter.checkVLCNMigrationStatus();
+      
+      if (migrationStatus.available && !migrationStatus.migrated && migrationStatus.documentCount > 0) {
+        console.log(`Found ${migrationStatus.documentCount} documents to migrate from VLCN database.`);
+        
+        // Show a notification to inform the user about migration
+        chrome.notifications.create({
+          type: "basic",
+          iconUrl: "assets/icon_128.png",
+          title: "Database Migration Available",
+          message: `Found ${migrationStatus.documentCount} documents to migrate from previous version. Migration will start when you open the extension.`,
+          priority: 2
+        });
+        
+        // Set a flag to trigger migration when the user opens the extension
+        await chrome.storage.local.set({ pendingMigration: true });
+      } else {
+        console.log("No VLCN data to migrate or already migrated.");
+      }
+    } catch (err) {
+      console.error("Error checking for VLCN migration:", err);
+    }
   }
 });
 
 if (adapter.onMessage) {
   chrome.runtime.onMessage.addListener((...args) => adapter.onMessage(...args));
 }
+
+// Listen for extension page opening to handle pending migration
+chrome.runtime.onConnect.addListener(async (port) => {
+  if (port.name === "extension-page") {
+    // Check if we have a pending migration flag
+    const { pendingMigration } = await chrome.storage.local.get("pendingMigration");
+    
+    if (pendingMigration) {
+      console.log("Starting auto-migration on extension open");
+      
+      // Clear the pending migration flag
+      await chrome.storage.local.remove("pendingMigration");
+      
+      // Start the migration
+      try {
+        const result = await adapter.importVLCNDocuments();
+        console.log("Auto-migration completed:", result);
+      } catch (err) {
+        console.error("Auto-migration failed:", err);
+      }
+    }
+  }
+});
 
 // @note We do not support spas currently. URL changes trigger here, but we do
 // not then instruct the frontend to send the full text.

@@ -8,7 +8,9 @@
         "unlimitedStorage",
         "downloads",
         "tabs",
-        "activeTab"
+        "activeTab",
+        "notifications",
+        "storage"
     ],
     "icons": {
         "16": "assets/icon_16.png",
