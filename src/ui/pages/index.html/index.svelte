@@ -10,13 +10,27 @@
   import { displaySettings } from "@/ui/store/displaySettings";
   import { menuOpen } from "@/ui/store/menuState";
   import { stats, updateStats } from "@/ui/store/statsStore";
-  import { goto, url, params } from "@roxi/routify";
-
+  import { push, location, querystring } from "svelte-spa-router";
+  import { get } from "svelte/store";
+  
   let q = "";
   let res: Awaited<ReturnType<typeof fttf.adapter.backend.search>> | null = null;
   let results: ResultRow[] | undefined;
   let currentIndex = 0;
   let enableMouseEvents = false;
+  
+  // Parse query parameters
+  const getParams = () => {
+    const searchParams = new URLSearchParams(get(querystring));
+    return {
+      q: searchParams.get('q') || ""
+    };
+  };
+  
+  let params = getParams();
+  
+  // Update params when querystring changes
+  $: $querystring, params = getParams();
 
   const handleMouseMove = (e: MouseEvent) => {
     if (!enableMouseEvents) enableMouseEvents = true;
@@ -25,8 +39,10 @@
   $: preprocessQuery = $displaySettings.preprocessQuery;
 
   const updateUrlWithQuery = (query: string) => {
-    if (query && $params.q !== query) {
-      $goto(undefined, { q: query });
+    if (query && params.q !== query) {
+      const searchParams = new URLSearchParams();
+      searchParams.set('q', query);
+      push(`/?${searchParams.toString()}`);
     }
   };
 
@@ -106,7 +122,7 @@
       e.preventDefault();
       if (currentUrl && e.metaKey) {
         const encodedUrl = encodeURIComponent(currentUrl);
-        $goto(`/index.html/doc/${encodedUrl}`);
+        push(`/doc/${encodedUrl}`);
       } else {
         // open a new tab
         window.open(currentUrl, "_blank");
@@ -122,7 +138,7 @@
     await tick();
     input?.focus();
 
-    const initialQuery = $params.q;
+    const initialQuery = params.q;
 
     if (initialQuery) {
       q = initialQuery;
@@ -274,7 +290,7 @@
         }}
         on:click={() => {
           const encodedUrl = encodeURIComponent(url);
-          $goto(`/index.html/doc/${encodedUrl}`);
+          push(`/doc/${encodedUrl}`);
         }}
       >
         <a class="result mb-1" href={url} on:click|preventDefault>

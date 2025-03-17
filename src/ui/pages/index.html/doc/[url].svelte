@@ -3,11 +3,14 @@
   import { fttf } from "@/ui/lib/rpc";
   import SvelteMarkdown from "svelte-markdown";
   import { onMount } from "svelte";
-  import { params } from "@roxi/routify";
+  import { location } from "svelte-spa-router";
 
   let row: (DetailRow & Partial<ResultRow>) | null = null;
   let err: Error | null = null;
   let showRawContent = false;
+  
+  // Get the URL parameter from the location
+  export let params = {};
 
   const fetchRow = async (url: string) => {
     try {
@@ -18,8 +21,10 @@
   };
 
   onMount(() => {
-    const decodedUrl = decodeURIComponent($params.url);
-    fetchRow(decodedUrl);
+    if (params.url) {
+      const decodedUrl = decodeURIComponent(params.url);
+      fetchRow(decodedUrl);
+    }
   });
 
   const formatDate = (timestamp: number) => {

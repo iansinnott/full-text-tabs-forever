@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { Router } from "@roxi/routify";
-  import { routes } from "./.routify/routes";
+  import Router from 'svelte-spa-router'
+  import { routes } from './routes'
 </script>
 
-<Router config={{ useHash: true }} {routes} />
+<Router {routes} />

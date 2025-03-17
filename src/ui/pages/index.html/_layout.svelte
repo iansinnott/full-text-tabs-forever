@@ -4,9 +4,7 @@
   import Menu from "@/ui/Menu.svelte";
   import { onMount, tick } from "svelte";
   import { fttf } from "@/ui/lib/rpc";
-  import { routes } from "@/ui/.routify/routes.js";
-  import { toLabel } from "@/common/utils";
-  import { routeLabels } from "@/ui/lib/constants";
+  import { navigationRoutes } from "@/ui/routes";
 
   onMount(() => {
     if (typeof window !== "undefined") {
@@ -22,13 +20,6 @@
       });
     }
   };
-
-  const navigationRoutes = [
-    routes.find((route) => route.name === "index"), // Search page first
-    ...routes
-      .filter((route) => route.name !== "index")
-      .filter((route) => !route.name.startsWith("[")),
-  ].filter(Boolean);
 </script>
 
 <svelte:window
@@ -62,7 +53,7 @@
         href={"#" + route.path}
         class="flex-shrink-0 px-4 py-2 hover:bg-zinc-800 whitespace-nowrap items-center flex"
       >
-        {routeLabels[route.name] || toLabel(route.name)}
+        {route.label}
       </a>
     {/each}
   </nav>

@@ -1,6 +1,9 @@
 # CLAUDE.md - Full Text Tabs Forever
 
+This is a Chrome extension, not a normal web app.
+
 ## Build/Test/Lint Commands
+
 - Build: `bun run build`
 - Watch/Dev: `bun run dev`
 - Test: `bun run test`
@@ -10,6 +13,7 @@
 - Firefox build: `bun run build:firefox`
 
 ## Code Style Guidelines
+
 - TypeScript with strict mode enabled
 - Use ES modules (import/export)
 - Follow functional programming patterns where possible
@@ -25,12 +29,14 @@
 - Use camelCase for variables/functions, PascalCase for classes/interfaces
 
 ## Naming Conventions
+
 - Component files: PascalCase.svelte
 - Utility files: kebab-case.ts
 - Test files: name.test.ts adjacent to implementation
 - Use descriptive, meaningful names
 
 ## Project Organization
+
 - Background service worker in src/background/
 - UI components in src/ui/
 - Common utilities in src/common/

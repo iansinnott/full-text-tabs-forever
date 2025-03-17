@@ -3,10 +3,9 @@
   import { fly } from "svelte/transition";
   import { rpc } from "./lib/rpc";
   import { displaySettings } from "./store/displaySettings";
-  import { routes } from "./.routify/routes";
+  import { navigationRoutes } from "./routes";
   import { dumpDataDir, handleImport, loadDataDir, vacuumFull, exportJson } from "./lib/commands";
-  import { toLabel } from "@/common/utils";
-  import { routeLabels } from "./lib/constants";
+  import { push } from "svelte-spa-router";
   let _class: string = "";
   export { _class as class };
   export let open: boolean = false;
@@ -14,17 +13,13 @@
   let filterText = "";
   let currentIndex = 0;
 
-  console.debug("fttf :: routes", routes);
-
   const commands = [
-    ...routes
-      .filter((route) => route.filepath !== "/index.svelte")
-      .filter((route) => !route.name.startsWith("["))
+    ...navigationRoutes
+      .filter((route) => route.name !== "index")
       .map((route) => ({
-        name: `Page: ${routeLabels[route.name] || toLabel(route.name)}`,
+        name: `Page: ${route.label}`,
         exec: async () => {
-          const newHash = "#" + route.path;
-          window.location.hash = newHash;
+          push(route.path);
           return true;
         },
       })),
