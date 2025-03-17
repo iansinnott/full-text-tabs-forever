@@ -85,7 +85,7 @@ export type RpcMessage =
 export type DBDump = Record<string, any[][]>;
 
 export interface Backend {
-  getStatus(): Promise<{ ok: true } | { ok: false; error: string; detail?: any }>;
+  getStatus(): Promise<{ ok: true; migrated?: boolean } | { ok: false; error: string; detail?: any }>;
   getPageStatus: (_: any, sender: { tab: { url: string } }) => Promise<any>;
   indexPage: (payload: Article, sender: { tab: { url: string } }) => Promise<any>;
   nothingToIndex: RemoteProcWithSender;
@@ -107,4 +107,5 @@ export interface Backend {
   >;
   findOne(query: { where: { url: string } }): Promise<DetailRow | null>;
   exportJson?(): Promise<any>;
+  importDocumentsJSONv1?(payload: { document: any[][] }): Promise<{ imported: number; duplicates: number }>;
 }

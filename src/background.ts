@@ -22,8 +22,20 @@ class BackendAdapter {
     // Special case for migrating from VLCN to PgLite
     if (message[0] === "importVLCNDocuments") {
       this.importVLCNDocuments()
-        .then(() => {
-          sendResponse({ ok: true });
+        .then((result) => {
+          sendResponse({ ok: true, ...result });
+        })
+        .catch((err) => {
+          sendResponse({ error: err.message });
+        });
+      return true;
+    }
+
+    // Add handler for checking VLCN migration status
+    if (message[0] === "checkVLCNMigrationStatus") {
+      this.checkVLCNMigrationStatus()
+        .then((result) => {
+          sendResponse(result);
         })
         .catch((err) => {
           sendResponse({ error: err.message });
@@ -64,6 +76,44 @@ class BackendAdapter {
 
     return waitForResponse; // Keep channel open for async response. Yikes
   }
+  
+  async checkVLCNMigrationStatus() {
+    try {
+      if (!this._vlcn) {
+        this._vlcn = new VLCN();
+        try {
+          await this._vlcn.readyPromise;
+        } catch (err) {
+          console.error("Failed to initialize VLCN", err);
+          return { available: false, error: err.message };
+        }
+      }
+      
+      const status = await this._vlcn.getStatus();
+      if (!status.ok) {
+        return { available: false, error: status.error };
+      }
+      
+      // Check if migration flag exists in the database
+      if (status.migrated) {
+        return { available: true, migrated: true };
+      }
+      
+      // Check if there are documents to migrate
+      const count = await this._vlcn.sql<{
+        count: number;
+      }>`select count(*) as count from "document";`;
+      
+      return { 
+        available: true, 
+        migrated: false, 
+        documentCount: count[0].count 
+      };
+    } catch (err) {
+      console.error("Error checking VLCN migration status", err);
+      return { available: false, error: err.message };
+    }
+  }
 
   // Created for debugging workflow
   async openIndexPage() {
@@ -83,17 +133,43 @@ class BackendAdapter {
   }
 
   async importVLCNDocuments() {
-    if (!this._vlcn) {
-      this._vlcn = new VLCN();
-      await this._vlcn.readyPromise;
-    }
+    try {
+      // Send initial status update
+      chrome.runtime.sendMessage({
+        type: "vlcnMigrationStatus",
+        status: "starting",
+        message: "Initializing VLCN database..."
+      });
 
-    const count = await this._vlcn.sql<{
-      count: number;
-    }>`select count(*) as count from "document";`;
+      if (!this._vlcn) {
+        this._vlcn = new VLCN();
+        await this._vlcn.readyPromise;
+      }
 
-    console.log("vlcnAdapter :: count", count);
-    if (count[0].count > 0) {
+      // Check document count
+      const count = await this._vlcn.sql<{
+        count: number;
+      }>`select count(*) as count from "document";`;
+
+      console.log("vlcnAdapter :: count", count);
+      
+      if (count[0].count === 0) {
+        chrome.runtime.sendMessage({
+          type: "vlcnMigrationStatus",
+          status: "empty",
+          message: "No documents found in the VLCN database."
+        });
+        return { imported: 0, message: "No documents found in VLCN database" };
+      }
+      
+      // Send update with document count
+      chrome.runtime.sendMessage({
+        type: "vlcnMigrationStatus",
+        status: "fetching",
+        message: `Found ${count[0].count} documents to migrate...`
+      });
+
+      // Fetch documents
       const docs = await this._vlcn?.db.execA<
         {
           id: number;
@@ -125,10 +201,60 @@ class BackendAdapter {
         createdAt AS created_at,
         updatedAt AS updated_at
       FROM "document";`);
+      
       console.log("vlcnAdapter :: docs", docs.slice(0, 10));
 
-      // @ts-expect-error have not added this to the interface yet. not sure if i'll keep the API
-      return await this.backend.importDocumentsJSONv1({ document: docs });
+      // Send update before importing
+      chrome.runtime.sendMessage({
+        type: "vlcnMigrationStatus",
+        status: "importing",
+        message: `Beginning import of ${docs.length} documents...`,
+        total: docs.length,
+        current: 0
+      });
+
+      // Import the documents
+      // @ts-expect-error have not added this to the interface yet
+      const result = await this.backend.importDocumentsJSONv1({ document: docs });
+      
+      // Send completion status
+      chrome.runtime.sendMessage({
+        type: "vlcnMigrationStatus",
+        status: "complete",
+        message: `Migration complete. Imported ${result.imported} documents (${result.duplicates} were duplicates).`,
+        result
+      });
+
+      // Mark VLCN database as migrated to prevent duplicate migrations
+      try {
+        // First create the table if it doesn't exist
+        await this._vlcn.db.exec(
+          `CREATE TABLE IF NOT EXISTS migration_info (key TEXT PRIMARY KEY, value TEXT);`
+        );
+        
+        // Then insert the migration flag
+        await this._vlcn.db.exec(
+          `INSERT OR REPLACE INTO migration_info (key, value) VALUES ('migrated_to_pglite', '1');`
+        );
+        
+        console.log("Marked VLCN database as migrated successfully");
+      } catch (err) {
+        console.error("Error marking VLCN database as migrated", err);
+      }
+
+      return result;
+    } catch (error) {
+      console.error("VLCN migration failed", error);
+      
+      // Send error status
+      chrome.runtime.sendMessage({
+        type: "vlcnMigrationStatus",
+        status: "error",
+        message: `Migration failed: ${error.message}`,
+        error: error.message
+      });
+      
+      return { error: error.message };
     }
   }
 }

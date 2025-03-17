@@ -729,48 +729,68 @@ export class PgLiteBackend implements Backend {
     ];
 
     let importedCount = 0;
+    let batchSize = 50; // Process in smaller batches to provide progress updates
+    
+    // Process documents in batches
+    for (let i = 0; i < payload.document.length; i += batchSize) {
+      const batch = payload.document.slice(i, i + batchSize);
+      
+      await this.db!.transaction(async (tx) => {
+        for (const row of batch) {
+          const document = Object.fromEntries(documentColumns.map((col, i) => [col, row[i]]));
 
-    await this.db!.transaction(async (tx) => {
-      for (const row of payload.document) {
-        const document = Object.fromEntries(documentColumns.map((col, i) => [col, row[i]]));
+          try {
+            // NOTE: We want a string here, not a URL object
+            const url = normalizeUrl(document.url).href;
 
-        // NOTE: We want a string here, not a URL object
-        const url = normalizeUrl(document.url).href;
+            const result = await tx.query<{ id: number }>(
+              `INSERT INTO document (
+                title, url, excerpt, md_content, md_content_hash, publication_date,
+                hostname, last_visit, last_visit_date, extractor, created_at, updated_at
+              ) VALUES (
+                $1, $2, $3, $4, MD5($4), $5, $6, $7, $8, $9, $10, $11
+              ) ON CONFLICT (url) DO NOTHING
+              RETURNING id;`,
+              [
+                document.title,
+                url,
+                document.excerpt,
+                document.md_content,
+                document.publication_date,
+                document.hostname,
+                document.last_visit,
+                document.last_visit_date,
+                document.extractor,
+                document.created_at,
+                document.updated_at,
+              ]
+            );
 
-        const result = await tx.query<{ id: number }>(
-          `INSERT INTO document (
-            title, url, excerpt, md_content, md_content_hash, publication_date,
-            hostname, last_visit, last_visit_date, extractor, created_at, updated_at
-          ) VALUES (
-            $1, $2, $3, $4, MD5($4), $5, $6, $7, $8, $9, $10, $11
-          ) ON CONFLICT (url) DO NOTHING
-          RETURNING id;`,
-          [
-            document.title,
-            url,
-            document.excerpt,
-            document.md_content,
-            document.publication_date,
-            document.hostname,
-            document.last_visit,
-            document.last_visit_date,
-            document.extractor,
-            document.created_at,
-            document.updated_at,
-          ]
-        );
-
-        if (result.rows.length > 0) {
-          const documentId = result.rows[0].id;
-          console.log("importDocuments :: inserted", documentId);
-          importedCount++;
-          await this.jobQueue?.enqueue("generate_fragments", { document_id: documentId }, tx);
-        } else {
-          const u = url.toString();
-          console.log("importDocuments :: duplicate", u.length > 100 ? u.slice(0, 100) + "..." : u);
+            if (result.rows.length > 0) {
+              const documentId = result.rows[0].id;
+              console.log("importDocuments :: inserted", documentId);
+              importedCount++;
+              await this.jobQueue?.enqueue("generate_fragments", { document_id: documentId }, tx);
+            } else {
+              const u = url.toString();
+              console.log("importDocuments :: duplicate", u.length > 100 ? u.slice(0, 100) + "..." : u);
+            }
+          } catch (err) {
+            console.error("Error importing document", err, document.url);
+            // Continue with other documents even if one fails
+          }
         }
-      }
-    });
+      });
+      
+      // Send progress update after each batch
+      chrome.runtime.sendMessage({
+        type: "vlcnMigrationStatus",
+        status: "progress",
+        current: Math.min(i + batchSize, payload.document.length),
+        total: payload.document.length,
+        message: `Processed ${Math.min(i + batchSize, payload.document.length)} of ${payload.document.length} documents...`
+      });
+    }
 
     console.log("importDocuments :: complete", importedCount);
 

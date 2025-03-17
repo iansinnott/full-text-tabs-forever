@@ -12,10 +12,13 @@
   let errorMessage = "";
   let vlcnImportMessage = "";
   let isImporting = false;
+  let isMigrated = false;
   let blacklistRules: BlacklistRule[] = [];
   let newPattern = "";
   let newLevel: "no_index" | "url_only" = "no_index";
   let addRuleError = "";
+  let migrationProgress = 0;
+  let totalDocuments = 0;
 
   // Add this new variable
   let activeSection = "import-json";
@@ -29,9 +32,58 @@
     }
   };
 
+  // Listen for migration status updates
+  const setupMigrationListener = () => {
+    chrome.runtime.onMessage.addListener((message) => {
+      if (message.type === "vlcnMigrationStatus") {
+        console.log("Migration status update:", message);
+
+        if (message.status === "starting" || message.status === "fetching") {
+          vlcnImportMessage = message.message;
+        } else if (message.status === "importing") {
+          totalDocuments = message.total;
+          migrationProgress = message.current;
+          vlcnImportMessage = message.message;
+        } else if (message.status === "progress") {
+          migrationProgress = message.current;
+          vlcnImportMessage = `Imported ${message.current} of ${message.total} documents...`;
+        } else if (message.status === "complete") {
+          isImporting = false;
+          vlcnImportMessage = message.message;
+          migrationProgress = totalDocuments;
+        } else if (message.status === "error") {
+          isImporting = false;
+          vlcnImportMessage = message.message;
+        } else if (message.status === "empty") {
+          isImporting = false;
+          vlcnImportMessage = message.message;
+        }
+      }
+      return true;
+    });
+  };
+
   onMount(async () => {
     await fetchBlacklistRules();
+    checkVLCNMigrationStatus();
+    setupMigrationListener();
   });
+
+  const checkVLCNMigrationStatus = async () => {
+    try {
+      // First, check if the VLCN backend is available and has been migrated
+      const response = await chrome.runtime.sendMessage(["checkVLCNMigrationStatus"]);
+      if (response?.migrated) {
+        isMigrated = true;
+        vlcnImportMessage = "VLCN database has already been migrated to PgLite.";
+      } else if (!response?.available) {
+        vlcnImportMessage =
+          "No VLCN database found. If you're a new user, you can ignore this section.";
+      }
+    } catch (error) {
+      console.error("Error checking VLCN migration status", error);
+    }
+  };
 
   const handleFileUpload = async () => {
     errorMessage = "";
@@ -43,18 +95,14 @@
 
   const importVLCNDatabase = async () => {
     isImporting = true;
-    vlcnImportMessage = "Importing VLCN database... This may take a while.";
+    migrationProgress = 0;
+    vlcnImportMessage = "Initializing VLCN database migration...";
     try {
-      const response = await chrome.runtime.sendMessage(["importVLCNDocuments"]);
-      if (response.ok) {
-        vlcnImportMessage = "VLCN database imported successfully!";
-      } else {
-        vlcnImportMessage = `Error importing VLCN database: ${response.error}`;
-      }
+      await chrome.runtime.sendMessage(["importVLCNDocuments"]);
+      // Status updates will come through the listener
     } catch (error) {
-      vlcnImportMessage = `Error importing VLCN database: ${error.message}`;
-    } finally {
       isImporting = false;
+      vlcnImportMessage = `Error importing VLCN database: ${error.message}`;
     }
   };
 
@@ -183,23 +231,43 @@
         <button
           on:click={importVLCNDatabase}
           class="bg-pink-800 text-white py-2 px-4 rounded hover:bg-pink-900 disabled:opacity-50 disabled:cursor-not-allowed"
-          disabled={isImporting}
+          disabled={isImporting || isMigrated}
         >
           {#if isImporting}
             Importing...
+          {:else if isMigrated}
+            Already Migrated
           {:else}
             Import VLCN Database
           {/if}
         </button>
       </div>
       {#if vlcnImportMessage}
-        <p
-          class="mt-2"
-          class:text-green-500={vlcnImportMessage.includes("successfully")}
-          class:text-red-500={vlcnImportMessage.includes("Error")}
-        >
-          {vlcnImportMessage}
-        </p>
+        <div class="mt-2">
+          <p
+            class:text-green-500={vlcnImportMessage.includes("successfully") ||
+              vlcnImportMessage.includes("complete")}
+            class:text-red-500={vlcnImportMessage.includes("Error") ||
+              vlcnImportMessage.includes("failed")}
+            class:text-yellow-500={vlcnImportMessage.includes("already been migrated")}
+          >
+            {vlcnImportMessage}
+          </p>
+
+          {#if isImporting && totalDocuments > 0}
+            <div class="mt-2">
+              <div class="w-full bg-gray-700 rounded-full h-2.5 mb-2">
+                <div
+                  class="bg-pink-800 h-2.5 rounded-full"
+                  style="width: {(migrationProgress / totalDocuments) * 100}%"
+                ></div>
+              </div>
+              <p class="text-xs text-gray-400 text-right">
+                {migrationProgress} of {totalDocuments} documents
+              </p>
+            </div>
+          {/if}
+        </div>
       {/if}
     </section>
 
@@ -213,6 +281,11 @@
         Note: The <code class="wildcard font-sans">%</code> character is used as a wildcard in these
         rules. It matches any sequence of characters. For example,
         <code>https://example.com/%</code> would match any URL on example.com.
+      </p>
+      <p class="mt-4">
+        You can choose to only index the URL of a page (<code class="wildcard font-sans"
+          >url_only</code
+        >), or to not index the page at all (<code class="wildcard font-sans">no_index</code>).
       </p>
 
       <!-- Add new blacklist rule form -->

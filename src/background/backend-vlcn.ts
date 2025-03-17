@@ -231,6 +231,29 @@ export class VLCN implements Backend {
       };
     }
 
+    // Check if the database has been migrated to PgLite already
+    try {
+      // First check if the migration_info table exists
+      const tableExists = await this._db.execO<{ name: string }>(
+        `SELECT name FROM sqlite_master WHERE type='table' AND name='migration_info';`
+      );
+      
+      if (tableExists.length > 0) {
+        const migrated = await this._db.execO<{ value: string }>(
+          `SELECT value FROM migration_info WHERE key = 'migrated_to_pglite' LIMIT 1;`
+        );
+        if (migrated.length > 0) {
+          return {
+            ok: true,
+            migrated: true,
+          };
+        }
+      }
+    } catch (err) {
+      console.log("Error checking migration status:", err);
+      // Errors here are non-critical, just continue
+    }
+
     return {
       ok: true,
     };
