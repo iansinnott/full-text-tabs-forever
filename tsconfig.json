@@ -10,6 +10,8 @@
     "esModuleInterop": true,
     "lib": ["esnext", "dom"],
     "typeRoots": ["node_modules/@types"],
+    "skipLibCheck": true,
+    "allowJs": true,
     "importHelpers": true,
     "removeComments": true,
     "forceConsistentCasingInFileNames": true,
@@ -19,12 +21,5 @@
       "@/*": ["src/*"]
     }
   },
-  "include": [
-    "src/**/*.d.ts",
-    "src/**/*.js",
-    "src/**/*.ts",
-    "src/**/*.svelte",
-    "./node_modules/bun-types/*.ts",
-    "./types.d.ts"
-  ]
+  "include": ["src/**/*.d.ts", "src/**/*.js", "src/**/*.ts", "src/**/*.svelte"]
 }

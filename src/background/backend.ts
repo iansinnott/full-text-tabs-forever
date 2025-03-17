@@ -14,57 +14,58 @@ type ReadabilityArticle = Omit<NonNullable<ReturnType<Readability["parse"]>>, "c
 export type Article = ReadabilityArticle & {
   extractor: string;
   /** Optional for now b/c i'm not sending it over the wire if turndown is used in the content script */
-  htmlContent?: string;
+  html_content?: string;
   /** Optional because the parsing can fail */
-  mdContent?: string;
+  md_content?: string;
+  text_content?: string;
   date?: string;
-  _extractionTime: number;
+  _extraction_time: number;
 };
 
-export type ArticleRow = Omit<Article, "htmlContent" | "textContent"> & {
+export type ArticleRow = Omit<Article, "html_content" | "text_content"> & {
   id: number;
-  mdContentHash?: string;
-  mdContent?: string;
+  md_content_hash?: string;
+  md_content?: string;
   url: string;
   hostname: string;
-  searchWords?: string[];
-  lastVisit?: number; // Timestamp
-  lastVisitDate?: string;
-  updatedAt: number;
-  createdAt: number; // Timestamp
-  publicationDate?: number;
+  search_words?: string[];
+  last_visit?: number; // Timestamp
+  last_visit_date?: string;
+  updated_at: number;
+  created_at: number; // Timestamp
+  publication_date?: number;
 };
 
 /** @deprecated don't use urls directly for now. use documents which have URLs */
 export type UrlRow = {
   url: string;
-  urlHash: string;
+  url_hash: string;
   title?: string;
-  lastVisit?: number; // Timestamp
+  last_visit?: number; // Timestamp
   hostname: string;
-  textContentHash?: string;
-  searchWords?: string[];
+  text_content_hash?: string;
+  search_words?: string[];
 };
 
 export type ResultRow = {
   rowid: number;
   id: number;
-  entityId: number;
+  entity_id: number;
   attribute: string;
   snippet?: string;
   url: string;
   hostname: string;
   title?: string;
   excerpt?: string;
-  lastVisit?: number; // Timestamp
-  lastVisitDate?: string;
-  mdContentHash?: string;
-  updatedAt: number;
-  createdAt: number; // Timestamp
+  last_visit?: number; // Timestamp
+  last_visit_date?: string;
+  md_content_hash?: string;
+  updated_at: number;
+  created_at: number; // Timestamp
 };
 
 export type DetailRow = ResultRow & {
-  mdContent?: string;
+  md_content?: string;
 };
 
 type FirstArg<T> = T extends (arg: infer U, ...args: any[]) => any ? U : never;
@@ -79,21 +80,21 @@ export type RpcMessage =
   | [method: "importJson"]
   | [method: "reindex"]
   | [method: "search", payload: FirstArg<Backend["search"]>]
-  | [method: string, payload: any];
+  | [method: string, payload?: any];
 
 export type DBDump = Record<string, any[][]>;
 
 export interface Backend {
-  getStatus(): Promise<{ ok: true } | { ok: false; error: string; detail?: any }>;
-  getPageStatus: RemoteProcWithSender;
-  indexPage: RemoteProcWithSender<Article>;
+  getStatus(): Promise<{ ok: true; migrated?: boolean } | { ok: false; error: string; detail?: any }>;
+  getPageStatus: (_: any, sender: { tab: { url: string } }) => Promise<any>;
+  indexPage: (payload: Article, sender: { tab: { url: string } }) => Promise<any>;
   nothingToIndex: RemoteProcWithSender;
   search: RemoteProc<
     {
       query: string;
       limit?: number;
       offset?: number;
-      orderBy: "updatedAt" | "rank";
+      orderBy: "updated_at" | "rank" | "last_visit";
       preprocessQuery?: boolean;
     },
     {
@@ -106,5 +107,5 @@ export interface Backend {
   >;
   findOne(query: { where: { url: string } }): Promise<DetailRow | null>;
   exportJson?(): Promise<any>;
-  importJson?(data: DBDump): Promise<any>;
+  importDocumentsJSONv1?(payload: { document: any[][] }): Promise<{ imported: number; duplicates: number }>;
 }

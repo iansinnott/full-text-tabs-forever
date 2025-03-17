@@ -1,19 +1,19 @@
 <script lang="ts">
   import type { DetailRow } from "@/background/backend";
-  import { fttf } from './lib/rpc';
+  import { fttf } from "./lib/rpc";
   import SvelteMarkdown from "svelte-markdown";
-  
+
   // Note this will not have the content. we need a separate fetch for that
   export let docUrl: string;
   export let showDetails = false;
   let row: DetailRow | null = null;
   let err: Error | null = null;
-  
+
   const fetchRow = async (url: string) => {
     try {
-      row = await fttf.adapter.backend.findOne({ where: { url }});
+      row = await fttf.adapter.backend.findOne({ where: { url } });
     } catch (_err) {
-      err = _err; 
+      err = _err;
     }
   };
 
@@ -47,7 +47,7 @@
         >{row.url}</a
       >
     </h1>
-    <SvelteMarkdown source={row.mdContent} />
+    <SvelteMarkdown source={row.md_content} />
   {:else if err}
     <div class="error">
       {err.message}

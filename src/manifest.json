@@ -2,13 +2,15 @@
     "$schema": "https://json.schemastore.org/chrome-manifest",
     "name": "Full Text Tabs Forever",
     "description": "Search your full browsing history",
-    "version": "1.2.2",
+    "version": "2.0.0",
     "manifest_version": 3,
     "permissions": [
         "unlimitedStorage",
         "downloads",
         "tabs",
-        "activeTab"
+        "activeTab",
+        "notifications",
+        "storage"
     ],
     "icons": {
         "16": "assets/icon_16.png",

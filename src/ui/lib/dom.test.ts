@@ -28,7 +28,6 @@ test("findRanges", () => {
 
   for (const { input, search, expected } of testCases) {
     const ranges = findRanges(input, search);
-    console.log("input", JSON.stringify(input), "ranges", ranges);
     expect(ranges).toEqual(expected as [number, number][]);
   }
 });

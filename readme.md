@@ -11,6 +11,8 @@ Available in the [Chrome Web Store](https://chrome.google.com/webstore/detail/fu
 
 Available in the [Firefox Add-ons Store](https://addons.mozilla.org/en-US/firefox/addon/full-text-tabs-forever/)
 
+> **IMPORTANT FOR v2.0 USERS:** If you're upgrading from v1.x, see the [Database Migration](#database-migration-v20) section for instructions on migrating your existing data.
+
 _Firefox requires additonal permissions. See [below](#firefox)._
 
 </div>
@@ -83,14 +85,48 @@ See this comment for more details: https://github.com/iansinnott/full-text-tabs-
 
 Support was added in: https://github.com/iansinnott/full-text-tabs-forever/pull/4.
 
+# Database Migration (v2.0)
+
+With version 2.0, Full Text Tabs Forever has migrated from SQLite (VLCN) to PostgreSQL (PgLite) as its database backend. This change brings several improvements:
+
+- Better full-text search capabilities with PostgreSQL's advanced text search
+- Support for vector embeddings for semantic search (coming soon)
+- Improved performance for large databases
+- More efficient storage of document fragments
+
+## For Existing Users
+
+If you're upgrading from a previous version (v1.x), your data will not be lost! The extension includes an automatic migration system that will:
+
+1. Detect your existing VLCN (SQLite) database
+2. Provide a simple one-click migration option in the Settings page
+3. Transfer all your saved pages to the new PostgreSQL database
+4. Show real-time progress during migration
+5. Preserve all your searchable content
+
+To migrate your data:
+
+1. After upgrading, open the extension
+2. Go to the Settings page
+3. Find the "Import VLCN Database (v1)" section 
+4. Click the "Import VLCN Database" button
+5. Wait for the migration to complete - this may take several minutes depending on how many pages you've saved
+6. Your data is now accessible in the new database system!
+
+The migration happens entirely on your device, and no data is sent to external servers. Your privacy remains protected throughout the process.
+
 # TODO
 
 - [ ] Backfill history
       Currently only new pages you visit are indexed, but we could backfill by opening every page in the browser's history that hasn't yet been indexed. An optional feature, but a useful one.
 - [ ] Backup and sync
-      As with all my wasm-sqlite projects I don't want data locked in IndexedDB. VLCN has great sync support so this could be relatively low-hanging fruit.
+      Improved export/import capabilities for moving data between devices.
+- [ ] Semantic search
+      Leverage vector embeddings in the new PostgreSQL backend for more intelligent searching.
 - [ ] Integrate with [browser-gopher](https://github.com/iansinnott/browser-gopher)
       Browser gopher and [BrowserParrot](https://www.browserparrot.com/) were the initial impetus to create a better way to ingest full text web pages, without triggering a Cloudflare captcha party on your home connection.
+- [x] Migrate to PostgreSQL
+      Replace SQLite with a more powerful database backend using PgLite.
 - [x] Improve discoverability of functionality.
       There is now a button to open the command palette. Still not much GUI, but enough to be discovered.
 - [x] Firefox

@@ -53,7 +53,7 @@ export class DebugBackend implements Backend {
 
     // remove adjacent whitespace since it serves no purpose. The html or
     // markdown content stores formatting.
-    const plainText = payload.textContent.replace(/[ \t]+/g, " ").replace(/\n+/g, "\n");
+    const plainText = payload.text_content?.replace(/[ \t]+/g, " ").replace(/\n+/g, "\n");
 
     console.debug(`%c${"indexPage"}`, "color:lime;", tab?.url);
     console.debug(formatDebuggablePayload({ ...payload, textContent: plainText }));

@@ -34,6 +34,82 @@ const detectDate = () => {
   return date;
 };
 
+// Function to extract YouTube transcript if available
+const extractYouTubeTranscript = async (): Promise<string | null> => {
+  // Only run on YouTube watch pages
+  if (!location.hostname.includes("youtube.com") || !location.pathname.startsWith("/watch")) {
+    return null;
+  }
+
+  try {
+    // Access YouTube's global variable for captions
+    const playerResponse = (window as any).ytInitialPlayerResponse;
+
+    if (!playerResponse?.captions?.playerCaptionsTracklistRenderer?.captionTracks?.length) {
+      log("fttf :: no captions available");
+      return null;
+    }
+
+    const captionTracks = playerResponse.captions.playerCaptionsTracklistRenderer.captionTracks;
+
+    // Try to find English captions first
+    const chosenTrack =
+      captionTracks.find((track: any) => track.languageCode === "en") || captionTracks[0];
+
+    if (!chosenTrack?.baseUrl) {
+      return null;
+    }
+
+    // Fetch the caption data
+    const response = await fetch(chosenTrack.baseUrl);
+    const captionData = await response.text();
+
+    // Parse the TTML data
+    const textLines: string[] = [];
+
+    // Try DOMParser first
+    try {
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(captionData, "application/xml");
+
+      // Check for parser errors
+      const parserErrors = xmlDoc.getElementsByTagName("parsererror");
+      if (parserErrors.length > 0) {
+        throw new Error("DOMParser parsererror encountered");
+      }
+
+      // Extract text content
+      const textNodes = xmlDoc.getElementsByTagName("text");
+      for (let i = 0; i < textNodes.length; i++) {
+        const textContent = textNodes[i].textContent?.trim();
+        if (textContent) {
+          textLines.push(textContent);
+        }
+      }
+    } catch (err) {
+      // Fallback to regex parsing if DOMParser fails
+      log("fttf :: falling back to regex parsing for transcript");
+      const textTagRegex = /<text[^>]*>([\s\S]*?)<\/text>/g;
+      let match;
+      while ((match = textTagRegex.exec(captionData)) !== null) {
+        const raw = match[1].trim();
+        if (raw) {
+          textLines.push(raw);
+        }
+      }
+    }
+
+    if (textLines.length === 0) {
+      return null;
+    }
+
+    return textLines.join("\n");
+  } catch (err) {
+    log("fttf :: error extracting transcript", err);
+    return null;
+  }
+};
+
 const main = async () => {
   const res = await rpc(["getPageStatus"]);
 
@@ -43,17 +119,31 @@ const main = async () => {
   if (!res?.shouldIndex) {
     const debugUrls = localStorage.getItem("@fttf/debugUrls")?.split(",") || [];
     if (!debugUrls.includes(location.hostname)) {
-      log("Skipping due to server response", res);
+      log("fttf :: skip :: due to server response", res);
       return;
     }
+  }
+
+  if (res?.indexLevel === "url_only") {
+    const date = detectDate();
+    const result = await rpc([
+      "indexPage",
+      {
+        title: document.title,
+        date,
+      },
+    ]);
+
+    log("fttf :: result", result);
+    return;
   }
 
   // Wait for the dom to be ready. Yeah, crude. What's the best move here?
   await new Promise((resolve) => {
     // Wait for dom to stop changing for at least 1 second
     let len = document.body?.innerText?.length || 0;
-    let timeout: NodeJS.Timeout;
-    let timeout2: NodeJS.Timeout;
+    let timeout: Timer;
+    let timeout2: Timer;
 
     const fn = () => {
       const newLen = document.body?.innerText?.length || 0;
@@ -61,7 +151,7 @@ const main = async () => {
         clearTimeout(timeout2);
         resolve(null);
       } else {
-        console.debug("Still waiting for dom to stop changing");
+        log("fttf :: wait :: still waiting for dom to stop changing");
         len = newLen;
         timeout = setTimeout(fn, 1000);
       }
@@ -79,6 +169,9 @@ const main = async () => {
 
   // Wait for an idle moment so that we don't cause any dropped frames (hopefully)
   await new Promise((resolve) => requestIdleCallback(resolve));
+
+  // Extract YouTube transcript if available
+  const transcript = await extractYouTubeTranscript();
 
   // parse() will mutate the dom, so we need to clone in order not to spoil the normal reading of the site
   const domClone = document.cloneNode(true) as Document;
@@ -101,6 +194,8 @@ const main = async () => {
   const date = detectDate();
   const { content, textContent, ...rest } = readabilityArticle;
 
+  console.debug("fttf :: readabilityArticle", rest);
+
   // Lazy load the turndown lib
   const TurndownService = (await import("turndown")).default;
 
@@ -110,33 +205,34 @@ const main = async () => {
     hr: "---",
   });
 
-  console.debug("-> markdown");
+  log("fttf :: markdown");
   // @todo Would be nice to not have to turndown for every page. This used to be
   // in the background script but threw for dom reasons. Would need to modify
   // turndown. NOTE: It supports running in node, but the internal env check
   // thinks its in a browser
   const mdContent = turndown.turndown(content);
 
+  // If we have a transcript, append it to the markdown content
+  const finalMdContent = transcript ? `${mdContent}\n\n## Transcript\n\n${transcript}` : mdContent;
+
   log("article:", textContent, {
     ...rest,
     date,
   });
 
-  // @todo This is just a standin
   const result = await rpc([
     "indexPage",
     {
       ...rest,
-      _extractionTime: endTime - startTime,
+      _extraction_time: endTime - startTime,
       extractor: "readability",
-      // htmlContent: content,
-      textContent,
-      mdContent,
+      text_content: textContent,
+      md_content: finalMdContent,
       date,
     },
   ]);
 
-  log("result", result);
+  log("fttf :: result", result);
 };
 
 const mainWrapper = async () => {
@@ -162,7 +258,7 @@ const mainWrapper = async () => {
 (async () => {
   // listen for browser push state updates and hash changes
   window.addEventListener("popstate", () => {
-    console.debug("%cpopstate", "color:orange;font-size:18px;", location.toString());
+    log("%cpopstate", "color:orange;font-size:18px;", location.toString());
     mainWrapper();
   });
 

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import initWasm, { SQLite3, type DB } from "@vlcn.io/crsqlite-wasm";
 // @ts-expect-error TS doesn't understand this?
 import wasmUrl from "@vlcn.io/crsqlite-wasm/crsqlite.wasm?url";
@@ -230,6 +231,29 @@ export class VLCN implements Backend {
       };
     }
 
+    // Check if the database has been migrated to PgLite already
+    try {
+      // First check if the migration_info table exists
+      const tableExists = await this._db.execO<{ name: string }>(
+        `SELECT name FROM sqlite_master WHERE type='table' AND name='migration_info';`
+      );
+      
+      if (tableExists.length > 0) {
+        const migrated = await this._db.execO<{ value: string }>(
+          `SELECT value FROM migration_info WHERE key = 'migrated_to_pglite' LIMIT 1;`
+        );
+        if (migrated.length > 0) {
+          return {
+            ok: true,
+            migrated: true,
+          };
+        }
+      }
+    } catch (err) {
+      console.log("Error checking migration status:", err);
+      // Errors here are non-critical, just continue
+    }
+
     return {
       ok: true,
     };
@@ -330,9 +354,7 @@ export class VLCN implements Backend {
   nothingToIndex: Backend["nothingToIndex"] = async (payload, sender) => {
     const { tab } = sender;
     console.debug(`%c${"nothingToIndex"}`, "color:beige;", tab?.url);
-    return {
-      ok: true,
-    };
+    return { ok: true };
   };
 
   search: Backend["search"] = async (payload) => {
@@ -522,6 +544,12 @@ export class VLCN implements Backend {
   // constantly have to null-check this
   private _db: DB;
 
+  // Create for use when migrating from vlcn to pglite
+  get db() {
+    return this._db;
+  }
+  readyPromise: Promise<void>;
+
   private _dbReady = false;
 
   // @todo How much more/less efficient would it be to run turndown in the
@@ -535,7 +563,7 @@ export class VLCN implements Backend {
   // });
 
   constructor() {
-    this.init()
+    this.readyPromise = this.init()
       .then(() => {
         console.debug("DB ready");
       })

@@ -1,31 +1,74 @@
 <script lang="ts">
   import classNames from "classnames";
   import { fly } from "svelte/transition";
-  import { each } from "svelte/internal";
   import { rpc } from "./lib/rpc";
   import { displaySettings } from "./store/displaySettings";
+  import { navigationRoutes } from "./routes";
+  import { dumpDataDir, handleImport, loadDataDir, vacuumFull, exportJson } from "./lib/commands";
+  import { push } from "svelte-spa-router";
   let _class: string = "";
   export { _class as class };
   export let open: boolean = false;
   export let onClose: () => void;
   let filterText = "";
   let currentIndex = 0;
-  let fileInput: HTMLInputElement;
 
   const commands = [
+    ...navigationRoutes
+      .filter((route) => route.name !== "index")
+      .map((route) => ({
+        name: `Page: ${route.label}`,
+        exec: async () => {
+          push(route.path);
+          return true;
+        },
+      })),
     {
       name: "DB: Import...",
       exec: async () => {
-        console.log("import");
-        fileInput?.click();
+        const result = await handleImport();
+        if (result.success) {
+          onClose();
+          return true;
+        }
         return false;
       },
     },
     {
       name: "DB: Export...",
       exec: async () => {
-        console.log("export");
-        await rpc(["exportJson"]);
+        const result = await exportJson();
+        if (result.success) {
+          onClose();
+          return true;
+        }
+        return false;
+      },
+    },
+    {
+      name: "DB: Vacuum",
+      exec: async () => {
+        const res = await vacuumFull();
+        console.log("vacuum", res);
+        return true;
+      },
+    },
+    {
+      name: "DB: Dump Data Dir",
+      exec: async () => {
+        const res = await dumpDataDir();
+        if (res) {
+          console.log("dumpDataDir :: err", res);
+          return false;
+        }
+        return true;
+      },
+    },
+    {
+      name: "DB: Load Data Dir",
+      exec: async () => {
+        const res = await loadDataDir();
+        console.log("loadDataDir", res);
         return true;
       },
     },
@@ -103,7 +146,7 @@
   out:fly={{ y: 20, duration: 200 }}
   on:keydown={handleKeydown}
   class={classNames(
-    "fixed top-1/4 left-1/2 transform -translate-x-1/2 w-full max-w-[600px] rounded-lg shadow shadow-black",
+    "fixed top-[20%] left-1/2 transform -translate-x-1/2 w-full max-w-[600px] rounded-lg shadow shadow-black",
     "bg-zinc-900 text-white",
     _class
   )}
@@ -116,30 +159,8 @@
       data-menu-input
       class="appearance-none w-full outline-none focus:ring-0 text-white text-lg bg-[#1d1d1d] rounded-t-lg px-3 py-3 border-none border-b border-zinc-600"
     />
-    <input
-      class="hidden"
-      type="file"
-      bind:this={fileInput}
-      on:change={(e) => {
-        const file = e.currentTarget.files?.[0];
-        console.log("file", file);
-        if (file) {
-          const reader = new FileReader();
-          reader.onload = async () => {
-            const text = reader.result;
-            if (typeof text === "string") {
-              await rpc(["importJson", JSON.parse(text)]);
-              onClose();
-            } else {
-              console.error("invalid file", text);
-            }
-          };
-          reader.readAsText(file);
-        }
-      }}
-    />
   </form>
-  <div class="commands p-2 text-lg">
+  <div class="commands p-2 text-lg overflow-auto max-h-[60vh]">
     {#each filteredCommands as command, i (command.name)}
       <div
         on:mouseenter={() => {
