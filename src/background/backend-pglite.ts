@@ -16,11 +16,11 @@ import { type QueryOptions, Transaction } from "@electric-sql/pglite";
 import { defaultBlacklistRules } from "./pglite/defaultBlacklistRules";
 import { z } from "zod";
 
-import { sql as init_schema } from "./pglite/migrations/001_init";
+import { MigrationManager, type Migration } from "./pglite/migration-manager";
+import { migration as init_migration } from "./pglite/migrations/001_init";
 
-// NOTE: There are currently no migrations, but migrations are set up to allow
-// iterating on the schema
-const migrations = ([] as string[]).map((sql, index) => ({ sql, version: index + 1 }));
+// List of migrations to apply
+const migrations = [init_migration];
 
 function prepareFtsQuery(query: string): string {
   return (
@@ -75,11 +75,14 @@ export class PgLiteBackend implements Backend {
         extensions: { vector, pg_trgm, btree_gin },
         relaxedDurability: true,
       });
-      await this.db.exec(init_schema);
+
       await this.applyMigrations();
       await this.initializeDefaultBlacklistRules();
+
+      // Initialize job queue
       this.jobQueue = new JobQueue(this.db, undefined, 100);
       await this.jobQueue.initialize();
+
       this.dbReady = true;
     } catch (err) {
       console.error("Error initializing PgLite db", err);
@@ -89,25 +92,26 @@ export class PgLiteBackend implements Backend {
   }
 
   private async applyMigrations() {
-    for (const migration of migrations) {
-      const applied = await this.isMigrationApplied(migration.version);
+    try {
+      const migrationManager = new MigrationManager(this.db!);
 
-      if (!applied) {
-        await this.db!.transaction(async (tx) => {
-          await tx.exec(migration.sql);
-          await tx.query("INSERT INTO migrations (version) VALUES ($1)", [migration.version]);
-        });
-        console.log(`Applied migration: ${migration.version}`);
+      for (const migration of migrations) {
+        migrationManager.registerMigration(migration as Migration);
       }
-    }
-  }
 
-  private async isMigrationApplied(version: number): Promise<boolean> {
-    const result = await this.db!.query<{ count: number }>(
-      "SELECT COUNT(*) as count FROM migrations WHERE version = $1",
-      [version]
-    );
-    return result.rows[0].count > 0;
+      const status = await migrationManager.applyMigrations();
+
+      if (!status.ok) {
+        console.error("Migration failed");
+        throw new Error(`Migration failed`);
+      }
+
+      console.log(`Database migrated to version ${status.currentVersion}`);
+      return status;
+    } catch (error) {
+      console.error("Error applying migrations:", error);
+      throw error;
+    }
   }
 
   private async initializeDefaultBlacklistRules() {
@@ -730,11 +734,11 @@ export class PgLiteBackend implements Backend {
 
     let importedCount = 0;
     let batchSize = 50; // Process in smaller batches to provide progress updates
-    
+
     // Process documents in batches
     for (let i = 0; i < payload.document.length; i += batchSize) {
       const batch = payload.document.slice(i, i + batchSize);
-      
+
       await this.db!.transaction(async (tx) => {
         for (const row of batch) {
           const document = Object.fromEntries(documentColumns.map((col, i) => [col, row[i]]));
@@ -773,7 +777,10 @@ export class PgLiteBackend implements Backend {
               await this.jobQueue?.enqueue("generate_fragments", { document_id: documentId }, tx);
             } else {
               const u = url.toString();
-              console.log("importDocuments :: duplicate", u.length > 100 ? u.slice(0, 100) + "..." : u);
+              console.log(
+                "importDocuments :: duplicate",
+                u.length > 100 ? u.slice(0, 100) + "..." : u
+              );
             }
           } catch (err) {
             console.error("Error importing document", err, document.url);
@@ -781,14 +788,16 @@ export class PgLiteBackend implements Backend {
           }
         }
       });
-      
+
       // Send progress update after each batch
       chrome.runtime.sendMessage({
         type: "vlcnMigrationStatus",
         status: "progress",
         current: Math.min(i + batchSize, payload.document.length),
         total: payload.document.length,
-        message: `Processed ${Math.min(i + batchSize, payload.document.length)} of ${payload.document.length} documents...`
+        message: `Processed ${Math.min(i + batchSize, payload.document.length)} of ${
+          payload.document.length
+        } documents...`,
       });
     }
 
