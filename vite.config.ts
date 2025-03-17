@@ -52,6 +52,13 @@ export default defineConfig({
     vitePluginTopLevelAwait(),
     svelte({
       preprocess: vitePreprocess(),
+      onwarn: (warning, handler) => {
+        // Ignore all a11y warnings
+        if (warning.code.startsWith('a11y-')) {
+          return;
+        }
+        handler(warning);
+      }
     }),
 
     // Watch additional files
