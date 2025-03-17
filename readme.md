@@ -54,7 +54,7 @@ This project uses `bun` as a unit testing framework, but not (currently) as a bu
 
 `bun test`
 
-Or, `pnpm run test` if you prefer.
+Or, `bun run test` if you prefer.
 
 # Note to self: Submitting a new version manually
 
@@ -62,8 +62,8 @@ Or, `pnpm run test` if you prefer.
 
 - Manually bump the version in the manifest file
 - Run the build
-  - `pnpm run build:chrome`
-  - `pnpm run build:firefox`
+  - `bun run build:chrome`
+  - `bun run build:firefox`
 - Submit
   - Chrome
     - Go to: https://chrome.google.com/webstore/devconsole/bc898ad5-018e-4774-b9ab-c4bef7b7f92b/gfmbnlbnapjmffgcnbopfgmflmlfghel/edit/package
@@ -108,7 +108,7 @@ To migrate your data:
 
 1. After upgrading, open the extension
 2. Go to the Settings page
-3. Find the "Import VLCN Database (v1)" section 
+3. Find the "Import VLCN Database (v1)" section
 4. Click the "Import VLCN Database" button
 5. Wait for the migration to complete - this may take several minutes depending on how many pages you've saved
 6. Your data is now accessible in the new database system!
