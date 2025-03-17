@@ -286,7 +286,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
     try {
       const migrationStatus = await adapter.checkVLCNMigrationStatus();
       
-      if (migrationStatus.available && !migrationStatus.migrated && migrationStatus.documentCount > 0) {
+      if (migrationStatus.available && !migrationStatus.migrated && migrationStatus.documentCount && migrationStatus.documentCount > 0) {
         console.log(`Found ${migrationStatus.documentCount} documents to migrate from VLCN database.`);
         
         // Show a notification to inform the user about migration
