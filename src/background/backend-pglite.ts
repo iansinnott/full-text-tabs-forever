@@ -572,6 +572,32 @@ export class PgLiteBackend implements Backend {
     });
   }
 
+  /**
+   * Get a batch of documents for streaming export
+   * @param payload The batch options including offset and limit
+   * @returns A batch of documents
+   */
+  async getDocumentBatch({ offset = 0, limit = 100 }: { offset: number; limit: number }) {
+    try {
+      const result = await this.db!.query(
+        `SELECT * FROM document ORDER BY id LIMIT $1 OFFSET $2;`, 
+        [limit, offset], 
+        { rowMode: "array" }
+      );
+      
+      return {
+        rows: result.rows,
+        success: true
+      };
+    } catch (error) {
+      console.error("Error fetching document batch:", error);
+      return {
+        error: error instanceof Error ? error.message : "Unknown error",
+        success: false
+      };
+    }
+  }
+
   async [`pg.dumpDataDir`]() {
     const blob = await this.db!.dumpDataDir("gzip");
     const blobUrl = await this.createObjectURL(blob);
