@@ -51,12 +51,6 @@ export const vacuumFull = async () => {
 };
 
 export const dumpDataDir = async () => {
-  const _stats = (await rpc(["getStats"])) as {
-    document: { count: number };
-    document_fragment: { count: number };
-    db: { size_bytes: number };
-  };
-
   return await rpc(["pg.dumpDataDir"]);
 };
 
@@ -72,27 +66,18 @@ export const loadDataDir = async () => {
  * Export the database to a JSON file
  * For large databases, this will use the streaming export API if available
  * Otherwise falls back to the regular export method
+ * @param options Optional configuration including progress callback
+ *
+ * @todo This doesn't do much... probably remove it in favor of streamingExport directly.
  */
-export const exportJson = async (): Promise<{ success: boolean; message?: string }> => {
+export const exportJson = async (options?: {
+  onProgress?: (progress: { current: number; total: number }) => void;
+}): Promise<{ success: boolean; message?: string }> => {
   try {
-    const _stats = (await rpc(["getStats"])) as {
-      document: { count: number };
-      document_fragment: { count: number };
-      db: { size_bytes: number };
-    };
-
     // Use streaming export if available, which will fall back to regular export if needed
     const result = await streamingExport({
       batchSize: 200,
-      onProgress: (progress) => {
-        // The progress is logged but not stored since the UI component
-        // using this would need to track its own state
-        console.log(
-          `Export progress: ${progress.current}/${progress.total} documents (${Math.round(
-            (progress.current / progress.total) * 100
-          )}%)`
-        );
-      },
+      onProgress: options?.onProgress,
     });
 
     return result;

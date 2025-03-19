@@ -241,7 +241,19 @@
 
               // These variables will be updated by the exportJson function
               // through the onProgress callback in streamingExport
-              const result = await exportJson();
+              const result = await exportJson({
+                onProgress: (progress) => {
+                  // Update the UI progress variables
+                  exportProgress = progress.current;
+                  exportTotal = progress.total;
+
+                  console.log(
+                    `Export progress: ${progress.current}/${progress.total} documents (${Math.round(
+                      (progress.current / progress.total) * 100
+                    )}%)`
+                  );
+                },
+              });
 
               if (!result.success) {
                 exportErrorMessage = result.message || "Export failed";
