@@ -1,7 +1,8 @@
 <script lang="ts">
-  import { handleImport } from "@/ui/lib/commands";
+  import { handleImport, exportJson } from "@/ui/lib/commands";
   import { rpc } from "@/ui/lib/rpc";
   import { onMount } from "svelte";
+  import ExportProgress from "@/ui/ExportProgress.svelte";
 
   type BlacklistRule = {
     id: number;
@@ -22,6 +23,12 @@
 
   // Add this new variable
   let activeSection = "import-json";
+
+  // Export progress tracking
+  let isExporting = false;
+  let exportProgress = 0;
+  let exportTotal = 0;
+  let exportErrorMessage = "";
 
   // Add this new function
   const scrollToSection = (sectionId: string) => {
@@ -162,6 +169,8 @@
   };
 </script>
 
+<ExportProgress visible={isExporting} current={exportProgress} total={exportTotal} />
+
 <div class="flex flex-col md:flex-row p-4 md:p-12 h-[calc(100%-70px)] overflow-auto">
   <nav class="md:w-1/4 mb-4 md:mb-0 md:mr-8">
     <ul
@@ -204,19 +213,68 @@
     <h3>Settings</h3>
 
     <section id="import-json">
-      <h4>Import JSON Database</h4>
+      <h4>Import/Export JSON Database</h4>
       <p>
-        Upload a JSON file to import your database. The file should contain document and
-        document_fragment data, which will be processed and added to your local database.
+        Upload a JSON file to import your database or export your current database to a JSON file.
       </p>
-      <div class="mt-4">
+      <div class="mt-4 flex space-x-2">
         <button
           on:click={handleFileUpload}
-          class="bg-pink-800 text-white py-2 px-4 rounded hover:bg-pink-900">Import JSON</button
+          class="bg-pink-800 text-white py-2 px-4 rounded hover:bg-pink-900"
         >
+          Import JSON
+        </button>
+
+        <button
+          on:click={async () => {
+            isExporting = true;
+            exportProgress = 0;
+            exportTotal = 0;
+            exportErrorMessage = "";
+
+            try {
+              // Get initial stats for progress
+              const stats = await rpc(["getStats"]);
+
+              // Start with an estimate
+              exportTotal = stats.document.count;
+
+              // These variables will be updated by the exportJson function
+              // through the onProgress callback in streamingExport
+              const result = await exportJson({
+                onProgress: (progress) => {
+                  // Update the UI progress variables
+                  exportProgress = progress.current;
+                  exportTotal = progress.total;
+
+                  console.log(
+                    `Export progress: ${progress.current}/${progress.total} documents (${Math.round(
+                      (progress.current / progress.total) * 100
+                    )}%)`
+                  );
+                },
+              });
+
+              if (!result.success) {
+                exportErrorMessage = result.message || "Export failed";
+              }
+            } catch (error) {
+              exportErrorMessage = error instanceof Error ? error.message : "Export failed";
+            } finally {
+              isExporting = false;
+            }
+          }}
+          class="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700"
+        >
+          Export JSON
+        </button>
       </div>
+
       {#if errorMessage}
         <p class="text-red-500 mt-2">{errorMessage}</p>
+      {/if}
+      {#if exportErrorMessage}
+        <p class="text-red-500 mt-2">{exportErrorMessage}</p>
       {/if}
     </section>
 
