@@ -105,10 +105,18 @@ export class BackendAdapter {
         count: number;
       }>`select count(*) as count from "document";`;
 
+      const documentCount = count[0].count;
+
+      // Flag the migration as somplete so that we don't continue to initialize
+      // VLCN ever time. Ultimately we will remove VLCN completely.
+      if (documentCount === 0) {
+        await this.setMigrationComplete();
+      }
+
       return {
         available: true,
         migrated: false,
-        documentCount: count[0].count,
+        documentCount,
       };
     } catch (err) {
       console.error("Error checking VLCN migration status", err);
