@@ -50,18 +50,6 @@ export const vacuumFull = async () => {
   return { before, after };
 };
 
-export const dumpDataDir = async () => {
-  return await rpc(["pg.dumpDataDir"]);
-};
-
-export const loadDataDir = async () => {
-  const file = await pickFile(".dump,.gz");
-  console.log("loadDataDir :: file.type", file.type);
-  await fttf.adapter.backend["pg.loadDataDir"](file);
-  await updateStats();
-  return { success: true };
-};
-
 /**
  * Export the database to a JSON file
  * For large databases, this will use the streaming export API if available

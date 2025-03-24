@@ -4,7 +4,7 @@
   import { rpc } from "./lib/rpc";
   import { displaySettings } from "./store/displaySettings";
   import { navigationRoutes } from "./routes";
-  import { dumpDataDir, handleImport, loadDataDir, vacuumFull, exportJson } from "./lib/commands";
+  import { handleImport, vacuumFull, exportJson } from "./lib/commands";
   import { push } from "svelte-spa-router";
   let _class: string = "";
   export { _class as class };
@@ -50,25 +50,6 @@
       exec: async () => {
         const res = await vacuumFull();
         console.log("vacuum", res);
-        return true;
-      },
-    },
-    {
-      name: "DB: Dump Data Dir",
-      exec: async () => {
-        const res = await dumpDataDir();
-        if (res) {
-          console.log("dumpDataDir :: err", res);
-          return false;
-        }
-        return true;
-      },
-    },
-    {
-      name: "DB: Load Data Dir",
-      exec: async () => {
-        const res = await loadDataDir();
-        console.log("loadDataDir", res);
         return true;
       },
     },
