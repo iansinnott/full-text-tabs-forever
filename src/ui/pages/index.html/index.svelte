@@ -166,11 +166,15 @@
     } else {
       loading = false;
       await updateStats();
-      
+
       // Check for VLCN migration
       try {
         const migrationStatus = await rpc(["checkVLCNMigrationStatus"]);
-        if (migrationStatus?.available && !migrationStatus?.migrated) {
+        if (
+          migrationStatus?.available &&
+          !migrationStatus?.migrated &&
+          migrationStatus?.documentCount > 0
+        ) {
           showMigrationModal = true;
         }
       } catch (error) {
@@ -325,6 +329,8 @@
   </div>
 </div>
 
+<MigrationModal open={showMigrationModal} on:close={() => (showMigrationModal = false)} />
+
 <style>
   .App {
     display: grid;
@@ -338,8 +344,3 @@
     align-items: baseline;
   }
 </style>
-
-<MigrationModal 
-  open={showMigrationModal} 
-  on:close={() => showMigrationModal = false} 
-/>

@@ -38,11 +38,15 @@
 
   onMount(async () => {
     await fetchBlacklistRules();
-    
+
     // Check for VLCN migration
     try {
       const migrationStatus = await rpc(["checkVLCNMigrationStatus"]);
-      if (migrationStatus?.available && !migrationStatus?.migrated) {
+      if (
+        migrationStatus?.available &&
+        !migrationStatus?.migrated &&
+        migrationStatus?.documentCount > 0
+      ) {
         showMigrationModal = true;
       }
     } catch (error) {
@@ -57,7 +61,6 @@
       errorMessage = result.message;
     }
   };
-
 
   const fetchBlacklistRules = async () => {
     const response = await rpc<{ rows: BlacklistRule[] }>([
@@ -214,7 +217,6 @@
       {/if}
     </section>
 
-
     <section id="blacklist-rules">
       <h4 class="mt-8">Blacklist Rules</h4>
       <p class="mb-0">
@@ -290,13 +292,10 @@
   </div>
 </div>
 
+<MigrationModal open={showMigrationModal} on:close={() => (showMigrationModal = false)} />
+
 <style>
   :global(.wildcard) {
     @apply text-yellow-400 font-bold font-sans text-sm;
   }
 </style>
-
-<MigrationModal 
-  open={showMigrationModal} 
-  on:close={() => showMigrationModal = false} 
-/>
