@@ -29,13 +29,17 @@ async function preloadAssets() {
   ];
 
   for (const url of assetUrls) {
-    const response = await fetch(url);
-    if (!response.ok) {
-      console.log(`failed to fetch asset :: ${url}`);
-      continue;
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        console.log(`failed to fetch asset :: ${url}`);
+        continue;
+      }
+      const arrayBuffer = await response.arrayBuffer();
+      assetCache.set(url, arrayBuffer);
+    } catch (error) {
+      console.error(`failed to preload asset :: ${url}`, error);
     }
-    const arrayBuffer = await response.arrayBuffer();
-    assetCache.set(url, arrayBuffer);
   }
 }
 
