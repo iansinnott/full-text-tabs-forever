@@ -41,6 +41,7 @@
         if (autoCloseTimer) clearTimeout(autoCloseTimer);
         autoCloseTimer = setTimeout(() => {
           open = false;
+          setTimeout(() => window.location.reload(), 1000); // This is the simple way to trigger the count to refresh on the main page
           const dispatch = createEventDispatcher();
           dispatch("close");
           dispatch("migrationComplete", { success: true });
