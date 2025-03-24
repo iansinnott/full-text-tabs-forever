@@ -9,7 +9,6 @@
         "downloads",
         "tabs",
         "activeTab",
-        "notifications",
         "storage"
     ],
     "icons": {

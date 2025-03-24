@@ -76,7 +76,7 @@ class BackendAdapter {
 
     return waitForResponse; // Keep channel open for async response. Yikes
   }
-  
+
   async checkVLCNMigrationStatus() {
     try {
       if (!this._vlcn) {
@@ -88,26 +88,26 @@ class BackendAdapter {
           return { available: false, error: err.message };
         }
       }
-      
+
       const status = await this._vlcn.getStatus();
       if (!status.ok) {
         return { available: false, error: status.error };
       }
-      
+
       // Check if migration flag exists in the database
       if (status.migrated) {
         return { available: true, migrated: true };
       }
-      
+
       // Check if there are documents to migrate
       const count = await this._vlcn.sql<{
         count: number;
       }>`select count(*) as count from "document";`;
-      
-      return { 
-        available: true, 
-        migrated: false, 
-        documentCount: count[0].count 
+
+      return {
+        available: true,
+        migrated: false,
+        documentCount: count[0].count,
       };
     } catch (err) {
       console.error("Error checking VLCN migration status", err);
@@ -138,7 +138,7 @@ class BackendAdapter {
       chrome.runtime.sendMessage({
         type: "vlcnMigrationStatus",
         status: "starting",
-        message: "Initializing VLCN database..."
+        message: "Initializing VLCN database...",
       });
 
       if (!this._vlcn) {
@@ -152,21 +152,21 @@ class BackendAdapter {
       }>`select count(*) as count from "document";`;
 
       console.log("vlcnAdapter :: count", count);
-      
+
       if (count[0].count === 0) {
         chrome.runtime.sendMessage({
           type: "vlcnMigrationStatus",
           status: "empty",
-          message: "No documents found in the VLCN database."
+          message: "No documents found in the VLCN database.",
         });
         return { imported: 0, message: "No documents found in VLCN database" };
       }
-      
+
       // Send update with document count
       chrome.runtime.sendMessage({
         type: "vlcnMigrationStatus",
         status: "fetching",
-        message: `Found ${count[0].count} documents to migrate...`
+        message: `Found ${count[0].count} documents to migrate...`,
       });
 
       // Fetch documents
@@ -201,7 +201,7 @@ class BackendAdapter {
         createdAt AS created_at,
         updatedAt AS updated_at
       FROM "document";`);
-      
+
       console.log("vlcnAdapter :: docs", docs.slice(0, 10));
 
       // Send update before importing
@@ -210,19 +210,19 @@ class BackendAdapter {
         status: "importing",
         message: `Beginning import of ${docs.length} documents...`,
         total: docs.length,
-        current: 0
+        current: 0,
       });
 
       // Import the documents
       // @ts-expect-error have not added this to the interface yet
       const result = await this.backend.importDocumentsJSONv1({ document: docs });
-      
+
       // Send completion status
       chrome.runtime.sendMessage({
         type: "vlcnMigrationStatus",
         status: "complete",
         message: `Migration complete. Imported ${result.imported} documents (${result.duplicates} were duplicates).`,
-        result
+        result,
       });
 
       // Mark VLCN database as migrated to prevent duplicate migrations
@@ -231,12 +231,12 @@ class BackendAdapter {
         await this._vlcn.db.exec(
           `CREATE TABLE IF NOT EXISTS migration_info (key TEXT PRIMARY KEY, value TEXT);`
         );
-        
+
         // Then insert the migration flag
         await this._vlcn.db.exec(
           `INSERT OR REPLACE INTO migration_info (key, value) VALUES ('migrated_to_pglite', '1');`
         );
-        
+
         console.log("Marked VLCN database as migrated successfully");
       } catch (err) {
         console.error("Error marking VLCN database as migrated", err);
@@ -245,15 +245,15 @@ class BackendAdapter {
       return result;
     } catch (error) {
       console.error("VLCN migration failed", error);
-      
+
       // Send error status
       chrome.runtime.sendMessage({
         type: "vlcnMigrationStatus",
         status: "error",
         message: `Migration failed: ${error.message}`,
-        error: error.message
+        error: error.message,
       });
-      
+
       return { error: error.message };
     }
   }
@@ -278,26 +278,24 @@ chrome.runtime.onInstalled.addListener(async (details) => {
   if (adapter.onInstalled) {
     adapter.onInstalled(details);
   }
-  
+
   // Only try migration on update (not on new install)
   if (details.reason === "update") {
     console.log("Extension updated, checking for VLCN data to migrate...");
     // Check if VLCN database exists and has data to migrate
     try {
       const migrationStatus = await adapter.checkVLCNMigrationStatus();
-      
-      if (migrationStatus.available && !migrationStatus.migrated && migrationStatus.documentCount && migrationStatus.documentCount > 0) {
-        console.log(`Found ${migrationStatus.documentCount} documents to migrate from VLCN database.`);
-        
-        // Show a notification to inform the user about migration
-        chrome.notifications.create({
-          type: "basic",
-          iconUrl: "assets/icon_128.png",
-          title: "Database Migration Available",
-          message: `Found ${migrationStatus.documentCount} documents to migrate from previous version. Migration will start when you open the extension.`,
-          priority: 2
-        });
-        
+
+      if (
+        migrationStatus.available &&
+        !migrationStatus.migrated &&
+        migrationStatus.documentCount &&
+        migrationStatus.documentCount > 0
+      ) {
+        console.log(
+          `Found ${migrationStatus.documentCount} documents to migrate from VLCN database.`
+        );
+
         // Set a flag to trigger migration when the user opens the extension
         await chrome.storage.local.set({ pendingMigration: true });
       } else {
@@ -318,13 +316,13 @@ chrome.runtime.onConnect.addListener(async (port) => {
   if (port.name === "extension-page") {
     // Check if we have a pending migration flag
     const { pendingMigration } = await chrome.storage.local.get("pendingMigration");
-    
+
     if (pendingMigration) {
       console.log("Starting auto-migration on extension open");
-      
+
       // Clear the pending migration flag
       await chrome.storage.local.remove("pendingMigration");
-      
+
       // Start the migration
       try {
         const result = await adapter.importVLCNDocuments();
