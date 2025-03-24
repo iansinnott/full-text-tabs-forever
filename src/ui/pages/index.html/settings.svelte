@@ -79,7 +79,7 @@
   const checkVLCNMigrationStatus = async () => {
     try {
       // First, check if the VLCN backend is available and has been migrated
-      const response = await chrome.runtime.sendMessage(["checkVLCNMigrationStatus"]);
+      const response = await rpc(["checkVLCNMigrationStatus"]);
       if (response?.migrated) {
         isMigrated = true;
         vlcnImportMessage = "VLCN database has already been migrated to PgLite.";
@@ -105,7 +105,7 @@
     migrationProgress = 0;
     vlcnImportMessage = "Initializing VLCN database migration...";
     try {
-      await chrome.runtime.sendMessage(["importVLCNDocuments"]);
+      await rpc(["importVLCNDocumentsV1"]);
       // Status updates will come through the listener
     } catch (error) {
       isImporting = false;
@@ -125,7 +125,7 @@
   };
 
   const deleteBlacklistRule = async (id: number) => {
-    await chrome.runtime.sendMessage([
+    await rpc([
       "pg.query",
       {
         sql: "DELETE FROM blacklist_rule WHERE id = $1",

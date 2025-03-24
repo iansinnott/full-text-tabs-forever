@@ -198,39 +198,73 @@ export class BackendAdapter {
         message: `Found ${count[0].count} documents to migrate...`,
       });
 
-      // Fetch documents
-      const docs = await this._vlcn?.db.execA(`SELECT 
-        id,
-        title,
-        url,
-        excerpt,
-        mdContent,
-        mdContentHash,
-        publicationDate,
-        hostname,
-        lastVisit,
-        lastVisitDate,
-        extractor,
-        createdAt,
-        updatedAt
-      FROM "document";`);
-
-      console.log(
-        "vlcnAdapter :: docs sample",
-        docs.slice(0, 3).map((d) => ({ id: d[0], title: d[1], url: d[2] }))
-      );
+      // Process documents in batches
+      const BATCH_SIZE = 100;
+      let imported = 0;
+      let duplicates = 0;
+      let processed = 0;
+      const totalDocuments = count[0].count;
 
       // Send update before importing
       this.runtime.sendMessage({
         type: "vlcnMigrationStatus",
         status: "importing",
-        message: `Beginning import of ${count[0].count} documents...`,
-        total: docs.length,
+        message: `Beginning import of ${totalDocuments} documents...`,
+        total: totalDocuments,
         current: 0,
       });
 
-      // Import the documents
-      const result = await this.backend.importDocumentsJSONv1({ document: docs });
+      while (processed < totalDocuments) {
+        // Fetch batch of documents
+        const batchQuery = `SELECT 
+          id,
+          title,
+          url,
+          excerpt,
+          mdContent,
+          mdContentHash,
+          publicationDate,
+          hostname,
+          lastVisit,
+          lastVisitDate,
+          extractor,
+          createdAt,
+          updatedAt
+        FROM "document"
+        LIMIT ${BATCH_SIZE} OFFSET ${processed};`;
+
+        const batch = await this._vlcn?.db.execA(batchQuery);
+
+        if (batch.length === 0) {
+          break; // No more documents to process
+        }
+
+        if (processed === 0) {
+          // Log sample of first batch only
+          console.log(
+            "vlcnAdapter :: docs sample",
+            batch.slice(0, 3).map((d) => ({ id: d[0], title: d[1], url: d[2] }))
+          );
+        }
+
+        // Import current batch
+        const batchResult = await this.backend.importDocumentsJSONv1({ document: batch });
+
+        imported += batchResult.imported;
+        duplicates += batchResult.duplicates;
+        processed += batch.length;
+
+        // Update progress
+        this.runtime.sendMessage({
+          type: "vlcnMigrationStatus",
+          status: "importing",
+          message: `Imported ${processed} of ${totalDocuments} documents...`,
+          total: totalDocuments,
+          current: processed,
+        });
+      }
+
+      const result = { imported, duplicates };
 
       // Send completion status
       this.runtime.sendMessage({
@@ -242,7 +276,7 @@ export class BackendAdapter {
 
       // Mark VLCN database as migrated to prevent duplicate migrations
       try {
-        this.setMigrationComplete();
+        await this.setMigrationComplete();
 
         console.log("Marked VLCN database as migrated successfully");
       } catch (err) {
