@@ -52,10 +52,11 @@ export class PgLiteBackend implements Backend {
   private dbReady = false;
   private error: Error | null = null;
   private jobQueue: JobQueue | null = null;
+  private readyPromise: Promise<void> | null = null;
 
   constructor() {
     const startTime = performance.now();
-    this.init()
+    this.readyPromise = this.init()
       .then(async () => {
         const endTime = performance.now();
         console.debug("init :: PgLite DB ready", `took ${endTime - startTime} ms`);
@@ -125,6 +126,8 @@ export class PgLiteBackend implements Backend {
   }
 
   getStatus: Backend["getStatus"] = async () => {
+    await this.readyPromise;
+
     if (this.error) {
       return {
         ok: false,
@@ -580,62 +583,22 @@ export class PgLiteBackend implements Backend {
   async getDocumentBatch({ offset = 0, limit = 100 }: { offset: number; limit: number }) {
     try {
       const result = await this.db!.query(
-        `SELECT * FROM document ORDER BY id LIMIT $1 OFFSET $2;`, 
-        [limit, offset], 
+        `SELECT * FROM document ORDER BY id LIMIT $1 OFFSET $2;`,
+        [limit, offset],
         { rowMode: "array" }
       );
-      
+
       return {
         rows: result.rows,
-        success: true
+        success: true,
       };
     } catch (error) {
       console.error("Error fetching document batch:", error);
       return {
         error: error instanceof Error ? error.message : "Unknown error",
-        success: false
+        success: false,
       };
     }
-  }
-
-  async [`pg.dumpDataDir`]() {
-    const blob = await this.db!.dumpDataDir("gzip");
-    const blobUrl = await this.createObjectURL(blob);
-
-    await browser.downloads.download({
-      url: blobUrl,
-      filename: `fttf-${Date.now()}-pglite.dump`,
-      saveAs: true,
-    });
-  }
-
-  async [`pg.loadDataDir`](base64: string) {
-    // Convert base64 to Blob
-    const blobData = atob(base64.split(",")[1]);
-    const arrayBuffer = new ArrayBuffer(blobData.length);
-    const uintArray = new Uint8Array(arrayBuffer);
-    for (let i = 0; i < blobData.length; i++) {
-      uintArray[i] = blobData.charCodeAt(i);
-    }
-    const blob = new Blob([arrayBuffer], { type: "application/x-gzip" });
-
-    console.log("pg.loadDataDir :: blob size", blob.size, "bytes");
-
-    const pg2 = await PGlite.create({
-      extensions: { vector, pg_trgm, btree_gin },
-      relaxedDurability: true,
-      loadDataDir: blob,
-    });
-
-    const documents = await pg2.query(`SELECT * FROM document;`, [], {
-      rowMode: "array",
-    });
-
-    console.log("pg.loadDataDir :: documents", documents.rows.length);
-
-    // This is a bit roundabout, but we only want the documents, not all the
-    // fragments as they are. at least not for now.
-    return await this.importDocumentsJSONv1({ document: documents.rows as any[][] });
   }
 
   private async createObjectURL(blob: Blob): Promise<string> {

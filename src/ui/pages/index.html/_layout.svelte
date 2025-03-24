@@ -3,13 +3,29 @@
   import { menuOpen } from "@/ui/store/menuState";
   import Menu from "@/ui/Menu.svelte";
   import { onMount, tick } from "svelte";
-  import { fttf } from "@/ui/lib/rpc";
+  import { fttf, rpc } from "@/ui/lib/rpc";
   import { navigationRoutes } from "@/ui/routes";
 
   onMount(() => {
     if (typeof window !== "undefined") {
       (window as any).fttf = fttf;
     }
+  });
+
+  onMount(() => {
+    // Experiment to see if pinging the db can help resolve disconnected errors.
+    const interval = setInterval(async () => {
+      const result = await rpc<{ rows: { current_date: string }[] }>([
+        "pg.query",
+        {
+          sql: "SELECT current_date;",
+          params: [],
+        },
+      ]);
+      console.debug("ping pg ::", result.rows[0]?.current_date);
+    }, 5000);
+
+    return () => clearInterval(interval);
   });
 
   const handleCmdK = () => {

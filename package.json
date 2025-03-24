@@ -1,6 +1,6 @@
 {
   "name": "full-text-tabs-forever",
-  "version": "2.0.1",
+  "version": "2.0.3",
   "description": "A web extension for searching your full browsing history.",
   "main": "index.js",
   "scripts": {

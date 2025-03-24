@@ -8,29 +8,30 @@
   import ResultRowView from "@/ui/ResultRowView.svelte";
   import { MIN_QUERY_LENGTH } from "@/ui/lib/constants";
   import { displaySettings } from "@/ui/store/displaySettings";
-  import { menuOpen } from "@/ui/store/menuState";
   import { stats, updateStats } from "@/ui/store/statsStore";
-  import { push, location, querystring } from "svelte-spa-router";
+  import { push, querystring } from "svelte-spa-router";
   import { get } from "svelte/store";
-  
+  import MigrationModal from "@/ui/MigrationModal.svelte";
+
   let q = "";
   let res: Awaited<ReturnType<typeof fttf.adapter.backend.search>> | null = null;
   let results: ResultRow[] | undefined;
   let currentIndex = 0;
   let enableMouseEvents = false;
-  
+  let showMigrationModal = false;
+
   // Parse query parameters
   const getParams = () => {
     const searchParams = new URLSearchParams(get(querystring));
     return {
-      q: searchParams.get('q') || ""
+      q: searchParams.get("q") || "",
     };
   };
-  
+
   let params = getParams();
-  
+
   // Update params when querystring changes
-  $: $querystring, params = getParams();
+  $: $querystring, (params = getParams());
 
   const handleMouseMove = (e: MouseEvent) => {
     if (!enableMouseEvents) enableMouseEvents = true;
@@ -39,9 +40,9 @@
   $: preprocessQuery = $displaySettings.preprocessQuery;
 
   const updateUrlWithQuery = (query: string) => {
-    if (query && params.q !== query) {
+    if (params.q !== query) {
       const searchParams = new URLSearchParams();
-      searchParams.set('q', query);
+      searchParams.set("q", query);
       push(`/?${searchParams.toString()}`);
     }
   };
@@ -149,7 +150,7 @@
 
     // Wait. Sometimes the backend takes a while to start up
     if (!status.ok) {
-      for (const wait of [100, 200, 300, 400, 500]) {
+      for (const wait of [100, 200, 300, 400, 500, 1000, 2000]) {
         await new Promise((resolve) => setTimeout(resolve, wait));
         status = await fttf.adapter.backend.getStatus();
         if (status.ok) {
@@ -165,6 +166,21 @@
     } else {
       loading = false;
       await updateStats();
+
+      // Check for VLCN migration
+      try {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        const migrationStatus = await rpc(["checkVLCNMigrationStatus"]);
+        if (
+          migrationStatus?.available &&
+          !migrationStatus?.migrated &&
+          migrationStatus?.documentCount > 0
+        ) {
+          showMigrationModal = true;
+        }
+      } catch (error) {
+        console.error("Error checking VLCN migration status", error);
+      }
     }
   });
 
@@ -313,6 +329,8 @@
     {/each}
   </div>
 </div>
+
+<MigrationModal open={showMigrationModal} on:close={() => (showMigrationModal = false)} />
 
 <style>
   .App {

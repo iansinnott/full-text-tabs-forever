@@ -25,6 +25,7 @@ export const fttf: BrowserFTTF = {
     openIndexPage() {
       return chrome.runtime.sendMessage(["openIndexPage"]);
     },
+    // @ts-expect-error fixing these types is an exercise for another day...
     backend: {
       getStatus() {
         return chrome.runtime.sendMessage(["getStatus"]);
@@ -43,24 +44,6 @@ export const fttf: BrowserFTTF = {
       },
       findOne: async (url) => {
         return chrome.runtime.sendMessage(["findOne", url]);
-      },
-
-      // @ts-expect-error Unknown prop, but i'm not yet committed to this API
-      [`pg.loadDataDir`]: async (file: File) => {
-        return new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = async (event) => {
-            if (event.target?.result) {
-              const base64 = event.target.result as string;
-              const response = await chrome.runtime.sendMessage(["pg.loadDataDir", base64]);
-              resolve(response);
-            } else {
-              reject(new Error("Failed to read file"));
-            }
-          };
-          reader.onerror = (error) => reject(error);
-          reader.readAsDataURL(file);
-        });
       },
     },
   },
