@@ -150,7 +150,7 @@
 
     // Wait. Sometimes the backend takes a while to start up
     if (!status.ok) {
-      for (const wait of [100, 200, 300, 400, 500]) {
+      for (const wait of [100, 200, 300, 400, 500, 1000, 2000]) {
         await new Promise((resolve) => setTimeout(resolve, wait));
         status = await fttf.adapter.backend.getStatus();
         if (status.ok) {
