@@ -52,10 +52,11 @@ export class PgLiteBackend implements Backend {
   private dbReady = false;
   private error: Error | null = null;
   private jobQueue: JobQueue | null = null;
+  private readyPromise: Promise<void> | null = null;
 
   constructor() {
     const startTime = performance.now();
-    this.init()
+    this.readyPromise = this.init()
       .then(async () => {
         const endTime = performance.now();
         console.debug("init :: PgLite DB ready", `took ${endTime - startTime} ms`);
@@ -125,6 +126,8 @@ export class PgLiteBackend implements Backend {
   }
 
   getStatus: Backend["getStatus"] = async () => {
+    await this.readyPromise;
+
     if (this.error) {
       return {
         ok: false,
@@ -580,20 +583,20 @@ export class PgLiteBackend implements Backend {
   async getDocumentBatch({ offset = 0, limit = 100 }: { offset: number; limit: number }) {
     try {
       const result = await this.db!.query(
-        `SELECT * FROM document ORDER BY id LIMIT $1 OFFSET $2;`, 
-        [limit, offset], 
+        `SELECT * FROM document ORDER BY id LIMIT $1 OFFSET $2;`,
+        [limit, offset],
         { rowMode: "array" }
       );
-      
+
       return {
         rows: result.rows,
-        success: true
+        success: true,
       };
     } catch (error) {
       console.error("Error fetching document batch:", error);
       return {
         error: error instanceof Error ? error.message : "Unknown error",
-        success: false
+        success: false,
       };
     }
   }

@@ -1,16 +1,16 @@
 // import browser, { omnibox, Runtime } from "webextension-polyfill";
 
-import type { Backend, SendResponse } from "./background/backend";
+import type { SendResponse } from "./background/backend";
 import { VLCN } from "./background/backend-vlcn";
 import { PgLiteBackend } from "./background/backend-pglite";
 import { log } from "./common/logs";
 import { debounce } from "./common/utils";
 
 class BackendAdapter {
-  backend: Backend;
+  backend: PgLiteBackend;
   _vlcn: VLCN | null = null;
 
-  constructor({ backend }: { backend: Backend }) {
+  constructor({ backend }: { backend: PgLiteBackend }) {
     this.backend = backend;
   }
 
@@ -20,8 +20,8 @@ class BackendAdapter {
 
   onMessage(message: any, sender: chrome.runtime.MessageSender, sendResponse: SendResponse) {
     // Special case for migrating from VLCN to PgLite
-    if (message[0] === "importVLCNDocuments") {
-      this.importVLCNDocuments()
+    if (message[0] === "importVLCNDocuments" || message[0] === "importVLCNDocumentsV1") {
+      this.importVLCNDocumentsV1()
         .then((result) => {
           sendResponse({ ok: true, ...result });
         })
@@ -79,6 +79,12 @@ class BackendAdapter {
 
   async checkVLCNMigrationStatus() {
     try {
+      const isComplete = await this.isMigrationComplete();
+
+      if (isComplete) {
+        return { available: true, migrated: true };
+      }
+
       if (!this._vlcn) {
         this._vlcn = new VLCN();
         try {
@@ -92,11 +98,6 @@ class BackendAdapter {
       const status = await this._vlcn.getStatus();
       if (!status.ok) {
         return { available: false, error: status.error };
-      }
-
-      // Check if migration flag exists in the database
-      if (status.migrated) {
-        return { available: true, migrated: true };
       }
 
       // Check if there are documents to migrate
@@ -122,17 +123,41 @@ class BackendAdapter {
     });
 
     if (existingTab) {
-      await chrome.tabs.update(existingTab.id!, {
-        active: true,
-      });
+      await chrome.tabs.update(existingTab.id!, { active: true });
     } else {
-      await chrome.tabs.create({
-        url: chrome.runtime.getURL("index.html"),
-      });
+      await chrome.tabs.create({ url: chrome.runtime.getURL("index.html") });
     }
   }
 
-  async importVLCNDocuments() {
+  async setMigrationComplete() {
+    // First create the table if it doesn't exist
+    await this.backend.db!.exec(
+      `CREATE TABLE IF NOT EXISTS migration_info (key TEXT PRIMARY KEY, value TEXT);`
+    );
+
+    // Then insert the migration flag
+    await this.backend.db!.exec(
+      `INSERT INTO migration_info (key, value) VALUES ('migrated_to_pglite', '1') ON CONFLICT(key) DO UPDATE SET value = '1';`
+    );
+  }
+
+  async isMigrationComplete() {
+    try {
+      const result = await this.backend.db!.query<{ value: string }>(
+        `SELECT value FROM migration_info WHERE key = 'migrated_to_pglite';`
+      );
+      return result.rows[0]?.value === "1";
+    } catch (error) {
+      // If we haven't run the migration yet don't consider this an error
+      if (error instanceof Error && error.message.includes("does not exist")) {
+        return false;
+      }
+
+      throw error;
+    }
+  }
+
+  async importVLCNDocumentsV1() {
     try {
       // Send initial status update
       chrome.runtime.sendMessage({
@@ -170,51 +195,37 @@ class BackendAdapter {
       });
 
       // Fetch documents
-      const docs = await this._vlcn?.db.execA<
-        {
-          id: number;
-          title: string | null;
-          url: string;
-          excerpt: string | null;
-          md_content: string | null;
-          md_content_hash: string | null;
-          publication_date: number | null;
-          hostname: string | null;
-          last_visit: number | null;
-          last_visit_date: string | null;
-          extractor: string | null;
-          created_at: number;
-          updated_at: number | null;
-        }[]
-      >(`SELECT 
+      const docs = await this._vlcn?.db.execA(`SELECT 
         id,
         title,
         url,
         excerpt,
-        mdContent AS md_content,
-        mdContentHash AS md_content_hash,
-        publicationDate AS publication_date,
+        mdContent,
+        mdContentHash,
+        publicationDate,
         hostname,
-        lastVisit AS last_visit,
-        lastVisitDate AS last_visit_date,
+        lastVisit,
+        lastVisitDate,
         extractor,
-        createdAt AS created_at,
-        updatedAt AS updated_at
+        createdAt,
+        updatedAt
       FROM "document";`);
 
-      console.log("vlcnAdapter :: docs", docs.slice(0, 10));
+      console.log(
+        "vlcnAdapter :: docs sample",
+        docs.slice(0, 3).map((d) => ({ id: d[0], title: d[1], url: d[2] }))
+      );
 
       // Send update before importing
       chrome.runtime.sendMessage({
         type: "vlcnMigrationStatus",
         status: "importing",
-        message: `Beginning import of ${docs.length} documents...`,
+        message: `Beginning import of ${count[0].count} documents...`,
         total: docs.length,
         current: 0,
       });
 
       // Import the documents
-      // @ts-expect-error have not added this to the interface yet
       const result = await this.backend.importDocumentsJSONv1({ document: docs });
 
       // Send completion status
@@ -227,15 +238,7 @@ class BackendAdapter {
 
       // Mark VLCN database as migrated to prevent duplicate migrations
       try {
-        // First create the table if it doesn't exist
-        await this._vlcn.db.exec(
-          `CREATE TABLE IF NOT EXISTS migration_info (key TEXT PRIMARY KEY, value TEXT);`
-        );
-
-        // Then insert the migration flag
-        await this._vlcn.db.exec(
-          `INSERT OR REPLACE INTO migration_info (key, value) VALUES ('migrated_to_pglite', '1');`
-        );
+        this.setMigrationComplete();
 
         console.log("Marked VLCN database as migrated successfully");
       } catch (err) {
@@ -274,65 +277,9 @@ export type FTTF = {
   adapter: BackendAdapter;
 };
 
-chrome.runtime.onInstalled.addListener(async (details) => {
-  if (adapter.onInstalled) {
-    adapter.onInstalled(details);
-  }
-
-  // Only try migration on update (not on new install)
-  if (details.reason === "update") {
-    console.log("Extension updated, checking for VLCN data to migrate...");
-    // Check if VLCN database exists and has data to migrate
-    try {
-      const migrationStatus = await adapter.checkVLCNMigrationStatus();
-
-      if (
-        migrationStatus.available &&
-        !migrationStatus.migrated &&
-        migrationStatus.documentCount &&
-        migrationStatus.documentCount > 0
-      ) {
-        console.log(
-          `Found ${migrationStatus.documentCount} documents to migrate from VLCN database.`
-        );
-
-        // Set a flag to trigger migration when the user opens the extension
-        await chrome.storage.local.set({ pendingMigration: true });
-      } else {
-        console.log("No VLCN data to migrate or already migrated.");
-      }
-    } catch (err) {
-      console.error("Error checking for VLCN migration:", err);
-    }
-  }
-});
-
 if (adapter.onMessage) {
   chrome.runtime.onMessage.addListener((...args) => adapter.onMessage(...args));
 }
-
-// Listen for extension page opening to handle pending migration
-chrome.runtime.onConnect.addListener(async (port) => {
-  if (port.name === "extension-page") {
-    // Check if we have a pending migration flag
-    const { pendingMigration } = await chrome.storage.local.get("pendingMigration");
-
-    if (pendingMigration) {
-      console.log("Starting auto-migration on extension open");
-
-      // Clear the pending migration flag
-      await chrome.storage.local.remove("pendingMigration");
-
-      // Start the migration
-      try {
-        const result = await adapter.importVLCNDocuments();
-        console.log("Auto-migration completed:", result);
-      } catch (err) {
-        console.error("Auto-migration failed:", err);
-      }
-    }
-  }
-});
 
 // @note We do not support spas currently. URL changes trigger here, but we do
 // not then instruct the frontend to send the full text.
