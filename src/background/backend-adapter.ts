@@ -3,12 +3,19 @@ import { VLCN } from "./backend-vlcn";
 import { PgLiteBackend } from "./backend-pglite";
 import { log } from "../common/logs";
 
+export type BackendAdapterRuntime = {
+  sendMessage: typeof chrome.runtime.sendMessage;
+  getURL: typeof chrome.runtime.getURL;
+};
+
 export class BackendAdapter {
   backend: PgLiteBackend;
+  runtime: BackendAdapterRuntime;
   _vlcn: VLCN | null = null;
 
-  constructor({ backend }: { backend: PgLiteBackend }) {
+  constructor({ backend, runtime }: { backend: PgLiteBackend; runtime: BackendAdapterRuntime }) {
     this.backend = backend;
+    this.runtime = runtime;
   }
 
   async onInstalled(details: chrome.runtime.InstalledDetails) {
@@ -116,7 +123,7 @@ export class BackendAdapter {
   // Created for debugging workflow
   async openIndexPage() {
     const [existingTab] = await chrome.tabs.query({
-      url: chrome.runtime.getURL("index.html"),
+      url: this.runtime.getURL("index.html"),
     });
 
     if (existingTab) {
@@ -157,7 +164,7 @@ export class BackendAdapter {
   async importVLCNDocumentsV1() {
     try {
       // Send initial status update
-      chrome.runtime.sendMessage({
+      this.runtime.sendMessage({
         type: "vlcnMigrationStatus",
         status: "starting",
         message: "Initializing VLCN database...",
@@ -176,7 +183,7 @@ export class BackendAdapter {
       console.log("vlcnAdapter :: count", count);
 
       if (count[0].count === 0) {
-        chrome.runtime.sendMessage({
+        this.runtime.sendMessage({
           type: "vlcnMigrationStatus",
           status: "empty",
           message: "No documents found in the VLCN database.",
@@ -185,7 +192,7 @@ export class BackendAdapter {
       }
 
       // Send update with document count
-      chrome.runtime.sendMessage({
+      this.runtime.sendMessage({
         type: "vlcnMigrationStatus",
         status: "fetching",
         message: `Found ${count[0].count} documents to migrate...`,
@@ -214,7 +221,7 @@ export class BackendAdapter {
       );
 
       // Send update before importing
-      chrome.runtime.sendMessage({
+      this.runtime.sendMessage({
         type: "vlcnMigrationStatus",
         status: "importing",
         message: `Beginning import of ${count[0].count} documents...`,
@@ -226,7 +233,7 @@ export class BackendAdapter {
       const result = await this.backend.importDocumentsJSONv1({ document: docs });
 
       // Send completion status
-      chrome.runtime.sendMessage({
+      this.runtime.sendMessage({
         type: "vlcnMigrationStatus",
         status: "complete",
         message: `Migration complete. Imported ${result.imported} documents (${result.duplicates} were duplicates).`,
@@ -247,7 +254,7 @@ export class BackendAdapter {
       console.error("VLCN migration failed", error);
 
       // Send error status
-      chrome.runtime.sendMessage({
+      this.runtime.sendMessage({
         type: "vlcnMigrationStatus",
         status: "error",
         message: `Migration failed: ${error.message}`,

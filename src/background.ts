@@ -8,6 +8,7 @@ import { BackendAdapter } from "./background/backend-adapter";
 // Although there were initially multiple adapters there is no mainly one.
 const adapter = new BackendAdapter({
   backend: new PgLiteBackend(),
+  runtime: chrome.runtime,
 });
 
 /**

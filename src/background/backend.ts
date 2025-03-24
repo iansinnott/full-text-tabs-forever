@@ -1,4 +1,4 @@
-import { Runtime } from "webextension-polyfill";
+import type { Runtime } from "webextension-polyfill";
 import type { Readability } from "@mozilla/readability";
 
 export type SendResponse = (response?: any) => void;
