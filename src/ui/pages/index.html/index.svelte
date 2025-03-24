@@ -11,12 +11,14 @@
   import { stats, updateStats } from "@/ui/store/statsStore";
   import { push, querystring } from "svelte-spa-router";
   import { get } from "svelte/store";
+  import MigrationModal from "@/ui/MigrationModal.svelte";
 
   let q = "";
   let res: Awaited<ReturnType<typeof fttf.adapter.backend.search>> | null = null;
   let results: ResultRow[] | undefined;
   let currentIndex = 0;
   let enableMouseEvents = false;
+  let showMigrationModal = false;
 
   // Parse query parameters
   const getParams = () => {
@@ -164,6 +166,16 @@
     } else {
       loading = false;
       await updateStats();
+      
+      // Check for VLCN migration
+      try {
+        const migrationStatus = await rpc(["checkVLCNMigrationStatus"]);
+        if (migrationStatus?.available && !migrationStatus?.migrated) {
+          showMigrationModal = true;
+        }
+      } catch (error) {
+        console.error("Error checking VLCN migration status", error);
+      }
     }
   });
 
@@ -326,3 +338,8 @@
     align-items: baseline;
   }
 </style>
+
+<MigrationModal 
+  open={showMigrationModal} 
+  on:close={() => showMigrationModal = false} 
+/>

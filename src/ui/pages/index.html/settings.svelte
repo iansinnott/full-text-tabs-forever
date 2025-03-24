@@ -3,6 +3,7 @@
   import { rpc } from "@/ui/lib/rpc";
   import { onMount } from "svelte";
   import ExportProgress from "@/ui/ExportProgress.svelte";
+  import MigrationModal from "@/ui/MigrationModal.svelte";
 
   type BlacklistRule = {
     id: number;
@@ -11,15 +12,11 @@
   };
 
   let errorMessage = "";
-  let vlcnImportMessage = "";
-  let isImporting = false;
-  let isMigrated = false;
   let blacklistRules: BlacklistRule[] = [];
   let newPattern = "";
   let newLevel: "no_index" | "url_only" = "no_index";
   let addRuleError = "";
-  let migrationProgress = 0;
-  let totalDocuments = 0;
+  let showMigrationModal = false;
 
   // Add this new variable
   let activeSection = "import-json";
@@ -39,58 +36,19 @@
     }
   };
 
-  // Listen for migration status updates
-  const setupMigrationListener = () => {
-    chrome.runtime.onMessage.addListener((message) => {
-      if (message.type === "vlcnMigrationStatus") {
-        console.log("Migration status update:", message);
-
-        if (message.status === "starting" || message.status === "fetching") {
-          vlcnImportMessage = message.message;
-        } else if (message.status === "importing") {
-          totalDocuments = message.total;
-          migrationProgress = message.current;
-          vlcnImportMessage = message.message;
-        } else if (message.status === "progress") {
-          migrationProgress = message.current;
-          vlcnImportMessage = `Imported ${message.current} of ${message.total} documents...`;
-        } else if (message.status === "complete") {
-          isImporting = false;
-          vlcnImportMessage = message.message;
-          migrationProgress = totalDocuments;
-        } else if (message.status === "error") {
-          isImporting = false;
-          vlcnImportMessage = message.message;
-        } else if (message.status === "empty") {
-          isImporting = false;
-          vlcnImportMessage = message.message;
-        }
-      }
-      return true;
-    });
-  };
-
   onMount(async () => {
     await fetchBlacklistRules();
-    checkVLCNMigrationStatus();
-    setupMigrationListener();
-  });
-
-  const checkVLCNMigrationStatus = async () => {
+    
+    // Check for VLCN migration
     try {
-      // First, check if the VLCN backend is available and has been migrated
-      const response = await rpc(["checkVLCNMigrationStatus"]);
-      if (response?.migrated) {
-        isMigrated = true;
-        vlcnImportMessage = "VLCN database has already been migrated to PgLite.";
-      } else if (!response?.available) {
-        vlcnImportMessage =
-          "No VLCN database found. If you're a new user, you can ignore this section.";
+      const migrationStatus = await rpc(["checkVLCNMigrationStatus"]);
+      if (migrationStatus?.available && !migrationStatus?.migrated) {
+        showMigrationModal = true;
       }
     } catch (error) {
       console.error("Error checking VLCN migration status", error);
     }
-  };
+  });
 
   const handleFileUpload = async () => {
     errorMessage = "";
@@ -100,18 +58,6 @@
     }
   };
 
-  const importVLCNDatabase = async () => {
-    isImporting = true;
-    migrationProgress = 0;
-    vlcnImportMessage = "Initializing VLCN database migration...";
-    try {
-      await rpc(["importVLCNDocumentsV1"]);
-      // Status updates will come through the listener
-    } catch (error) {
-      isImporting = false;
-      vlcnImportMessage = `Error importing VLCN database: ${error.message}`;
-    }
-  };
 
   const fetchBlacklistRules = async () => {
     const response = await rpc<{ rows: BlacklistRule[] }>([
@@ -184,16 +130,6 @@
           on:click={() => scrollToSection("import-json")}
         >
           Import JSON
-        </button>
-      </li>
-      <li>
-        <button
-          class="px-3 py-2 rounded-md text-sm font-medium {activeSection === 'import-vlcn'
-            ? 'bg-pink-800 text-white'
-            : 'text-gray-300 hover:bg-gray-700'}"
-          on:click={() => scrollToSection("import-vlcn")}
-        >
-          Import VLCN
         </button>
       </li>
       <li>
@@ -278,56 +214,6 @@
       {/if}
     </section>
 
-    <section id="import-vlcn">
-      <h4 class="mt-8">Import VLCN Database (v1)</h4>
-      <p>
-        Import your old database from v1 of the extension. This will migrate your VLCN documents to
-        the new format. The import process may take several minutes depending on the size of your
-        database.
-      </p>
-      <div class="mt-4">
-        <button
-          on:click={importVLCNDatabase}
-          class="bg-pink-800 text-white py-2 px-4 rounded hover:bg-pink-900 disabled:opacity-50 disabled:cursor-not-allowed"
-          disabled={isImporting || isMigrated}
-        >
-          {#if isImporting}
-            Importing...
-          {:else if isMigrated}
-            Already Migrated
-          {:else}
-            Import VLCN Database
-          {/if}
-        </button>
-      </div>
-      {#if vlcnImportMessage}
-        <div class="mt-2">
-          <p
-            class:text-green-500={vlcnImportMessage.includes("successfully") ||
-              vlcnImportMessage.includes("complete")}
-            class:text-red-500={vlcnImportMessage.includes("Error") ||
-              vlcnImportMessage.includes("failed")}
-            class:text-yellow-500={vlcnImportMessage.includes("already been migrated")}
-          >
-            {vlcnImportMessage}
-          </p>
-
-          {#if isImporting && totalDocuments > 0}
-            <div class="mt-2">
-              <div class="w-full bg-gray-700 rounded-full h-2.5 mb-2">
-                <div
-                  class="bg-pink-800 h-2.5 rounded-full"
-                  style="width: {(migrationProgress / totalDocuments) * 100}%"
-                ></div>
-              </div>
-              <p class="text-xs text-gray-400 text-right">
-                {migrationProgress} of {totalDocuments} documents
-              </p>
-            </div>
-          {/if}
-        </div>
-      {/if}
-    </section>
 
     <section id="blacklist-rules">
       <h4 class="mt-8">Blacklist Rules</h4>
@@ -409,3 +295,8 @@
     @apply text-yellow-400 font-bold font-sans text-sm;
   }
 </style>
+
+<MigrationModal 
+  open={showMigrationModal} 
+  on:close={() => showMigrationModal = false} 
+/>
