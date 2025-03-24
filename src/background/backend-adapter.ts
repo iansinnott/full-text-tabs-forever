@@ -18,10 +18,6 @@ export class BackendAdapter {
     this.runtime = runtime;
   }
 
-  async onInstalled(details: chrome.runtime.InstalledDetails) {
-    log("@todo Check if the backend is available");
-  }
-
   onMessage(message: any, sender: chrome.runtime.MessageSender, sendResponse: SendResponse) {
     // Special case for migrating from VLCN to PgLite
     if (message[0] === "importVLCNDocuments" || message[0] === "importVLCNDocumentsV1") {
