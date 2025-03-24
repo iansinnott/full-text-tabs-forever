@@ -169,6 +169,7 @@
 
       // Check for VLCN migration
       try {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
         const migrationStatus = await rpc(["checkVLCNMigrationStatus"]);
         if (
           migrationStatus?.available &&
