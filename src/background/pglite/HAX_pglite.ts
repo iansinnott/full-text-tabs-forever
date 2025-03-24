@@ -22,9 +22,6 @@ const assetCache = new Map<string, ArrayBuffer>();
 async function preloadAssets() {
   // NOTE: The wasm file exists in the pglite package but does not seem to be used. preloading the data file was enough
   const assetUrls = [
-    chrome.runtime.getURL("/assets/postgres-O2XafnGg.data"), // 0.2.2
-    chrome.runtime.getURL("/assets/postgres-nvNx1PWw.data"), // 0.2.3
-    chrome.runtime.getURL("/assets/postgres-cdfDT-mh.data"), // 0.2.5
     chrome.runtime.getURL("/assets/postgres-Bx18NP6a.data"), // 0.2.5
   ];
 
