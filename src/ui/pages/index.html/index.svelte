@@ -8,29 +8,28 @@
   import ResultRowView from "@/ui/ResultRowView.svelte";
   import { MIN_QUERY_LENGTH } from "@/ui/lib/constants";
   import { displaySettings } from "@/ui/store/displaySettings";
-  import { menuOpen } from "@/ui/store/menuState";
   import { stats, updateStats } from "@/ui/store/statsStore";
-  import { push, location, querystring } from "svelte-spa-router";
+  import { push, querystring } from "svelte-spa-router";
   import { get } from "svelte/store";
-  
+
   let q = "";
   let res: Awaited<ReturnType<typeof fttf.adapter.backend.search>> | null = null;
   let results: ResultRow[] | undefined;
   let currentIndex = 0;
   let enableMouseEvents = false;
-  
+
   // Parse query parameters
   const getParams = () => {
     const searchParams = new URLSearchParams(get(querystring));
     return {
-      q: searchParams.get('q') || ""
+      q: searchParams.get("q") || "",
     };
   };
-  
+
   let params = getParams();
-  
+
   // Update params when querystring changes
-  $: $querystring, params = getParams();
+  $: $querystring, (params = getParams());
 
   const handleMouseMove = (e: MouseEvent) => {
     if (!enableMouseEvents) enableMouseEvents = true;
@@ -39,9 +38,9 @@
   $: preprocessQuery = $displaySettings.preprocessQuery;
 
   const updateUrlWithQuery = (query: string) => {
-    if (query && params.q !== query) {
+    if (params.q !== query) {
       const searchParams = new URLSearchParams();
-      searchParams.set('q', query);
+      searchParams.set("q", query);
       push(`/?${searchParams.toString()}`);
     }
   };
