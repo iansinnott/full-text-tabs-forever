@@ -1,7 +1,7 @@
 <!-- display a screenshot -->
 <div align="center">
 
-[<img src="src/assets/icon-1.png" alt="full text tabs forever (FTTF) logo" width=128>](https://chrome.google.com/webstore/detail/full-text-tabs-forever/gfmbnlbnapjmffgcnbopfgmflmlfghel)<br>
+<img src="src/assets/icon-1.png" alt="full text tabs forever (FTTF) logo" width=128><br>
 
 # Full Text Tabs Forever
 
@@ -9,17 +9,17 @@ Search everything you read online. FTTF lets you search the full text of every w
 
 Available in the [Chrome Web Store](https://chrome.google.com/webstore/detail/full-text-tabs-forever/gfmbnlbnapjmffgcnbopfgmflmlfghel).
 
-Available in the [Firefox Add-ons Store](https://addons.mozilla.org/en-US/firefox/addon/full-text-tabs-forever/)
+Available in the [Firefox Add-ons Store](https://addons.mozilla.org/en-US/firefox/addon/full-text-tabs-forever/).
 
 > **IMPORTANT FOR v2.0 USERS:** If you're upgrading from v1.x, see the [Database Migration](#database-migration-v20) section for instructions on migrating your existing data.
 
-_Firefox requires additonal permissions. See [below](#firefox)._
+_Firefox requires additional permissions. See [below](#firefox)._
 
 </div>
 
-**Doesn't Chrome do that already? How is this different?**
+**Doesn't the browser do that already? How is this different?**
 
-Chrome does not let you search the text on pages you've visited, only the URLs and titles, and it deletes your history after a number of months.
+Browsers do not let you search the text on pages you've visited, only the URLs and titles, and some delete your history after a number of months.
 
 FTTF is different:
 
@@ -40,13 +40,13 @@ Data hoarders like myself that never want to delete anything, and want everythin
 
 **How it works:**
 
-Chrome extensions have access to the pages you visit, which lets FTTF make an index of the content on any page. When a page loads its content is extracted and indexed.
+Browser extensions have access to the pages you visit, which lets FTTF make an index of the content on any page. When a page loads, its content is extracted and indexed.
 
 Extracted? Yes, or "distilled" if you prefer. Full web pages are huge and have a lot of information that's not related to the content itself. FTTF will ignore all of that. It acts like "reader mode" to find relevant content on a page and only index that.
 
 # Installation
 
-Install in your browser via the [Chrome Web Store](https://chrome.google.com/webstore/detail/full-text-tabs-forever/gfmbnlbnapjmffgcnbopfgmflmlfghel).
+Install in your browser via the [Chrome Web Store](https://chrome.google.com/webstore/detail/full-text-tabs-forever/gfmbnlbnapjmffgcnbopfgmflmlfghel) or the [Firefox Add-ons Store](https://addons.mozilla.org/en-US/firefox/addon/full-text-tabs-forever/).
 
 # Testing
 
@@ -96,7 +96,7 @@ With version 2.0, Full Text Tabs Forever has migrated from SQLite (VLCN) to Post
 
 ## For Existing Users
 
-If you're upgrading from a previous version (v1.x), your data will not be lost! The extension includes an automatic migration system that will:
+If you're upgrading from a previous version (v1.x), your data will not be lost! The extension includes a migration system that will:
 
 1. Detect your existing VLCN (SQLite) database
 2. Provide a simple one-click migration option in the Settings page
