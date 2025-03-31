@@ -1,7 +1,7 @@
 <!-- display a screenshot -->
 <div align="center">
 
-<img src="src/assets/icon-1.png" alt="full text tabs forever (FTTF) logo" width=128><br>
+[<img src="src/assets/icon-1.png" alt="full text tabs forever (FTTF) logo" width=128>](https://chrome.google.com/webstore/detail/full-text-tabs-forever/gfmbnlbnapjmffgcnbopfgmflmlfghel)<br>
 
 # Full Text Tabs Forever
 
@@ -19,7 +19,8 @@ _Firefox requires additional permissions. See [below](#firefox)._
 
 **Doesn't the browser do that already? How is this different?**
 
-Browsers do not let you search the text on pages you've visited, only the URLs and titles, and some delete your history after a number of months.
+Chrome does not let you search the text on pages you've visited, **only the URLs and titles**, and it deletes your history after a number of months. Firefox will keep your history for longer, but likewise doesn't let you search page content, only URLs and titles.
+
 
 FTTF is different:
 
