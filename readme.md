@@ -13,13 +13,14 @@ Available in the [Firefox Add-ons Store](https://addons.mozilla.org/en-US/firefo
 
 > **IMPORTANT FOR v2.0 USERS:** If you're upgrading from v1.x, see the [Database Migration](#database-migration-v20) section for instructions on migrating your existing data.
 
-_Firefox requires additonal permissions. See [below](#firefox)._
+_Firefox requires additional permissions. See [below](#firefox)._
 
 </div>
 
 **Doesn't the browser do that already? How is this different?**
 
 Chrome does not let you search the text on pages you've visited, **only the URLs and titles**, and it deletes your history after a number of months. Firefox will keep your history for longer, but likewise doesn't let you search page content, only URLs and titles.
+
 
 FTTF is different:
 
@@ -40,7 +41,7 @@ Data hoarders like myself that never want to delete anything, and want everythin
 
 **How it works:**
 
-Browser extensions have access to the pages you visit, which lets FTTF make an index of the content on any page. When a page loads its content is extracted and indexed.
+Browser extensions have access to the pages you visit, which lets FTTF make an index of the content on any page. When a page loads, its content is extracted and indexed.
 
 Extracted? Yes, or "distilled" if you prefer. Full web pages are huge and have a lot of information that's not related to the content itself. FTTF will ignore all of that. It acts like "reader mode" to find relevant content on a page and only index that.
 
