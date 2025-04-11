@@ -19,6 +19,7 @@
   let currentIndex = 0;
   let enableMouseEvents = false;
   let showMigrationModal = false;
+  let sortMode: "rank" | "last_visit" = "last_visit"; // Default sort mode
 
   // Parse query parameters
   const getParams = () => {
@@ -53,7 +54,7 @@
       res = await fttf.adapter.backend.search({
         query,
         limit: 500,
-        orderBy: "last_visit",
+        orderBy: sortMode,
         preprocessQuery,
       });
       currentIndex = 0;
@@ -240,7 +241,11 @@
     );
   };
 
-  $: handleSearch(q);
+  $: {
+    q;
+    sortMode;
+    handleSearch(q);
+  }
   $: results = res?.results;
   $: groups = groupByUrl(results);
   $: urls = Object.keys(groups || {});
@@ -268,17 +273,47 @@
       bind:value={q}
     />
   </form>
-  <div class="stats px-6 md:px-12 py-6 text-sm text-slate-400">
-    {#if res}
-      Showing {results?.length} of {res.count}. Took
-      <code>{Math.round(10 * res.perfMs) / 10}</code>ms.
-    {:else if $stats && $displaySettings.showStats}
-      <div class="inline-stats flex space-x-4" in:fly|local={{ y: -20, duration: 150 }}>
-        {#each Object.entries($stats) as [k, v]}
-          <span><strong>{k}:</strong> {v}</span>
-        {/each}
+  <div
+    class="stats px-6 md:px-12 py-6 text-sm text-slate-400 flex flex-col sm:flex-row sm:justify-between"
+  >
+    <div class="InnerStats">
+      {#if res}
+        Showing {results?.length} of {res.count}. Took
+        <code>{Math.round(10 * res.perfMs) / 10}</code>ms.
+      {:else if $stats && $displaySettings.showStats}
+        <div class="inline-stats flex space-x-4" in:fly|local={{ y: -20, duration: 150 }}>
+          {#each Object.entries($stats) as [k, v]}
+            <span><strong>{k}:</strong> {v}</span>
+          {/each}
+        </div>
+      {/if}
+    </div>
+
+    <div class="flex justify-between items-center mb-2">
+      <div class="sort-controls flex items-center">
+        <span class="mr-2">Sort by:</span>
+        <label class="inline-flex items-center mr-3 cursor-pointer">
+          <input
+            type="radio"
+            name="sortMode"
+            value="last_visit"
+            bind:group={sortMode}
+            class="form-radio h-4 w-4 text-indigo-600 bg-slate-700 border-slate-500 focus:ring-indigo-500"
+          />
+          <span class="ml-1">Last Visit</span>
+        </label>
+        <label class="inline-flex items-center cursor-pointer">
+          <input
+            type="radio"
+            name="sortMode"
+            value="rank"
+            bind:group={sortMode}
+            class="form-radio h-4 w-4 text-indigo-600 bg-slate-700 border-slate-500 focus:ring-indigo-500"
+          />
+          <span class="ml-1">Rank</span>
+        </label>
       </div>
-    {/if}
+    </div>
   </div>
   {#if error}
     <div
