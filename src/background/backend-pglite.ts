@@ -303,7 +303,7 @@ export class PgLiteBackend implements Backend {
       query,
       limit = 100,
       offset = 0,
-      orderBy = "updated_at",
+      orderBy = "last_visit",
       preprocessQuery = true,
     } = payload;
     console.debug(`%c${"search"}`, "color:lime;", query);
@@ -316,6 +316,7 @@ export class PgLiteBackend implements Backend {
 
     const orderByMap = {
       updated_at: "d.updated_at",
+      created_at: "d.created_at",
       rank: "ts_rank(df.search_vector, to_tsquery('simple', $1))",
       last_visit: "d.last_visit",
     };
