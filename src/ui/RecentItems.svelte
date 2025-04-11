@@ -1,15 +1,9 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { push } from "svelte-spa-router";
   import type { ResultRow } from "@/background/backend";
   import { fttf } from "@/ui/lib/rpc";
-  import classNames from "classnames";
-  import {
-    getFaviconByUrl,
-    getRelativeTime,
-    getFullLocalTime,
-    groupItemsByVisitDate,
-  } from "@/common/utils";
+  import { groupItemsByVisitDate } from "@/common/utils";
+  import ResultItem from "@/ui/ResultItem.svelte";
 
   export let limit = 100;
   export let offset = 0;
@@ -79,15 +73,12 @@
         <div class="date-group mb-4">
           <div class="text-sm font-medium text-slate-400 mb-2">{date}</div>
           {#each items as item, j}
-            {@const url = item.url}
-            {@const u = new URL(url)}
-            <!-- svelte-ignore a11y-click-events-have-key-events -->
-            <div
-              data-group-index={`${i}-${j}`}
-              class={classNames("result-group p-3 -mx-2 rounded-lg", {
-                "bg-slate-800": i === currentGroupIndex && j === currentItemIndex,
-                "bg-transparent": !(i === currentGroupIndex && j === currentItemIndex),
-              })}
+            <ResultItem
+              {item}
+              showTime={true}
+              showSnippets={false}
+              selected={i === currentGroupIndex && j === currentItemIndex}
+              groupIndex={i}
               on:focus={() => {
                 currentGroupIndex = i;
                 currentItemIndex = j;
@@ -98,40 +89,10 @@
                   currentItemIndex = j;
                 }
               }}
-              on:click={() => {
-                const encodedUrl = encodeURIComponent(url);
-                push(`/doc/${encodedUrl}`);
-              }}
-            >
-              <a class="result mb-1 flex items-center" href={url} on:click|preventDefault>
-                <div class="text-xs text-slate-500 mr-3" title={getFullLocalTime(item.last_visit)}>
-                  {getRelativeTime(item.last_visit)}
-                </div>
-                <div class="favicon mr-3 self-center">
-                  <img
-                    class="w-4 h-4 rounded-lg"
-                    src={getFaviconByUrl(url)}
-                    alt="favicon for {u.hostname}"
-                  />
-                </div>
-                <div class="title mr-3 text-slate-300 text-base">{item.title || url}</div>
-                <div class="url truncate text-indigo-200">
-                  {url.replace(/^(https?:\/\/(?:www\.)?)/, "").replace(/\/$/, "")}
-                </div>
-              </a>
-            </div>
+            />
           {/each}
         </div>
       {/each}
     </div>
   {/if}
 </div>
-
-<style>
-  .result {
-    display: grid;
-    grid-template-columns: auto auto auto minmax(0, 1fr);
-    grid-template-rows: auto;
-    align-items: baseline;
-  }
-</style>

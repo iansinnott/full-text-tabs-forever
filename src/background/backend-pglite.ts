@@ -328,6 +328,7 @@ export class PgLiteBackend implements Backend {
         `SELECT COUNT(*) as count FROM document_fragment df WHERE df.search_vector @@ to_tsquery('simple', $1)`,
         [query]
       ),
+      // @todo The duplicated keys using snake and camel case are a code smell.
       this.db!.query<ResultRow>(
         `SELECT 
           df.id as rowid,
@@ -339,10 +340,15 @@ export class PgLiteBackend implements Backend {
           d.title,
           d.excerpt,
           d.last_visit as "lastVisit",
+          d.last_visit,
           d.last_visit_date as "lastVisitDate",
+          d.last_visit_date,
           d.md_content_hash as "mdContentHash",
+          d.md_content_hash,
           d.updated_at as "updatedAt",
+          d.updated_at,
           d.created_at as "createdAt",
+          d.created_at,
           ts_rank(df.search_vector, to_tsquery('simple', $1)) as rank,
           CASE 
             WHEN d.hostname IN ('localhost') THEN -50
