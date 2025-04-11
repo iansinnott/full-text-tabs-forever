@@ -288,6 +288,7 @@
       {/if}
     </div>
 
+    {#if res}
     <div class="flex justify-between items-center mb-2">
       <div class="sort-controls flex items-center">
         <span class="mr-2">Sort by:</span>
@@ -313,6 +314,7 @@
         </label>
       </div>
     </div>
+    {/if}
   </div>
   {#if error}
     <div
