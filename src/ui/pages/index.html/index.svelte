@@ -19,7 +19,6 @@
   let currentIndex = 0;
   let enableMouseEvents = false;
   let showMigrationModal = false;
-  let sortMode: "rank" | "last_visit" = "last_visit"; // Default sort mode
 
   // Parse query parameters
   const getParams = () => {
@@ -54,7 +53,7 @@
       res = await fttf.adapter.backend.search({
         query,
         limit: 500,
-        orderBy: sortMode,
+        orderBy: $displaySettings.sortMode,
         preprocessQuery,
       });
       currentIndex = 0;
@@ -243,7 +242,7 @@
 
   $: {
     q;
-    sortMode;
+    $displaySettings.sortMode;
     handleSearch(q);
   }
   $: results = res?.results;
@@ -297,7 +296,7 @@
             type="radio"
             name="sortMode"
             value="last_visit"
-            bind:group={sortMode}
+            bind:group={$displaySettings.sortMode}
             class="form-radio h-4 w-4 text-indigo-600 bg-slate-700 border-slate-500 focus:ring-indigo-500"
           />
           <span class="ml-1">Last Visit</span>
@@ -307,7 +306,7 @@
             type="radio"
             name="sortMode"
             value="rank"
-            bind:group={sortMode}
+            bind:group={$displaySettings.sortMode}
             class="form-radio h-4 w-4 text-indigo-600 bg-slate-700 border-slate-500 focus:ring-indigo-500"
           />
           <span class="ml-1">Rank</span>
