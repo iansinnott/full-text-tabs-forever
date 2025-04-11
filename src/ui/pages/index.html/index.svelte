@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { ResultRow } from "@/background/backend";
   import { fly } from "svelte/transition";
-  import { debounce } from "@/common/utils";
+  import { debounce, getFaviconByUrl, cleanUrl } from "@/common/utils";
   import { onMount, tick } from "svelte";
   import classNames from "classnames";
   import { fttf, rpc } from "@/ui/lib/rpc";
@@ -72,10 +72,7 @@
     handleSearch(q);
   }
 
-  const getFaviconByUrl = (url: string) => {
-    const u = new URL(url);
-    return `https://www.google.com/s2/favicons?domain=${u.hostname}`;
-  };
+  // Using getFaviconByUrl from utils.ts
 
   const scrollIntoView = (i: number) => {
     const el = document.querySelector<HTMLDivElement>(`[data-groupIndex='${i}']`);
@@ -184,10 +181,6 @@
       }
     }
   });
-
-  const cleanUrl = (url: string) => {
-    return url.replace(/^(https?:\/\/(?:www\.)?)/, "").replace(/\/$/, "");
-  };
 
   const groupByUrl = (results?: ResultRow[]) => {
     if (!results) {

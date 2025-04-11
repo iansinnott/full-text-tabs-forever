@@ -128,6 +128,14 @@ export const getFaviconByUrl = (url: string) => {
 };
 
 /**
+ * Cleans a URL by removing the protocol (http://, https://),
+ * the www prefix, and any trailing slashes
+ */
+export const cleanUrl = (url: string): string => {
+  return url.replace(/^(https?:\/\/(?:www\.)?)/, "").replace(/\/$/, "");
+};
+
+/**
  * Formats a timestamp into a relative time string (just now, Xm ago, Xh ago)
  */
 export const getRelativeTime = (timestamp: number | undefined) => {
