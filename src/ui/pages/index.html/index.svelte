@@ -6,6 +6,7 @@
   import classNames from "classnames";
   import { fttf, rpc } from "@/ui/lib/rpc";
   import ResultRowView from "@/ui/ResultRowView.svelte";
+  import RecentItems from "@/ui/RecentItems.svelte";
   import { MIN_QUERY_LENGTH } from "@/ui/lib/constants";
   import { displaySettings } from "@/ui/store/displaySettings";
   import { stats, updateStats } from "@/ui/store/statsStore";
@@ -325,8 +326,8 @@
     </div>
   {/if}
   {#if !res}
-    <div class="recent px-6 md:px-12 py-6 text-sm text-slate-400">
-      <p>Recent</p>
+    <div class="recent px-6 md:px-12 py-6 max-w-[inherit] overflow-auto">
+      <RecentItems limit={500} offset={0} />
     </div>
   {/if}
   <div class="results px-6 md:p-12 md:pt-6 overflow-auto flex flex-col space-y-0">
