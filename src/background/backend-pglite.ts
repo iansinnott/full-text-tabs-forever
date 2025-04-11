@@ -703,6 +703,68 @@ export class PgLiteBackend implements Backend {
     return result.rows;
   }
 
+  async getRecent(options: { limit?: number; offset?: number } = {}): Promise<{
+    ok: boolean;
+    results: ResultRow[];
+    count?: number;
+    perfMs: number;
+  }> {
+    await this.readyPromise;
+    const startTime = performance.now();
+
+    if (!this.dbReady || !this.db) {
+      return {
+        ok: false,
+        results: [],
+        perfMs: performance.now() - startTime,
+      };
+    }
+
+    const { limit = 50, offset = 0 } = options;
+
+    try {
+      // Get total count of documents for pagination info
+      const countResult = await this.db.query<{ count: number }>(
+        "SELECT COUNT(*) as count FROM document WHERE last_visit IS NOT NULL"
+      );
+      const count = countResult.rows[0].count;
+
+      // Fetch the most recent documents sorted by last_visit
+      const result = await this.db.query<ResultRow>(
+        `SELECT 
+          d.id as "entityId",
+          d.url,
+          d.hostname,
+          d.title,
+          d.excerpt,
+          d.last_visit,
+          d.last_visit_date,
+          d.md_content_hash,
+          d.updated_at,
+          d.created_at
+        FROM document d
+        WHERE d.last_visit IS NOT NULL
+        ORDER BY d.last_visit DESC
+        LIMIT $1 OFFSET $2`,
+        [limit, offset]
+      );
+
+      return {
+        ok: true,
+        results: result.rows,
+        count,
+        perfMs: performance.now() - startTime,
+      };
+    } catch (error) {
+      console.error("Error fetching recent items:", error);
+      return {
+        ok: false,
+        results: [],
+        perfMs: performance.now() - startTime,
+      };
+    }
+  }
+
   async importDocumentsJSONv1(payload: { document: any[][] }) {
     console.log("importDocumentsJSONv1 :: documents", payload.document.length);
 

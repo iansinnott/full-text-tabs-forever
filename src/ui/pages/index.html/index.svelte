@@ -289,31 +289,31 @@
     </div>
 
     {#if res}
-    <div class="flex justify-between items-center mb-2">
-      <div class="sort-controls flex items-center">
-        <span class="mr-2">Sort by:</span>
-        <label class="inline-flex items-center mr-3 cursor-pointer">
-          <input
-            type="radio"
-            name="sortMode"
-            value="last_visit"
-            bind:group={$displaySettings.sortMode}
-            class="form-radio h-4 w-4 text-indigo-600 bg-slate-700 border-slate-500 focus:ring-indigo-500"
-          />
-          <span class="ml-1">Last Visit</span>
-        </label>
-        <label class="inline-flex items-center cursor-pointer">
-          <input
-            type="radio"
-            name="sortMode"
-            value="rank"
-            bind:group={$displaySettings.sortMode}
-            class="form-radio h-4 w-4 text-indigo-600 bg-slate-700 border-slate-500 focus:ring-indigo-500"
-          />
-          <span class="ml-1">Rank</span>
-        </label>
+      <div class="flex justify-between items-center mb-2">
+        <div class="sort-controls flex items-center">
+          <span class="mr-2">Sort by:</span>
+          <label class="inline-flex items-center mr-3 cursor-pointer">
+            <input
+              type="radio"
+              name="sortMode"
+              value="last_visit"
+              bind:group={$displaySettings.sortMode}
+              class="form-radio h-4 w-4 text-indigo-600 bg-slate-700 border-slate-500 focus:ring-indigo-500"
+            />
+            <span class="ml-1">Last Visit</span>
+          </label>
+          <label class="inline-flex items-center cursor-pointer">
+            <input
+              type="radio"
+              name="sortMode"
+              value="rank"
+              bind:group={$displaySettings.sortMode}
+              class="form-radio h-4 w-4 text-indigo-600 bg-slate-700 border-slate-500 focus:ring-indigo-500"
+            />
+            <span class="ml-1">Rank</span>
+          </label>
+        </div>
       </div>
-    </div>
     {/if}
   </div>
   {#if error}
@@ -322,6 +322,11 @@
     >
       <h3 class="text-3xl">Error: <code>{error}</code></h3>
       <pre>{errorDetail?.stack}</pre>
+    </div>
+  {/if}
+  {#if !res}
+    <div class="recent px-6 md:px-12 py-6 text-sm text-slate-400">
+      <p>Recent</p>
     </div>
   {/if}
   <div class="results px-6 md:p-12 md:pt-6 overflow-auto flex flex-col space-y-0">
