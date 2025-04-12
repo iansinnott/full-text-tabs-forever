@@ -1,5 +1,3 @@
-import DOMPurify from "dompurify";
-
 /**
  * Formats a payload for debugging purposes, truncating large text content.
  */
@@ -236,21 +234,22 @@ export const groupItemsByVisitDate = <T extends { last_visit?: number }>(items: 
  * All other HTML tags and attributes will be stripped
  */
 export const sanitizeHtmlAllowMark = (htmlContent: string): string => {
-  // Dynamically import DOMPurify to ensure it's only loaded in browser environment
-  // This is important since DOMPurify requires a DOM
-  try {
-    // Configure DOMPurify to only allow <mark> tags
-    return DOMPurify.sanitize(htmlContent, {
-      ALLOWED_TAGS: ["mark"],
-      ALLOWED_ATTR: [], // No attributes allowed
-    });
-  } catch (e) {
-    console.error("Error sanitizing HTML:", e);
-    // Fallback to a very basic sanitizer that keeps only <mark> tags
-    // This is much less secure but works as fallback
-    return htmlContent
-      .replace(/(<(?!\/?(mark|MARK)[>\s])[^>]+>)/gi, "") // Remove all tags except mark
-      .replace(/<(mark|MARK)([^>]*)>/gi, "<mark>") // Strip any attributes from mark tags
-      .replace(/<\/(mark|MARK)([^>]*)>/gi, "</mark>"); // Normalize closing marks
-  }
+  if (!htmlContent) return "";
+  
+  // Robust regex-based sanitizer that only allows <mark> tags
+  // First remove script and style tags with their content
+  const withoutScriptAndStyle = htmlContent
+    // Remove script tags and their content
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    // Remove style tags and their content
+    .replace(/<style[\s\S]*?<\/style>/gi, "");
+  
+  // Then handle the remaining HTML, preserving only mark tags
+  return withoutScriptAndStyle
+    // Remove all tags except mark tags
+    .replace(/(<(?!\/?(mark|MARK)[>\s])[^>]+>)/gi, "")
+    // Strip any attributes from mark tags
+    .replace(/<(mark|MARK)([^>]*)>/gi, "<mark>")
+    // Normalize closing marks
+    .replace(/<\/(mark|MARK)([^>]*)>/gi, "</mark>");
 };
