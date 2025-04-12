@@ -2,7 +2,7 @@
     "$schema": "https://json.schemastore.org/chrome-manifest",
     "name": "Full Text Tabs Forever",
     "description": "Search your full browsing history",
-    "version": "2.0.5",
+    "version": "2.1.0",
     "manifest_version": 3,
     "permissions": [
         "unlimitedStorage",
