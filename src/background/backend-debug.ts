@@ -69,4 +69,14 @@ export class DebugBackend implements Backend {
       ok: true,
     };
   };
+
+  getRecent: Backend["getRecent"] = async (options) => {
+    console.debug(`backend#%c${"getRecent"}`, "color:lime;", options);
+    return {
+      ok: true,
+      results: [],
+      count: 0,
+      perfMs: 0,
+    };
+  };
 }

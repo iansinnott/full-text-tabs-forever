@@ -45,6 +45,9 @@ export const fttf: BrowserFTTF = {
       findOne: async (url) => {
         return chrome.runtime.sendMessage(["findOne", url]);
       },
+      getRecent: async (options) => {
+        return chrome.runtime.sendMessage(["getRecent", options]);
+      },
     },
   },
 };

@@ -1,11 +1,13 @@
 <script lang="ts">
   import type { ResultRow } from "@/background/backend";
   import { fly } from "svelte/transition";
-  import { debounce } from "@/common/utils";
+  import { debounce, getFaviconByUrl, cleanUrl } from "@/common/utils";
   import { onMount, tick } from "svelte";
   import classNames from "classnames";
   import { fttf, rpc } from "@/ui/lib/rpc";
   import ResultRowView from "@/ui/ResultRowView.svelte";
+  import ResultItem from "@/ui/ResultItem.svelte";
+  import RecentItems from "@/ui/RecentItems.svelte";
   import { MIN_QUERY_LENGTH } from "@/ui/lib/constants";
   import { displaySettings } from "@/ui/store/displaySettings";
   import { stats, updateStats } from "@/ui/store/statsStore";
@@ -53,7 +55,7 @@
       res = await fttf.adapter.backend.search({
         query,
         limit: 500,
-        orderBy: "last_visit",
+        orderBy: $displaySettings.sortMode,
         preprocessQuery,
       });
       currentIndex = 0;
@@ -71,10 +73,7 @@
     handleSearch(q);
   }
 
-  const getFaviconByUrl = (url: string) => {
-    const u = new URL(url);
-    return `https://www.google.com/s2/favicons?domain=${u.hostname}`;
-  };
+  // Using getFaviconByUrl from utils.ts
 
   const scrollIntoView = (i: number) => {
     const el = document.querySelector<HTMLDivElement>(`[data-groupIndex='${i}']`);
@@ -184,10 +183,6 @@
     }
   });
 
-  const cleanUrl = (url: string) => {
-    return url.replace(/^(https?:\/\/(?:www\.)?)/, "").replace(/\/$/, "");
-  };
-
   const groupByUrl = (results?: ResultRow[]) => {
     if (!results) {
       return;
@@ -212,8 +207,15 @@
           displayUrl: cleanUrl(x.url),
           title: x.title,
           hostname: x.hostname,
+          last_visit: x.last_visit,
           hits: [],
         };
+
+        // Update last_visit if current item has a more recent timestamp
+        if (x.last_visit && (!acc[key].last_visit || x.last_visit > acc[key].last_visit)) {
+          // @ts-ignore
+          acc[key].last_visit = x.last_visit;
+        }
 
         if (x.attribute === "title") {
           acc[key].title = x.snippet;
@@ -234,17 +236,64 @@
           displayUrl?: string;
           title?: string;
           hostname: string;
+          last_visit?: number;
           hits: ResultRow[];
         }
       >
     );
   };
 
-  $: handleSearch(q);
+  $: {
+    q;
+    $displaySettings.sortMode;
+    handleSearch(q);
+  }
   $: results = res?.results;
   $: groups = groupByUrl(results);
-  $: urls = Object.keys(groups || {});
+
+  // Always group URLs by date regardless of sort mode
+  $: dateGroupedResults = groupByDate(groups || {});
+
+  $: urls = Object.values(dateGroupedResults).flatMap((group) => Object.keys(group));
+
   $: currentUrl = urls.at(currentIndex);
+
+  // Function to group results by date when sorting by last_visit
+  const groupByDate = (urlGroups: Record<string, any>) => {
+    const groupedByDate: Record<string, Record<string, any>> = {};
+
+    Object.entries(urlGroups).forEach(([url, group]) => {
+      if (!group.last_visit) {
+        groupedByDate["Unknown"] = groupedByDate["Unknown"] || {};
+        groupedByDate["Unknown"][url] = group;
+        return;
+      }
+
+      const visitDate = new Date(group.last_visit);
+      const today = new Date();
+
+      let dateKey;
+      if (
+        visitDate.getFullYear() === today.getFullYear() &&
+        visitDate.getMonth() === today.getMonth() &&
+        visitDate.getDate() === today.getDate()
+      ) {
+        dateKey = "Today";
+      } else {
+        dateKey = visitDate.toLocaleDateString(undefined, {
+          weekday: "long",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        });
+      }
+
+      groupedByDate[dateKey] = groupedByDate[dateKey] || {};
+      groupedByDate[dateKey][url] = group;
+    });
+
+    return groupedByDate;
+  };
 </script>
 
 <svelte:window
@@ -268,15 +317,47 @@
       bind:value={q}
     />
   </form>
-  <div class="stats px-6 md:px-12 py-6 text-sm text-slate-400">
+  <div
+    class="stats px-6 md:px-12 py-6 text-sm text-slate-400 flex flex-col sm:flex-row sm:justify-between"
+  >
+    <div class="InnerStats">
+      {#if res}
+        Showing {results?.length} of {res.count}. Took
+        <code>{Math.round(10 * res.perfMs) / 10}</code>ms.
+      {:else if $stats && $displaySettings.showStats}
+        <div class="inline-stats flex space-x-4" in:fly|local={{ y: -20, duration: 150 }}>
+          {#each Object.entries($stats) as [k, v]}
+            <span><strong>{k}:</strong> {v}</span>
+          {/each}
+        </div>
+      {/if}
+    </div>
+
     {#if res}
-      Showing {results?.length} of {res.count}. Took
-      <code>{Math.round(10 * res.perfMs) / 10}</code>ms.
-    {:else if $stats && $displaySettings.showStats}
-      <div class="inline-stats flex space-x-4" in:fly|local={{ y: -20, duration: 150 }}>
-        {#each Object.entries($stats) as [k, v]}
-          <span><strong>{k}:</strong> {v}</span>
-        {/each}
+      <div class="flex justify-between items-center mb-2">
+        <div class="sort-controls flex items-center">
+          <span class="mr-2">Sort by:</span>
+          <label class="inline-flex items-center mr-3 cursor-pointer">
+            <input
+              type="radio"
+              name="sortMode"
+              value="last_visit"
+              bind:group={$displaySettings.sortMode}
+              class="form-radio h-4 w-4 text-indigo-600 bg-slate-700 border-slate-500 focus:ring-indigo-500"
+            />
+            <span class="ml-1">Last Visit</span>
+          </label>
+          <label class="inline-flex items-center cursor-pointer">
+            <input
+              type="radio"
+              name="sortMode"
+              value="rank"
+              bind:group={$displaySettings.sortMode}
+              class="form-radio h-4 w-4 text-indigo-600 bg-slate-700 border-slate-500 focus:ring-indigo-500"
+            />
+            <span class="ml-1">Rank</span>
+          </label>
+        </div>
       </div>
     {/if}
   </div>
@@ -288,44 +369,52 @@
       <pre>{errorDetail?.stack}</pre>
     </div>
   {/if}
-  <div class="results px-6 md:p-12 md:pt-6 overflow-auto flex flex-col space-y-0">
-    {#each Object.entries(groups || []) as [url, group], i (url)}
-      {@const u = new URL(url)}
-      <!-- svelte-ignore a11y-click-events-have-key-events -->
-      <div
-        data-groupIndex={i}
-        class={classNames("result-group p-3 -mx-2 rounded-lg", {
-          "bg-slate-800": i === currentIndex,
-          "bg-transparent": i !== currentIndex,
-        })}
-        on:focus={() => (currentIndex = i)}
-        on:mouseover={() => {
-          if (enableMouseEvents) {
-            currentIndex = i;
-          }
-        }}
-        on:click={() => {
-          const encodedUrl = encodeURIComponent(url);
-          push(`/doc/${encodedUrl}`);
-        }}
-      >
-        <a class="result mb-1" href={url} on:click|preventDefault>
-          <div class="favicon mr-3 self-center">
-            <img
-              class="w-4 h-4 rounded-lg"
-              src={getFaviconByUrl(url)}
-              alt="favicon for {u.hostname}"
-            />
-          </div>
-          <div class="title mr-3 text-slate-300 text-base">{@html group.title}</div>
-          <div class="url truncate text-indigo-200">
-            {@html group.displayUrl}
-          </div>
-        </a>
-        {#each group.hits as hit (hit.rowid)}
-          <ResultRowView item={hit} />
-        {/each}
-      </div>
+  {#if !res}
+    <div class="recent px-6 md:px-12 py-6 max-w-[inherit] overflow-auto">
+      <RecentItems limit={500} offset={0} />
+    </div>
+  {/if}
+  <div class="results px-6 md:p-12 md:pt-6 overflow-auto flex flex-col space-y-4">
+    {#each Object.entries(dateGroupedResults) as [date, dateGroup], dateIndex (date)}
+      {#if Object.keys(dateGroup).length > 0}
+        <div class="date-group">
+          <div class="text-sm font-medium text-slate-400 mb-2">{date}</div>
+          {#each Object.entries(dateGroup) as [url, group], urlIndex (url)}
+            <!-- Using ResultItem for the main item display -->
+            <ResultItem
+              item={{
+                rowid: group.id,
+                id: group.id,
+                entity_id: group.id,
+                attribute: "url",
+                url: group.url,
+                hostname: group.hostname,
+                title: group.title,
+                snippet: group.title,
+                last_visit: group.last_visit,
+                updated_at: 0,
+                created_at: 0,
+              }}
+              showTime={true}
+              showSnippets={false}
+              selected={currentUrl === url}
+              highlightClass="bg-slate-800"
+              groupIndex={urls.indexOf(url)}
+              on:focus={() => (currentIndex = urls.indexOf(url))}
+              on:mouseover={() => {
+                if (enableMouseEvents) {
+                  currentIndex = urls.indexOf(url);
+                }
+              }}
+            >
+              <!-- Render snippets inside the slot -->
+              {#each group.hits as hit (hit.rowid)}
+                <ResultRowView item={hit} />
+              {/each}
+            </ResultItem>
+          {/each}
+        </div>
+      {/if}
     {/each}
   </div>
 </div>
@@ -337,11 +426,5 @@
     display: grid;
     grid-template-columns: 1fr;
     grid-template-rows: auto auto auto minmax(0, 1fr);
-  }
-  .result {
-    display: grid;
-    grid-template-columns: auto auto minmax(0, 1fr);
-    grid-template-rows: auto minmax(0, 1fr);
-    align-items: baseline;
   }
 </style>

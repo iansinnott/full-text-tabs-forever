@@ -4,13 +4,16 @@ This is a Chrome extension, not a normal web app.
 
 ## Build/Test/Lint Commands
 
-- Build: `bun run build`
-- Watch/Dev: `bun run dev`
+- Build: `bun run build` (combines content script and main build)
+- Watch/Dev: `bun run dev` (concurrently watches both content script and main)
+- Dev Chrome: `bun run dev:chrome` (Chrome-specific dev mode)
 - Test: `bun run test`
 - Run single test: `bun test src/path/to/file.test.ts`
 - Type check: `bun run type-check` (runs `tsc --noEmit`)
+- Svelte check: `bun run check` (runs svelte-check)
 - Chrome build: `bun run build:chrome`
 - Firefox build: `bun run build:firefox`
+- Clean build: `bun run build:clean` (removes dist directory contents)
 
 ## Code Style Guidelines
 
@@ -27,6 +30,9 @@ This is a Chrome extension, not a normal web app.
 - Use async/await for asynchronous code
 - Prefer explicit typing over 'any'
 - Use camelCase for variables/functions, PascalCase for classes/interfaces
+- Tailwind CSS for styling
+- Svelte components with TypeScript
+- Zod for validation
 
 ## Naming Conventions
 
@@ -41,3 +47,19 @@ This is a Chrome extension, not a normal web app.
 - UI components in src/ui/
 - Common utilities in src/common/
 - Content scripts in src/content-scripts/
+- Assets in src/assets/
+- Types in src/types.ts
+- Embedding pipeline in src/background/embedding/
+- PGLite database functionality in src/background/pglite/
+- UI stores in src/ui/store/
+- UI pages in src/ui/pages/
+
+## Technologies
+
+- Vite for building
+- Svelte for UI components
+- SPA routing with svelte-spa-router
+- Database backends (PGLite and VLCN options)
+- Embedded SQLite with @electric-sql/pglite
+- Embedding functionality with @xenova/transformers
+- Supports sortable views by last visited date or rank

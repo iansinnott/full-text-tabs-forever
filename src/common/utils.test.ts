@@ -1,6 +1,6 @@
 import { describe, it, expect } from "bun:test";
 
-import { getArticleFragments, segment } from "./utils";
+import { getArticleFragments, segment, sanitizeHtmlAllowMark } from "./utils";
 
 describe("getArticleFragments", () => {
   it("should handle longform, multi-paragraph text", () => {
@@ -161,5 +161,66 @@ describe("segment", () => {
     expect(segmented).toBe(
       "你好 ， 世界 ！ 这 是 一个 测试 句子 ， 用于 检查 中文 文本 的 分段 功能 。 我们 希望 确保 即使 在 有 标点 符号 的 情况 下 ， 文本 也能 正确 分段 。"
     );
+  });
+});
+
+describe("sanitizeHtmlAllowMark", () => {
+  it("should preserve mark tags while removing all other HTML tags", () => {
+    const html = '<div>Text with <mark>highlighted</mark> and <b>bold</b> and <i>italic</i> parts</div>';
+    const sanitized = sanitizeHtmlAllowMark(html);
+    expect(sanitized).toBe('Text with <mark>highlighted</mark> and bold and italic parts');
+  });
+
+  it("should strip attributes from mark tags", () => {
+    const html = 'Text with <mark class="highlight" style="background-color: yellow;">attributes</mark>';
+    const sanitized = sanitizeHtmlAllowMark(html);
+    expect(sanitized).toBe('Text with <mark>attributes</mark>');
+  });
+
+  it("should handle empty input", () => {
+    expect(sanitizeHtmlAllowMark("")).toBe("");
+    expect(sanitizeHtmlAllowMark(null as any)).toBe("");
+    expect(sanitizeHtmlAllowMark(undefined as any)).toBe("");
+  });
+
+  it("should remove script tags and their content", () => {
+    const html = 'Text <script>alert("xss")</script> with scripts';
+    const sanitized = sanitizeHtmlAllowMark(html);
+    expect(sanitized).toBe('Text  with scripts');
+  });
+
+  it("should remove style tags and their content", () => {
+    const html = 'Text <style>.dangerous { color: red; }</style> with styles';
+    const sanitized = sanitizeHtmlAllowMark(html);
+    expect(sanitized).toBe('Text  with styles');
+  });
+
+  it("should handle complex nested HTML while preserving mark tags", () => {
+    const html = `
+      <div class="container">
+        <h1>Title</h1>
+        <p>Paragraph with <mark>highlighted</mark> text and <span class="danger">dangerous</span> content</p>
+        <script>document.write('xss');</script>
+        <ul>
+          <li>Item 1 with <mark>highlight</mark></li>
+          <li>Item 2</li>
+        </ul>
+      </div>
+    `;
+    const sanitized = sanitizeHtmlAllowMark(html);
+    expect(sanitized).toContain('<mark>highlighted</mark>');
+    expect(sanitized).toContain('<mark>highlight</mark>');
+    expect(sanitized).not.toContain('<div');
+    expect(sanitized).not.toContain('<h1>');
+    expect(sanitized).not.toContain('<p>');
+    expect(sanitized).not.toContain('<script>');
+    expect(sanitized).not.toContain('<span>');
+    expect(sanitized).not.toContain('class=');
+  });
+
+  it("should normalize mark tag case", () => {
+    const html = 'Text with <MARK>uppercase</MARK> and <Mark>mixed case</mArk> tags';
+    const sanitized = sanitizeHtmlAllowMark(html);
+    expect(sanitized).toBe('Text with <mark>uppercase</mark> and <mark>mixed case</mark> tags');
   });
 });

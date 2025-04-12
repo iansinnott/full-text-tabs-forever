@@ -105,6 +105,12 @@ export interface Backend {
       query: string;
     }
   >;
+  getRecent(options: { limit?: number; offset?: number }): Promise<{
+    ok: boolean;
+    results: ResultRow[];
+    count?: number;
+    perfMs: number;
+  }>;
   findOne(query: { where: { url: string } }): Promise<DetailRow | null>;
   exportJson?(): Promise<any>;
   importDocumentsJSONv1?(payload: {

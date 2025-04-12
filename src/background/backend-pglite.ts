@@ -303,7 +303,7 @@ export class PgLiteBackend implements Backend {
       query,
       limit = 100,
       offset = 0,
-      orderBy = "updated_at",
+      orderBy = "last_visit",
       preprocessQuery = true,
     } = payload;
     console.debug(`%c${"search"}`, "color:lime;", query);
@@ -316,6 +316,7 @@ export class PgLiteBackend implements Backend {
 
     const orderByMap = {
       updated_at: "d.updated_at",
+      created_at: "d.created_at",
       rank: "ts_rank(df.search_vector, to_tsquery('simple', $1))",
       last_visit: "d.last_visit",
     };
@@ -327,6 +328,7 @@ export class PgLiteBackend implements Backend {
         `SELECT COUNT(*) as count FROM document_fragment df WHERE df.search_vector @@ to_tsquery('simple', $1)`,
         [query]
       ),
+      // @todo The duplicated keys using snake and camel case are a code smell.
       this.db!.query<ResultRow>(
         `SELECT 
           df.id as rowid,
@@ -338,10 +340,15 @@ export class PgLiteBackend implements Backend {
           d.title,
           d.excerpt,
           d.last_visit as "lastVisit",
+          d.last_visit,
           d.last_visit_date as "lastVisitDate",
+          d.last_visit_date,
           d.md_content_hash as "mdContentHash",
+          d.md_content_hash,
           d.updated_at as "updatedAt",
+          d.updated_at,
           d.created_at as "createdAt",
+          d.created_at,
           ts_rank(df.search_vector, to_tsquery('simple', $1)) as rank,
           CASE 
             WHEN d.hostname IN ('localhost') THEN -50
@@ -700,6 +707,68 @@ export class PgLiteBackend implements Backend {
       level: "no_index" | "url_only";
     }>(`SELECT id, pattern, level FROM blacklist_rule ORDER BY created_at DESC`);
     return result.rows;
+  }
+
+  async getRecent(options: { limit?: number; offset?: number } = {}): Promise<{
+    ok: boolean;
+    results: ResultRow[];
+    count?: number;
+    perfMs: number;
+  }> {
+    await this.readyPromise;
+    const startTime = performance.now();
+
+    if (!this.dbReady || !this.db) {
+      return {
+        ok: false,
+        results: [],
+        perfMs: performance.now() - startTime,
+      };
+    }
+
+    const { limit = 50, offset = 0 } = options;
+
+    try {
+      // Get total count of documents for pagination info
+      const countResult = await this.db.query<{ count: number }>(
+        "SELECT COUNT(*) as count FROM document WHERE last_visit IS NOT NULL"
+      );
+      const count = countResult.rows[0].count;
+
+      // Fetch the most recent documents sorted by last_visit
+      const result = await this.db.query<ResultRow>(
+        `SELECT 
+          d.id as "entityId",
+          d.url,
+          d.hostname,
+          d.title,
+          d.excerpt,
+          d.last_visit,
+          d.last_visit_date,
+          d.md_content_hash,
+          d.updated_at,
+          d.created_at
+        FROM document d
+        WHERE d.last_visit IS NOT NULL
+        ORDER BY d.last_visit DESC
+        LIMIT $1 OFFSET $2`,
+        [limit, offset]
+      );
+
+      return {
+        ok: true,
+        results: result.rows,
+        count,
+        perfMs: performance.now() - startTime,
+      };
+    } catch (error) {
+      console.error("Error fetching recent items:", error);
+      return {
+        ok: false,
+        results: [],
+        perfMs: performance.now() - startTime,
+      };
+    }
   }
 
   async importDocumentsJSONv1(payload: { document: any[][] }) {
