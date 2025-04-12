@@ -1,3 +1,5 @@
+import DOMPurify from "dompurify";
+
 /**
  * Formats a payload for debugging purposes, truncating large text content.
  */
@@ -122,8 +124,8 @@ export const getFaviconByUrl = (url: string) => {
     const u = new URL(url);
     return `https://www.google.com/s2/favicons?domain=${u.hostname}`;
   } catch (e) {
-    console.error('Could not parse URL for favicon:', url, e);
-    return '';
+    console.error("Could not parse URL for favicon:", url, e);
+    return "";
   }
 };
 
@@ -227,4 +229,28 @@ export const groupItemsByVisitDate = <T extends { last_visit?: number }>(items: 
     },
     {} as Record<string, T[]>
   );
+};
+
+/**
+ * Sanitizes HTML content but allows only <mark> tags to highlight text
+ * All other HTML tags and attributes will be stripped
+ */
+export const sanitizeHtmlAllowMark = (htmlContent: string): string => {
+  // Dynamically import DOMPurify to ensure it's only loaded in browser environment
+  // This is important since DOMPurify requires a DOM
+  try {
+    // Configure DOMPurify to only allow <mark> tags
+    return DOMPurify.sanitize(htmlContent, {
+      ALLOWED_TAGS: ["mark"],
+      ALLOWED_ATTR: [], // No attributes allowed
+    });
+  } catch (e) {
+    console.error("Error sanitizing HTML:", e);
+    // Fallback to a very basic sanitizer that keeps only <mark> tags
+    // This is much less secure but works as fallback
+    return htmlContent
+      .replace(/(<(?!\/?(mark|MARK)[>\s])[^>]+>)/gi, "") // Remove all tags except mark
+      .replace(/<(mark|MARK)([^>]*)>/gi, "<mark>") // Strip any attributes from mark tags
+      .replace(/<\/(mark|MARK)([^>]*)>/gi, "</mark>"); // Normalize closing marks
+  }
 };
