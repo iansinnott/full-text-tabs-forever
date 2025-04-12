@@ -232,10 +232,12 @@ export const groupItemsByVisitDate = <T extends { last_visit?: number }>(items: 
 /**
  * Sanitizes HTML content but allows only <mark> tags to highlight text
  * All other HTML tags and attributes will be stripped
+ *
+ * NOTE: Why not use dompurify? The types didn't work. TypeScript didn't like it, despite installing @types/dompurify.
  */
 export const sanitizeHtmlAllowMark = (htmlContent: string): string => {
   if (!htmlContent) return "";
-  
+
   // Robust regex-based sanitizer that only allows <mark> tags
   // First remove script and style tags with their content
   const withoutScriptAndStyle = htmlContent
@@ -243,13 +245,15 @@ export const sanitizeHtmlAllowMark = (htmlContent: string): string => {
     .replace(/<script[\s\S]*?<\/script>/gi, "")
     // Remove style tags and their content
     .replace(/<style[\s\S]*?<\/style>/gi, "");
-  
+
   // Then handle the remaining HTML, preserving only mark tags
-  return withoutScriptAndStyle
-    // Remove all tags except mark tags
-    .replace(/(<(?!\/?(mark|MARK)[>\s])[^>]+>)/gi, "")
-    // Strip any attributes from mark tags
-    .replace(/<(mark|MARK)([^>]*)>/gi, "<mark>")
-    // Normalize closing marks
-    .replace(/<\/(mark|MARK)([^>]*)>/gi, "</mark>");
+  return (
+    withoutScriptAndStyle
+      // Remove all tags except mark tags
+      .replace(/(<(?!\/?(mark|MARK)[>\s])[^>]+>)/gi, "")
+      // Strip any attributes from mark tags
+      .replace(/<(mark|MARK)([^>]*)>/gi, "<mark>")
+      // Normalize closing marks
+      .replace(/<\/(mark|MARK)([^>]*)>/gi, "</mark>")
+  );
 };
