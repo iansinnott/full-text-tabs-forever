@@ -250,8 +250,50 @@
   }
   $: results = res?.results;
   $: groups = groupByUrl(results);
-  $: urls = Object.keys(groups || {});
+
+  // Always group URLs by date regardless of sort mode
+  $: dateGroupedResults = groupByDate(groups || {});
+
+  $: urls = Object.values(dateGroupedResults).flatMap((group) => Object.keys(group));
+
   $: currentUrl = urls.at(currentIndex);
+
+  // Function to group results by date when sorting by last_visit
+  const groupByDate = (urlGroups: Record<string, any>) => {
+    const groupedByDate: Record<string, Record<string, any>> = {};
+
+    Object.entries(urlGroups).forEach(([url, group]) => {
+      if (!group.last_visit) {
+        groupedByDate["Unknown"] = groupedByDate["Unknown"] || {};
+        groupedByDate["Unknown"][url] = group;
+        return;
+      }
+
+      const visitDate = new Date(group.last_visit);
+      const today = new Date();
+
+      let dateKey;
+      if (
+        visitDate.getFullYear() === today.getFullYear() &&
+        visitDate.getMonth() === today.getMonth() &&
+        visitDate.getDate() === today.getDate()
+      ) {
+        dateKey = "Today";
+      } else {
+        dateKey = visitDate.toLocaleDateString(undefined, {
+          weekday: "long",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        });
+      }
+
+      groupedByDate[dateKey] = groupedByDate[dateKey] || {};
+      groupedByDate[dateKey][url] = group;
+    });
+
+    return groupedByDate;
+  };
 </script>
 
 <svelte:window
@@ -332,41 +374,47 @@
       <RecentItems limit={500} offset={0} />
     </div>
   {/if}
-  <div class="results px-6 md:p-12 md:pt-6 overflow-auto flex flex-col space-y-0">
-    {#each Object.entries(groups || []) as [url, group], i (url)}
-      <!-- Using ResultItem for the main item display -->
-      <ResultItem
-        item={{
-          rowid: group.id,
-          id: group.id,
-          entity_id: group.id,
-          attribute: "url",
-          url: group.url,
-          hostname: group.hostname,
-          title: group.title,
-          snippet: group.title,
-          last_visit: group.last_visit,
-          updated_at: 0,
-          created_at: 0,
-        }}
-        showTime={true}
-        showSnippets={false}
-        selected={i === currentIndex}
-        highlightClass="bg-slate-800"
-        groupIndex={i}
-        on:focus={() => (currentIndex = i)}
-        on:mouseover={() => {
-          console.log("group", group);
-          if (enableMouseEvents) {
-            currentIndex = i;
-          }
-        }}
-      >
-        <!-- Render snippets inside the slot -->
-        {#each group.hits as hit (hit.rowid)}
-          <ResultRowView item={hit} />
-        {/each}
-      </ResultItem>
+  <div class="results px-6 md:p-12 md:pt-6 overflow-auto flex flex-col space-y-4">
+    {#each Object.entries(dateGroupedResults) as [date, dateGroup], dateIndex (date)}
+      {#if Object.keys(dateGroup).length > 0}
+        <div class="date-group">
+          <div class="text-sm font-medium text-slate-400 mb-2">{date}</div>
+          {#each Object.entries(dateGroup) as [url, group], urlIndex (url)}
+            <!-- Using ResultItem for the main item display -->
+            <ResultItem
+              item={{
+                rowid: group.id,
+                id: group.id,
+                entity_id: group.id,
+                attribute: "url",
+                url: group.url,
+                hostname: group.hostname,
+                title: group.title,
+                snippet: group.title,
+                last_visit: group.last_visit,
+                updated_at: 0,
+                created_at: 0,
+              }}
+              showTime={true}
+              showSnippets={false}
+              selected={currentUrl === url}
+              highlightClass="bg-slate-800"
+              groupIndex={urls.indexOf(url)}
+              on:focus={() => (currentIndex = urls.indexOf(url))}
+              on:mouseover={() => {
+                if (enableMouseEvents) {
+                  currentIndex = urls.indexOf(url);
+                }
+              }}
+            >
+              <!-- Render snippets inside the slot -->
+              {#each group.hits as hit (hit.rowid)}
+                <ResultRowView item={hit} />
+              {/each}
+            </ResultItem>
+          {/each}
+        </div>
+      {/if}
     {/each}
   </div>
 </div>

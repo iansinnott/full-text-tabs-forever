@@ -56,7 +56,9 @@
         alt="favicon for {urlObj.hostname}"
       />
     </div>
-    <div class="title mr-3 text-slate-300 text-base">{item.title || url}</div>
+    {#if item.title}
+      <div class="title mr-3 text-slate-300 text-base">{@html item.title}</div>
+    {/if}
     <div class="url truncate text-indigo-200">
       {cleanUrl(url)}
     </div>

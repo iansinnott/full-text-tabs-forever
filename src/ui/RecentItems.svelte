@@ -68,9 +68,9 @@
   {:else if recentItems.length === 0}
     <div class="py-4 text-slate-400">No recent pages found.</div>
   {:else}
-    <div class="flex flex-col space-y-0">
+    <div class="flex flex-col space-y-4">
       {#each Object.entries(groupedItems) as [date, items], i (date)}
-        <div class="date-group mb-4">
+        <div class="date-group">
           <div class="text-sm font-medium text-slate-400 mb-2">{date}</div>
           {#each items as item, j}
             <ResultItem
