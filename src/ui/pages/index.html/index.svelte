@@ -190,13 +190,22 @@
 
     const hitsByUrl: Record<string, Set<string>> = {};
 
+    const urlCanParse = (url: string) => {
+      try {
+        new URL(url);
+        return true;
+      } catch (error) {
+        return false;
+      }
+    };
+
     return results.reduce(
       (acc, x) => {
         const key = x.url;
         hitsByUrl[key] ??= new Set();
 
         // This SHOULD NOT happen, but it was a bug at one point thus the guard
-        if (!URL.canParse(key)) {
+        if (!urlCanParse(key)) {
           console.warn("groupByUrl :: invalid URL ::", key);
           return acc;
         }
