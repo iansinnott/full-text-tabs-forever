@@ -125,7 +125,7 @@ The migration happens entirely on your device, and no data is sent to external s
 - [ ] Semantic search
       Leverage vector embeddings in the new PostgreSQL backend for more intelligent searching.
 - [ ] Integrate with [browser-gopher](https://github.com/iansinnott/browser-gopher)
-      Browser gopher and [BrowserParrot](https://www.browserparrot.com/) were the initial impetus to create a better way to ingest full text web pages, without triggering a Cloudflare captcha party on your home connection.
+      Browser gopher and [BrowserParrot](https://web.archive.org/web/20231205024743/https://www.browserparrot.com/) were the initial impetus to create a better way to ingest full text web pages, without triggering a Cloudflare captcha party on your home connection.
 - [x] Migrate to PostgreSQL
       Replace SQLite with a more powerful database backend using PgLite.
 - [x] Improve discoverability of functionality.
